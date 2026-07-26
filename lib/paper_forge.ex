@@ -1,9 +1,48 @@
 defmodule PaperForge do
   @moduledoc """
-  A pure Elixir PDF generation library.
+  Public API for creating PDF documents with PaperForge.
 
-  PaperForge generates PDF documents directly without using
-  browsers or external PDF rendering programs.
+  PaperForge provides a functional API for creating documents, adding
+  pages, assigning metadata, serializing PDFs, and writing them to disk.
+
+  ## Example
+
+      alias PaperForge.Page
+
+      document =
+        PaperForge.new(compress: true)
+        |> PaperForge.metadata(
+          title: "PaperForge example",
+          author: "Manuel García"
+        )
+        |> PaperForge.add_page(
+          [
+            size: :a4,
+            origin: :top_left,
+            margins: 72
+          ],
+          fn page ->
+            page
+            |> Page.text(
+              "Hello PaperForge",
+              y: 72,
+              width: Page.content_width(page),
+              align: :center,
+              font: :helvetica_bold,
+              size: 24
+            )
+            |> Page.text_box(
+              "PaperForge generates PDF documents directly in Elixir.",
+              y: 130,
+              width: Page.content_width(page),
+              font: :helvetica,
+              size: 12,
+              line_height: 16
+            )
+          end
+        )
+
+      PaperForge.write!(document, "example.pdf")
   """
 
   alias PaperForge.Document
@@ -12,76 +51,78 @@ defmodule PaperForge do
   alias PaperForge.Writer
 
   @doc """
-  Creates a new PDF document.
+  Creates a new empty PDF document.
+
+  ## Options
+
+  - `:compress` — enables Flate compression for page content streams.
+    Defaults to `true`.
+  - `:pdf_version` — PDF header version. Defaults to `"1.7"`.
   """
-  @spec new() :: Document.t()
-  def new do
-    Document.new()
+  @spec new(keyword()) :: Document.t()
+  def new(options \\ []) when is_list(options) do
+    Document.new(options)
   end
 
   @doc """
   Adds a page to a document.
 
-  It accepts either an existing `PaperForge.Page` struct or a function
-  that receives a new page and returns the configured page.
-
-  ## Existing page
-
-      page =
-        PaperForge.Page.new()
-        |> PaperForge.Page.text("Hello", x: 72, y: 750)
-
-      document
-      |> PaperForge.add_page(page)
-
-  ## Builder function
-
-      document
-      |> PaperForge.add_page(fn page ->
-        PaperForge.Page.text(page, "Hello", x: 72, y: 750)
-      end)
+  The second argument can be an existing `PaperForge.Page` or a function
+  that receives and returns a page.
   """
-  @spec add_page(Document.t(), Page.t() | (Page.t() -> Page.t())) ::
-          Document.t()
-  def add_page(%Document{} = document, %Page{} = page) do
+  @spec add_page(
+          Document.t(),
+          Page.t() | (Page.t() -> Page.t())
+        ) :: Document.t()
+  def add_page(document, page_or_function)
+
+  def add_page(
+        %Document{} = document,
+        %Page{} = page
+      ) do
     Page.add_to_document(page, document)
   end
 
-  def add_page(%Document{} = document, function)
-      when is_function(function, 1) do
-    add_page(document, [], function)
+  def add_page(
+        %Document{} = document,
+        page_function
+      )
+      when is_function(page_function, 1) do
+    add_page(document, [], page_function)
   end
 
   @doc """
-  Creates a page with the given options, configures it with a function,
-  and adds it to the document.
+  Creates a page with the provided options and adds it to the document.
 
-  ## Example
+  Supported page options include:
 
-      document
-      |> PaperForge.add_page(
-        [size: :letter, orientation: :landscape],
-        fn page ->
-          PaperForge.Page.text(
-            page,
-            "Landscape page",
-            x: 72,
-            y: 500
-          )
-        end
-      )
+  - `:size`
+  - `:orientation`
+  - `:origin`
+  - `:margins`
   """
   @spec add_page(
           Document.t(),
           keyword(),
           (Page.t() -> Page.t())
         ) :: Document.t()
-  def add_page(%Document{} = document, options, function)
-      when is_list(options) and is_function(function, 1) do
+  def add_page(
+        %Document{} = document,
+        page_options,
+        page_function
+      )
+      when is_list(page_options) and
+             is_function(page_function, 1) do
     page =
-      options
+      page_options
       |> Page.new()
-      |> function.()
+      |> page_function.()
+
+    unless match?(%Page{}, page) do
+      raise ArgumentError,
+            "page callback must return a PaperForge.Page, received: " <>
+              inspect(page)
+    end
 
     add_page(document, page)
   end
@@ -90,14 +131,17 @@ defmodule PaperForge do
   Adds metadata to the document.
   """
   @spec metadata(Document.t(), keyword()) :: Document.t()
-  def metadata(%Document{} = document, options)
+  def metadata(
+        %Document{} = document,
+        options
+      )
       when is_list(options) do
     metadata = Metadata.new(options)
     Document.put_metadata(document, metadata)
   end
 
   @doc """
-  Converts the document to a complete PDF binary.
+  Serializes a document into a complete PDF binary.
   """
   @spec to_binary(Document.t()) :: binary()
   def to_binary(%Document{} = document) do
@@ -105,19 +149,38 @@ defmodule PaperForge do
   end
 
   @doc """
-  Writes the PDF to a file.
+  Writes a document to a file.
   """
   @spec write(Document.t(), Path.t()) ::
           :ok | {:error, File.posix()}
-  def write(%Document{} = document, path) do
+  def write(
+        %Document{} = document,
+        path
+      ) do
+    path = validate_path!(path)
     File.write(path, to_binary(document))
   end
 
   @doc """
-  Writes the PDF to a file and raises if writing fails.
+  Writes a document to a file and raises when writing fails.
   """
   @spec write!(Document.t(), Path.t()) :: :ok
-  def write!(%Document{} = document, path) do
+  def write!(
+        %Document{} = document,
+        path
+      ) do
+    path = validate_path!(path)
     File.write!(path, to_binary(document))
+  end
+
+  defp validate_path!(path)
+       when is_binary(path) and byte_size(path) > 0 do
+    path
+  end
+
+  defp validate_path!(path) do
+    raise ArgumentError,
+          "PDF output path must be a non-empty string, received: " <>
+            inspect(path)
   end
 end

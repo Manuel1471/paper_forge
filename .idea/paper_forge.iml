@@ -6,7 +6,14 @@
     </facet>
   </component>
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/earmark_parser" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/ex_doc" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/makeup" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/makeup_elixir" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/makeup_erlang" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/nimble_parsec" />
+    </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module-library">
@@ -64,5 +71,13 @@
         </SOURCES>
       </library>
     </orderEntry>
+    <orderEntry type="library" name="ex_doc [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="earmark_parser [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="makeup_elixir [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="makeup_erlang [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="makeup_c [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="makeup_html [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="jason [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="lazy_html [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
   </component>
 </module>

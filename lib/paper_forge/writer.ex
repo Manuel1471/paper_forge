@@ -1,64 +1,103 @@
 defmodule PaperForge.Writer do
   @moduledoc """
-  Writes a PaperForge document as a complete PDF binary.
+  Serializes a `PaperForge.Document` into a valid PDF binary.
+
+  The writer is responsible for:
+
+  - writing the PDF header;
+  - serializing indirect objects;
+  - calculating byte offsets;
+  - generating the cross-reference table;
+  - generating the trailer;
+  - writing `startxref` and the EOF marker.
   """
 
   alias PaperForge.Document
   alias PaperForge.Object
   alias PaperForge.Serializer
 
-  @pdf_header [
-    "%PDF-1.7\n",
-    "%\xE2\xE3\xCF\xD3\n"
-  ]
+  @doc """
+  Converts a document into a complete PDF binary.
 
+  ## Example
+
+      binary =
+        PaperForge.Writer.to_binary(document)
+
+      File.write!(
+        "document.pdf",
+        binary
+      )
+  """
   @spec to_binary(Document.t()) :: binary()
   def to_binary(%Document{} = document) do
     header =
-      IO.iodata_to_binary(@pdf_header)
+      pdf_header(document)
 
     objects =
       Document.objects(document)
 
-    {body, offsets, next_offset} =
+    {
+      object_section,
+      offsets,
+      next_offset
+    } =
       encode_objects(
         objects,
         byte_size(header)
       )
 
     maximum_object_id =
-      objects
-      |> Enum.map(& &1.id)
-      |> Enum.max(fn -> 0 end)
+      maximum_object_id(objects)
 
-    xref_offset = next_offset
-
-    xref =
-      encode_xref(
+    cross_reference =
+      encode_cross_reference(
         maximum_object_id,
         offsets
       )
 
     trailer =
       encode_trailer(
-        maximum_object_id + 1,
         document,
-        xref_offset
+        maximum_object_id + 1,
+        next_offset
       )
 
-    IO.iodata_to_binary([
+    [
       header,
-      body,
-      xref,
+      object_section,
+      cross_reference,
       trailer
+    ]
+    |> IO.iodata_to_binary()
+  end
+
+  defp pdf_header(%Document{} = document) do
+    IO.iodata_to_binary([
+      "%PDF-",
+      document.pdf_version,
+      "\n",
+      "%\xE2\xE3\xCF\xD3\n"
     ])
   end
 
-  defp encode_objects(objects, initial_offset) do
+  defp encode_objects(
+         objects,
+         initial_offset
+       ) do
     Enum.reduce(
       objects,
-      {[], %{}, initial_offset},
-      fn object, {chunks, offsets, current_offset} ->
+      {
+        [],
+        %{},
+        initial_offset
+      },
+      fn object,
+         {
+           encoded_objects,
+           offsets,
+           current_offset
+         } ->
         encoded_object =
           object
           |> encode_object()
@@ -71,10 +110,17 @@ defmodule PaperForge.Writer do
             current_offset
           )
 
+        updated_offset =
+          current_offset +
+            byte_size(encoded_object)
+
         {
-          [chunks, encoded_object],
+          [
+            encoded_objects,
+            encoded_object
+          ],
           updated_offsets,
-          current_offset + byte_size(encoded_object)
+          updated_offset
         }
       end
     )
@@ -87,33 +133,28 @@ defmodule PaperForge.Writer do
       Integer.to_string(object.generation),
       " obj\n",
       Serializer.encode(object.value),
-      "\n",
-      "endobj\n"
+      "\nendobj\n"
     ]
   end
 
-  defp encode_xref(maximum_object_id, offsets) do
+  defp encode_cross_reference(
+         maximum_object_id,
+         offsets
+       ) do
     entries =
-      Enum.map(
-        1..maximum_object_id,
-        fn object_id ->
-          case Map.fetch(offsets, object_id) do
-            {:ok, offset} ->
-              encode_xref_entry(
-                offset,
-                0,
-                "n"
-              )
-
-            :error ->
-              encode_xref_entry(
-                0,
-                0,
-                "f"
-              )
+      if maximum_object_id > 0 do
+        Enum.map(
+          1..maximum_object_id,
+          fn object_id ->
+            encode_cross_reference_entry(
+              object_id,
+              offsets
+            )
           end
-        end
-      )
+        )
+      else
+        []
+      end
 
     [
       "xref\n",
@@ -125,63 +166,93 @@ defmodule PaperForge.Writer do
     ]
   end
 
-  defp encode_xref_entry(
-         offset,
-         generation,
-         status
+  defp encode_cross_reference_entry(
+         object_id,
+         offsets
        ) do
-    formatted_offset =
-      offset
-      |> Integer.to_string()
-      |> String.pad_leading(10, "0")
+    case Map.fetch(
+           offsets,
+           object_id
+         ) do
+      {:ok, offset} ->
+        [
+          pad_offset(offset),
+          " ",
+          "00000",
+          " n \n"
+        ]
 
-    formatted_generation =
-      generation
-      |> Integer.to_string()
-      |> String.pad_leading(5, "0")
-
-    [
-      formatted_offset,
-      " ",
-      formatted_generation,
-      " ",
-      status,
-      " \n"
-    ]
+      :error ->
+        [
+          "0000000000",
+          " ",
+          "00000",
+          " f \n"
+        ]
+    end
   end
 
   defp encode_trailer(
-         size,
          %Document{} = document,
-         xref_offset
+         size,
+         cross_reference_offset
        ) do
     trailer_dictionary =
       %{
         "Size" => size,
-        "Root" => document.root
+        "Root" => document.root_reference
       }
-      |> maybe_put_info(document.info)
+      |> maybe_put_info(document.info_reference)
 
     [
       "trailer\n",
       Serializer.encode(trailer_dictionary),
       "\n",
       "startxref\n",
-      Integer.to_string(xref_offset),
+      Integer.to_string(cross_reference_offset),
       "\n",
       "%%EOF\n"
     ]
   end
 
-  defp maybe_put_info(dictionary, nil) do
+  defp maybe_put_info(
+         dictionary,
+         nil
+       ) do
     dictionary
   end
 
-  defp maybe_put_info(dictionary, info_reference) do
+  defp maybe_put_info(
+         dictionary,
+         info_reference
+       ) do
     Map.put(
       dictionary,
       "Info",
       info_reference
+    )
+  end
+
+  defp maximum_object_id([]) do
+    0
+  end
+
+  defp maximum_object_id(objects) do
+    objects
+    |> Enum.map(fn object ->
+      object.id
+    end)
+    |> Enum.max()
+  end
+
+  defp pad_offset(offset)
+       when is_integer(offset) and
+              offset >= 0 do
+    offset
+    |> Integer.to_string()
+    |> String.pad_leading(
+      10,
+      "0"
     )
   end
 end
