@@ -20,89 +20,84 @@ defmodule PaperForge do
   end
 
   @doc """
-  Adds a previously created page to a document.
-  """
-  @spec add_page(Document.t(), Page.t()) :: Document.t()
-  def add_page(
-        %Document{} = document,
-        %Page{} = page
-      ) do
-    Page.add_to_document(
-      page,
+  Adds a page to a document.
+
+  It accepts either an existing `PaperForge.Page` struct or a function
+  that receives a new page and returns the configured page.
+
+  ## Existing page
+
+      page =
+        PaperForge.Page.new()
+        |> PaperForge.Page.text("Hello", x: 72, y: 750)
+
       document
-    )
-  end
+      |> PaperForge.add_page(page)
 
-  @doc """
-  Creates and configures a page using a function.
+  ## Builder function
 
-  ## Example
-
-      PaperForge.add_page(document, fn page ->
+      document
+      |> PaperForge.add_page(fn page ->
         PaperForge.Page.text(page, "Hello", x: 72, y: 750)
       end)
   """
-  @spec add_page(
-          Document.t(),
-          (Page.t() -> Page.t())
-        ) :: Document.t()
-  def add_page(
-        %Document{} = document,
-        function
-      )
+  @spec add_page(Document.t(), Page.t() | (Page.t() -> Page.t())) ::
+          Document.t()
+  def add_page(%Document{} = document, %Page{} = page) do
+    Page.add_to_document(page, document)
+  end
+
+  def add_page(%Document{} = document, function)
       when is_function(function, 1) do
-    add_page(
-      document,
-      [],
-      function
-    )
+    add_page(document, [], function)
   end
 
   @doc """
-  Creates a page with options and configures it using a function.
+  Creates a page with the given options, configures it with a function,
+  and adds it to the document.
+
+  ## Example
+
+      document
+      |> PaperForge.add_page(
+        [size: :letter, orientation: :landscape],
+        fn page ->
+          PaperForge.Page.text(
+            page,
+            "Landscape page",
+            x: 72,
+            y: 500
+          )
+        end
+      )
   """
   @spec add_page(
           Document.t(),
           keyword(),
           (Page.t() -> Page.t())
         ) :: Document.t()
-  def add_page(
-        %Document{} = document,
-        options,
-        function
-      )
+  def add_page(%Document{} = document, options, function)
       when is_list(options) and is_function(function, 1) do
     page =
       options
       |> Page.new()
       |> function.()
 
-    add_page(
-      document,
-      page
-    )
+    add_page(document, page)
   end
 
   @doc """
   Adds metadata to the document.
   """
   @spec metadata(Document.t(), keyword()) :: Document.t()
-  def metadata(
-        %Document{} = document,
-        options
-      )
+  def metadata(%Document{} = document, options)
       when is_list(options) do
-    metadata =
-      Metadata.new(options)
-
-    Document.put_metadata(
-      document,
-      metadata
-    )
+    metadata = Metadata.new(options)
+    Document.put_metadata(document, metadata)
   end
 
   @doc """
-  Converts the document to a PDF binary.
+  Converts the document to a complete PDF binary.
   """
   @spec to_binary(Document.t()) :: binary()
   def to_binary(%Document{} = document) do
@@ -114,27 +109,15 @@ defmodule PaperForge do
   """
   @spec write(Document.t(), Path.t()) ::
           :ok | {:error, File.posix()}
-  def write(
-        %Document{} = document,
-        path
-      ) do
-    File.write(
-      path,
-      to_binary(document)
-    )
+  def write(%Document{} = document, path) do
+    File.write(path, to_binary(document))
   end
 
   @doc """
-  Writes the PDF to a file and raises if the operation fails.
+  Writes the PDF to a file and raises if writing fails.
   """
   @spec write!(Document.t(), Path.t()) :: :ok
-  def write!(
-        %Document{} = document,
-        path
-      ) do
-    File.write!(
-      path,
-      to_binary(document)
-    )
+  def write!(%Document{} = document, path) do
+    File.write!(path, to_binary(document))
   end
 end

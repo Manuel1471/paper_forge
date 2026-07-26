@@ -48,7 +48,7 @@ defmodule PaperForge.Graphics.Text do
           "#{name} must be a number, received: #{inspect(value)}"
   end
 
-  defp validate_positive_number!(name, value)
+  defp validate_positive_number!(_name, value)
        when is_number(value) and value > 0,
        do: :ok
 
