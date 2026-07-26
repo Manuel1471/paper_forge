@@ -1,58 +1,54 @@
 # PaperForge
 
-PaperForge is a pure Elixir library for generating PDF documents directly, without browsers, operating-system binaries, or external rendering services.
+PaperForge is a pure Elixir PDF generation engine. It builds PDF object graphs,
+page content streams, resources, cross-reference tables, trailers, text layout,
+vector graphics, metadata, and image XObjects directly in Elixir.
 
-It builds the PDF object graph, content streams, cross-reference table, and trailer entirely in Elixir.
+No browser, wkhtmltopdf, Chromium, ImageMagick, Ghostscript, or external
+rendering service is required.
 
-> PaperForge is currently in early development. The `0.1.x` API may change while the document and graphics engines evolve.
+PaperForge is currently pre-1.0. The `0.2.x` API is usable, but some details may
+still change while layout and image support mature.
 
-## Why PaperForge?
-
-Many PDF-generation tools work by converting HTML through Chromium, wkhtmltopdf, or another external application.
-
-PaperForge takes a different approach:
-
-```text
-Elixir API
-    ↓
-Page and graphics operations
-    ↓
-PDF object graph
-    ↓
-Serializer
-    ↓
-Writer
-    ↓
-PDF binary
-```
-
-This provides direct control over the generated PDF structure and creates a foundation for future document layout, HTML/CSS rendering, parsing, and editing capabilities.
-
-## Current features
-
-PaperForge currently supports:
+## Highlights
 
 - Pure Elixir PDF generation
-- Multiple pages
-- A3, A4, A5, Letter, and Legal page sizes
-- Custom page dimensions
-- Portrait and landscape orientations
-- Built-in Helvetica text
-- Text size, position, and color
-- Lines
-- Rectangles
-- Circles
+- Multi-page documents
+- PDF 1.4, 1.5, 1.6, and 1.7 headers
+- Flate compression enabled by default
+- A3, A4, A5, Letter, Legal, and custom page sizes
+- Portrait and landscape orientation
+- Bottom-left and top-left coordinate systems
+- Uniform and side-specific page margins
+- Text drawing with color, alignment, and width-aware positioning
+- Multiline text boxes with wrapping, explicit line breaks, line height, height
+  limits, and overflow reporting
+- The 14 standard PDF Type 1 fonts
+- Lines, rectangles, circles, fill, stroke, and line widths
 - RGB and grayscale colors
-- Basic document metadata
-- PDF binary generation
-- Direct file output
-- Traditional PDF cross-reference tables
+- JPEG image XObjects with RGB, grayscale, and CMYK support
+- PNG image XObjects for non-interlaced 8-bit grayscale, RGB,
+  grayscale-alpha, and RGBA images
+- PNG transparency through PDF soft masks (`/SMask`)
+- Image deduplication by SHA-256 hash
+- Unicode-aware document metadata using Latin-1 or UTF-16BE as needed
+- Traditional PDF xref table generation
 
 ## Installation
 
-PaperForge is currently under active development and may not yet be published on Hex.
+PaperForge can be used from GitHub:
 
-Add it directly from GitHub:
+```elixir
+def deps do
+  [
+    {:paper_forge,
+     github: "Manuel1471/paper_forge",
+     tag: "v0.2.0"}
+  ]
+end
+```
+
+For local development against `main`:
 
 ```elixir
 def deps do
@@ -64,59 +60,247 @@ def deps do
 end
 ```
 
-Then install dependencies:
+After PaperForge is published to Hex, installation will use:
+
+```elixir
+def deps do
+  [
+    {:paper_forge, "~> 0.2.0"}
+  ]
+end
+```
+
+Then run:
 
 ```bash
 mix deps.get
 ```
 
-After the first stable Hex release, installation will use:
-
-```elixir
-def deps do
-  [
-    {:paper_forge, "~> 0.1.0"}
-  ]
-end
-```
-
-## Quick start
+## Quick Start
 
 ```elixir
 alias PaperForge.Color
 alias PaperForge.Page
 
 document =
-  PaperForge.new()
+  PaperForge.new(compress: true, pdf_version: "1.7")
   |> PaperForge.metadata(
     title: "PaperForge Example",
     author: "Manuel Garcia",
     subject: "Pure Elixir PDF generation",
-    keywords: ["Elixir", "PDF"]
+    keywords: ["Elixir", "PDF", "PaperForge"]
   )
-  |> PaperForge.add_page(fn page ->
-    page
-    |> Page.text(
-      "Hello from PaperForge",
-      x: 72,
-      y: 760,
-      size: 28,
-      color: Color.rgb255(35, 60, 120)
-    )
-    |> Page.line(
-      x1: 72,
-      y1: 740,
-      x2: 520,
-      y2: 740,
-      width: 2,
-      color: Color.rgb255(35, 60, 120)
-    )
-  end)
+  |> PaperForge.add_page(
+    [
+      size: :a4,
+      origin: :top_left,
+      margins: 72
+    ],
+    fn page ->
+      page
+      |> Page.text(
+        "Hello from PaperForge",
+        y: 72,
+        width: Page.content_width(page),
+        align: :center,
+        font: :helvetica_bold,
+        size: 28,
+        color: Color.rgb255(35, 60, 120)
+      )
+      |> Page.text_box(
+        "PaperForge creates PDF files directly from Elixir data structures.",
+        y: 120,
+        width: Page.content_width(page),
+        font: :helvetica,
+        size: 12,
+        line_height: 17
+      )
+    end
+  )
 
 PaperForge.write!(document, "example.pdf")
 ```
 
-## Drawing shapes
+## Document Options
+
+`PaperForge.new/1` accepts:
+
+- `:compress` - enables Flate compression for page content streams. Defaults to
+  `true`.
+- `:pdf_version` - sets the PDF header version. Supported values are `"1.4"`,
+  `"1.5"`, `"1.6"`, and `"1.7"`. Defaults to `"1.7"`.
+
+```elixir
+PaperForge.new()
+PaperForge.new(compress: false)
+PaperForge.new(pdf_version: "1.4")
+```
+
+## Pages
+
+Add a page with default options:
+
+```elixir
+document =
+  PaperForge.new()
+  |> PaperForge.add_page(fn page ->
+    Page.text(page, "Default A4 page", x: 72, y: 750)
+  end)
+```
+
+Add a page with options:
+
+```elixir
+document =
+  PaperForge.new()
+  |> PaperForge.add_page(
+    [
+      size: :letter,
+      orientation: :landscape,
+      origin: :top_left,
+      margins: [top: 48, right: 54, bottom: 48, left: 54]
+    ],
+    fn page ->
+      Page.text(page, "Landscape page", y: 48)
+    end
+  )
+```
+
+Supported page sizes:
+
+```elixir
+:a3
+:a4
+:a5
+:letter
+:legal
+```
+
+Custom page sizes use `{width, height}` in PDF points:
+
+```elixir
+Page.new(size: {500, 700})
+```
+
+All dimensions are expressed in PDF points.
+
+```text
+1 point = 1/72 inch
+```
+
+## Coordinates And Margins
+
+PaperForge supports both PDF-native bottom-left coordinates and top-left
+coordinates.
+
+```elixir
+Page.new(origin: :bottom_left)
+Page.new(origin: :top_left)
+```
+
+You can also set the origin per operation:
+
+```elixir
+Page.rectangle(page, x: 72, y: 72, width: 100, height: 40, origin: :top_left)
+```
+
+Margins can be uniform:
+
+```elixir
+Page.new(margins: 72)
+```
+
+Or side-specific:
+
+```elixir
+Page.new(margins: [top: 40, right: 50, bottom: 40, left: 50])
+```
+
+Content helpers:
+
+```elixir
+Page.content_width(page)
+Page.content_height(page)
+Page.content_left(page)
+Page.content_top(page)
+Page.content_bottom(page)
+```
+
+## Text
+
+Draw a single line of text:
+
+```elixir
+Page.text(
+  page,
+  "Centered title",
+  x: Page.content_left(page),
+  y: 72,
+  width: Page.content_width(page),
+  align: :center,
+  font: :helvetica_bold,
+  size: 24,
+  color: Color.black()
+)
+```
+
+Draw wrapped multiline text:
+
+```elixir
+Page.text_box(
+  page,
+  """
+  PaperForge wraps text into multiple lines using built-in font metrics.
+
+  Explicit line breaks are preserved.
+  """,
+  x: Page.content_left(page),
+  y: 120,
+  width: Page.content_width(page),
+  height: 160,
+  font: :times_roman,
+  size: 12,
+  line_height: 17,
+  align: :left
+)
+```
+
+Supported alignment values:
+
+```elixir
+:left
+:center
+:right
+```
+
+## Fonts
+
+PaperForge supports the 14 standard PDF Type 1 fonts and registers them only
+when used:
+
+```elixir
+:helvetica
+:helvetica_bold
+:helvetica_oblique
+:helvetica_bold_oblique
+:times_roman
+:times_bold
+:times_italic
+:times_bold_italic
+:courier
+:courier_bold
+:courier_oblique
+:courier_bold_oblique
+:symbol
+:zapf_dingbats
+```
+
+Standard Type 1 fonts are not full Unicode fonts. Document metadata can be
+encoded as UTF-16BE, but visible page text is limited by the selected standard
+font encoding. Embedded TrueType/OpenType fonts are planned for a future
+release.
+
+## Shapes
 
 ### Lines
 
@@ -165,127 +349,24 @@ Page.circle(
 )
 ```
 
-PaperForge approximates circles using four cubic Bézier curves because PDF does not provide a native circle operator.
-
-## Multiple pages
-
-```elixir
-alias PaperForge.Page
-
-document =
-  PaperForge.new()
-  |> PaperForge.add_page(fn page ->
-    Page.text(
-      page,
-      "First page",
-      x: 72,
-      y: 750,
-      size: 28
-    )
-  end)
-  |> PaperForge.add_page(
-    [size: :letter, orientation: :landscape],
-    fn page ->
-      Page.text(
-        page,
-        "Second page",
-        x: 72,
-        y: 500,
-        size: 28
-      )
-    end
-  )
-
-PaperForge.write!(document, "multiple_pages.pdf")
-```
-
-## Page sizes
-
-Supported page names:
-
-```elixir
-:a3
-:a4
-:a5
-:letter
-:legal
-```
-
-Example:
-
-```elixir
-PaperForge.add_page(
-  document,
-  [size: :letter, orientation: :landscape],
-  fn page ->
-    Page.text(page, "Landscape page", x: 72, y: 500)
-  end
-)
-```
-
-Custom page dimensions are also supported:
-
-```elixir
-Page.new(size: {500, 500})
-```
-
-All dimensions are expressed in PDF points.
-
-```text
-1 point = 1/72 inch
-```
-
-## Coordinate system
-
-PaperForge currently uses the native PDF coordinate system.
-
-```text
-Y
-↑
-│
-│
-│
-└────────────→ X
-(0, 0)
-```
-
-The origin is located at the bottom-left corner of the page.
-
-For an A4 page:
-
-```text
-width:  595.28 points
-height: 841.89 points
-```
-
-Example:
-
-```elixir
-Page.text(
-  page,
-  "Near the top",
-  x: 72,
-  y: 760
-)
-```
-
-A top-left coordinate abstraction is planned for a future release.
+PaperForge approximates circles using four cubic Bezier curves because PDF does
+not provide a native circle operator.
 
 ## Colors
 
-### RGB using values from 0 to 1
+RGB values can be expressed from `0` to `1`:
 
 ```elixir
-Color.rgb(1, 0, 0)
+Color.rgb(1.0, 0.0, 0.0)
 ```
 
-### RGB using values from 0 to 255
+Or from `0` to `255`:
 
 ```elixir
 Color.rgb255(255, 0, 0)
 ```
 
-### Grayscale
+Grayscale helpers:
 
 ```elixir
 Color.gray(0.5)
@@ -293,31 +374,75 @@ Color.black()
 Color.white()
 ```
 
+## Images
+
+`Page.image/3` accepts a supported image binary or a file path.
+
+```elixir
+png = File.read!("logo.png")
+
+page
+|> Page.image(png, x: 72, y: 120, width: 200)
+|> Page.image("photo.jpg", x: 72, y: 360, width: 200, height: 120)
+```
+
+When only one dimension is supplied, PaperForge preserves the source aspect
+ratio:
+
+```elixir
+Page.image(page, "logo.png", x: 72, y: 120, width: 200)
+Page.image(page, "logo.png", x: 72, y: 120, height: 80)
+```
+
+Supported JPEGs:
+
+- grayscale
+- RGB
+- CMYK
+
+Supported PNGs:
+
+- non-interlaced 8-bit grayscale
+- non-interlaced 8-bit RGB
+- non-interlaced 8-bit grayscale with alpha
+- non-interlaced 8-bit RGBA
+
+PNG alpha is written as a PDF soft mask (`/SMask`). PNG grayscale/RGB images
+without alpha use the original compressed `IDAT` data directly with
+`/FlateDecode` and PNG predictor decode parameters. JPEG image data is embedded
+directly with `/DCTDecode`.
+
+Images are deduplicated by SHA-256 hash, so drawing the same image several times
+does not embed duplicate image streams.
+
 ## Metadata
 
 ```elixir
 document =
   PaperForge.new()
   |> PaperForge.metadata(
-    title: "Monthly Report",
+    title: "Reporte de Mexico",
     author: "Manuel Garcia",
-    subject: "Project summary",
+    subject: "Informacion \u65E5\u672C\u8A9E",
     keywords: ["report", "elixir", "pdf"],
     creator: "PaperForge",
-    producer: "PaperForge"
+    producer: "PaperForge",
+    creation_date: DateTime.utc_now(),
+    modification_date: DateTime.utc_now()
   )
 ```
 
-Metadata is written into the PDF Info dictionary and referenced from the document trailer.
+Metadata is written into the PDF Info dictionary and referenced from the
+document trailer. Latin-1-compatible strings are stored as PDF literal strings.
+Other Unicode strings are stored as UTF-16BE hexadecimal strings.
 
-## Binary output
+## Binary Output
 
 PaperForge can return the complete PDF as a binary:
 
 ```elixir
 pdf_binary =
-  document
-  |> PaperForge.to_binary()
+  PaperForge.to_binary(document)
 ```
 
 This can be used in Phoenix or Plug responses:
@@ -332,92 +457,64 @@ conn
 |> send_resp(200, PaperForge.to_binary(document))
 ```
 
+Write to disk:
+
+```elixir
+PaperForge.write(document, "document.pdf")
+PaperForge.write!(document, "document.pdf")
+```
+
 ## Architecture
 
-PaperForge separates the public drawing API from the low-level PDF representation.
+PaperForge separates public drawing operations from low-level PDF objects.
 
 ```text
 PaperForge
-│
-├── Page
-│   └── High-level drawing operations
-│
-├── Graphics
-│   ├── Text
-│   ├── Line
-│   ├── Rectangle
-│   └── Circle
-│
-├── Document
-│   └── PDF object graph and object allocation
-│
-├── Object
-│   └── Indirect PDF objects
-│
-├── Reference
-│   └── References such as `3 0 R`
-│
-├── Stream
-│   └── Stream dictionaries and binary data
-│
-├── Serializer
-│   └── Elixir values to PDF syntax
-│
-└── Writer
-    ├── PDF header
-    ├── Indirect objects
-    ├── Cross-reference table
-    ├── Trailer
-    └── EOF marker
+|-- Document
+|   |-- object allocation
+|   |-- font registry
+|   |-- image registry
+|   `-- metadata reference
+|-- Page
+|   `-- high-level drawing operations
+|-- PageCompiler
+|   |-- coordinate transforms
+|   |-- font registration
+|   |-- image registration
+|   `-- resource dictionaries
+|-- Graphics
+|   |-- Text
+|   |-- TextBox
+|   |-- Line
+|   |-- Rectangle
+|   |-- Circle
+|   `-- Image
+|-- Serializer
+|   `-- Elixir values to PDF syntax
+`-- Writer
+    |-- PDF header
+    |-- indirect objects
+    |-- cross-reference table
+    |-- trailer
+    `-- EOF marker
 ```
 
-A page operation follows this pipeline:
+The generated PDF uses traditional cross-reference tables. Tests verify that
+xref offsets point to the start of their corresponding indirect objects.
 
-```text
-Page.text/3
-    ↓
-PDF text operators
-    ↓
-Page content stream
-    ↓
-Indirect PDF object
-    ↓
-Serializer
-    ↓
-Writer
-    ↓
-PDF bytes
+## Examples
+
+Run the included examples:
+
+```bash
+mix run examples/hello.exs
+mix run examples/graphics.exs
+mix run examples/two_pages.exs
+mix run examples/new_features.exs
+mix run examples/png.exs
 ```
 
-## PDF structure
-
-PaperForge generates PDFs using a graph of indirect objects.
-
-```text
-Trailer
-└── Catalog
-    └── Page tree
-        ├── Page
-        │   ├── Resources
-        │   └── Content stream
-        └── Page
-            ├── Resources
-            └── Content stream
-```
-
-Objects are connected through references such as:
-
-```pdf
-3 0 R
-```
-
-This means:
-
-```text
-object number: 3
-generation:    0
-type:          indirect reference
-```
+Generated files are written under `tmp/`.
 
 ## Development
 
@@ -426,13 +523,6 @@ Clone the repository:
 ```bash
 git clone git@github.com:Manuel1471/paper_forge.git
 cd paper_forge
-```
-
-Install local development tools:
-
-```bash
-mix local.hex --force
-mix local.rebar --force
 ```
 
 Run the test suite:
@@ -459,42 +549,22 @@ Run all checks:
 mix do format, compile --warnings-as-errors, test
 ```
 
-Generate the graphics example:
-
-```bash
-mix run examples/graphics.exs
-open tmp/paper_forge_0_1.pdf
-```
-
 ## Roadmap
-
-### 0.2.0
-
-- Text measurement
-- Horizontal text alignment
-- More built-in PDF fonts
-- Stream compression
-- JPEG image support
-- PNG image support
-- Top-left coordinate helpers
-- Improved metadata encoding
 
 ### 0.3.0
 
-- Paragraph layout
-- Automatic line wrapping
-- Margins
 - Vertical content flow
 - Automatic page breaks
-- Basic tables
+- Tables
+- Better paragraph layout APIs
+- Links and annotations
 
 ### Future
 
-- TrueType and OpenType fonts
-- Unicode text
+- Embedded TrueType and OpenType fonts
+- Full Unicode visible text through embedded fonts
 - PNG palette support
 - Reusable Form XObjects
-- Links and annotations
 - HTML parsing
 - CSS style resolution
 - HTML/CSS layout engine
@@ -502,15 +572,17 @@ open tmp/paper_forge_0_1.pdf
 - Incremental updates
 - Digital signatures
 
-## Project status
+## Project Status
 
-PaperForge is experimental and currently intended for learning, testing, and early integration.
+PaperForge is experimental and currently intended for learning, testing, and
+early integration.
 
 The public API may change before version `1.0.0`.
 
 ## Contributing
 
-Contributions, bug reports, architecture discussions, and PDF examples are welcome.
+Contributions, bug reports, architecture discussions, and PDF examples are
+welcome.
 
 Before opening a pull request:
 
@@ -522,4 +594,4 @@ mix test
 
 ## License
 
-PaperForge is available under the terms specified in the [LICENSE](license.html).
+PaperForge is available under the terms specified in the [LICENSE](LICENSE).
