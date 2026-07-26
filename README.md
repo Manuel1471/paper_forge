@@ -475,6 +475,7 @@ open tmp/paper_forge_0_1.pdf
 - More built-in PDF fonts
 - Stream compression
 - JPEG image support
+- PNG image support
 - Top-left coordinate helpers
 - Improved metadata encoding
 
@@ -491,7 +492,7 @@ open tmp/paper_forge_0_1.pdf
 
 - TrueType and OpenType fonts
 - Unicode text
-- PNG images
+- PNG palette support
 - Reusable Form XObjects
 - Links and annotations
 - HTML parsing
@@ -521,4 +522,4 @@ mix test
 
 ## License
 
-PaperForge is available under the terms specified in the [LICENSE](LICENSE) file.
+PaperForge is available under the terms specified in the [LICENSE](license.html).

@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="makeup [file:///Users/manuelgarcia/Desktop/paper_forge]" type="mix">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/_build/dev/lib/makeup/ebin" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/deps/makeup/lib" />
+    </SOURCES>
+  </library>
+</component>

@@ -25,6 +25,48 @@ defmodule PaperForge.PageTest do
     assert page.height == 700
   end
 
+  test "accepts uniform margins" do
+    page = Page.new(size: {200, 300}, margins: 20)
+
+    assert Page.content_width(page) == 160
+    assert Page.content_height(page) == 260
+    assert Page.content_left(page) == 20
+    assert Page.content_bottom(page) == 20
+    assert Page.content_top(page) == 280
+  end
+
+  test "accepts side-specific margins" do
+    page =
+      Page.new(
+        size: {200, 300},
+        origin: :top_left,
+        margins: [
+          top: 10,
+          right: 20,
+          bottom: 30,
+          left: 40
+        ]
+      )
+
+    assert Page.content_width(page) == 140
+    assert Page.content_height(page) == 260
+    assert Page.content_left(page) == 40
+    assert Page.content_top(page) == 10
+    assert Page.content_bottom(page) == 270
+  end
+
+  test "rejects negative margins" do
+    assert_raise ArgumentError, ~r/non-negative/, fn ->
+      Page.new(margins: -1)
+    end
+  end
+
+  test "rejects margins larger than the page" do
+    assert_raise ArgumentError, ~r/positive content width/, fn ->
+      Page.new(size: {100, 100}, margins: [left: 60, right: 40])
+    end
+  end
+
   test "adds text operations" do
     page =
       Page.new()
