@@ -1,0 +1,148 @@
+%PDF-1.7
+%‚„œ”
+1 0 obj
+<<
+/Count 2
+/Kids [6 0 R 8 0 R]
+/Type /Pages
+>>
+endobj
+2 0 obj
+<<
+/Pages 1 0 R
+/Type /Catalog
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+/Subtype /Type1
+/Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Author (Manuel Garcia)
+/Creator (PaperForge 0.1.0)
+/Keywords (Elixir, PDF, PaperForge)
+/Producer (PaperForge)
+/Subject (PaperForge 0.1.0 graphics example)
+/Title (PaperForge Graphics)
+>>
+endobj
+5 0 obj
+<<
+/Length 565
+>>
+stream
+q
+0.137255 0.235294 0.470588 rg
+BT
+/F1 28 Tf
+1 0 0 1 72 760 Tm
+(PaperForge 0.1.0) Tj
+ET
+Q
+q
+0.137255 0.235294 0.470588 RG
+2 w
+72 740 m
+520 740 l
+S
+Q
+q
+0.921569 0.941176 0.980392 rg
+0.137255 0.235294 0.470588 RG
+2 w
+72 580 220 110 re
+B
+Q
+q
+0.137255 0.235294 0.470588 rg
+BT
+/F1 18 Tf
+1 0 0 1 95 630 Tm
+(Pure Elixir PDF) Tj
+ET
+Q
+q
+0.960784 0.705882 0.27451 rg
+0.470588 0.27451 0.078431 RG
+2 w
+400 690 m
+430.375661 690 455 665.375661 455 635 c
+455 604.624339 430.375661 580 400 580 c
+369.624339 580 345 604.624339 345 635 c
+345 665.375661 369.624339 690 400 690 c
+h
+B
+Q
+endstream
+endobj
+6 0 obj
+<<
+/Contents 5 0 R
+/MediaBox [0 0 595.28 841.89]
+/Parent 1 0 R
+/Resources <<
+/Font <<
+/F1 3 0 R
+>>
+>>
+/Type /Page
+>>
+endobj
+7 0 obj
+<<
+/Length 147
+>>
+stream
+q
+0.352941 0.156863 0.470588 rg
+BT
+/F1 32 Tf
+1 0 0 1 72 500 Tm
+(Landscape Letter Page) Tj
+ET
+Q
+q
+0.901961 0.843137 0.960784 rg
+70 430 400 40 re
+f
+Q
+endstream
+endobj
+8 0 obj
+<<
+/Contents 7 0 R
+/MediaBox [0 0 792 612]
+/Parent 1 0 R
+/Resources <<
+/Font <<
+/F1 3 0 R
+>>
+>>
+/Type /Page
+>>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000078 00000 n 
+0000000127 00000 n 
+0000000224 00000 n 
+0000000430 00000 n 
+0000001046 00000 n 
+0000001178 00000 n 
+0000001376 00000 n 
+trailer
+<<
+/Info 4 0 R
+/Root 2 0 R
+/Size 9
+>>
+startxref
+1502
+%%EOF
