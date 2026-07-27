@@ -99,6 +99,33 @@ defmodule PaperForge.EmbeddedFontTest do
     assert regular.base_font != alternate.base_font
   end
 
+  test "deduplicates embedded TrueType font programs by binary hash" do
+    document =
+      PaperForge.new()
+      |> PaperForge.register_font(
+        :sfmono_regular,
+        path: @font_path
+      )
+      |> PaperForge.register_font(
+        :sfmono_alt,
+        data: File.read!(@font_path)
+      )
+
+    font_file_streams =
+      document.objects
+      |> Map.values()
+      |> Enum.filter(fn
+        %Object{value: %Stream{dictionary: %{"Length1" => _length}}} ->
+          true
+
+        _object ->
+          false
+      end)
+
+    assert length(font_file_streams) == 1
+    assert map_size(document.font_program_registry) == 1
+  end
+
   test "writes Type0 font objects, FontFile2, Identity-H, and ToUnicode" do
     pdf =
       PaperForge.new()

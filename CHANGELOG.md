@@ -5,6 +5,73 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07-27
+
+### Added
+
+#### TrueType subsetting foundation
+
+- Added TrueType font-program deduplication by SHA-256 binary hash.
+- Added parsing of `loca` offsets and `head.indexToLocFormat`.
+- Added preservation of raw TrueType table data for physical subsetting work.
+- Added `PaperForge.Fonts.TrueType.glyph_dependencies/2`.
+- Added recursive composite glyph dependency expansion.
+- Added `PaperForge.Fonts.TrueType.Subsetter`.
+- Added physical subsetting plans that include:
+    - Requested glyphs
+    - `.notdef`
+    - Composite glyph dependencies
+    - Tables that must be rebuilt: `glyf`, `loca`, `hmtx`, and `maxp`
+    - TrueType table checksums
+    - Font binary hashes
+- Added TrueType checksum calculation with four-byte padding.
+
+#### Advanced layout
+
+- Added `PaperForge.layout_flow/4` for flow layout with a report.
+- Added flow reports with `:pages_added`, `:blocks`, and `:overflow?`.
+- Added `:keep_together` support for flowed blocks.
+- Added `:header` and `:footer` support for flowed pages.
+- Added `PaperForge.add_table/4` for paginated tables.
+- Added repeating table headers across generated pages.
+- Added `row_split: :keep` validation for table row splitting policy.
+- Added `PaperForge.Page.list/3` for ordered and unordered lists.
+
+#### PDF navigation
+
+- Added named destinations.
+- Added internal document links through `PaperForge.Page.link_to/3`.
+- Added page destinations through `PaperForge.Page.destination/3`.
+- Added outlines and bookmarks through `PaperForge.Page.bookmark/3`.
+- Added catalog `/Names` trees for named destinations.
+- Added catalog `/Outlines` trees and linked outline items.
+- Added internal link annotations using `/Dest`.
+
+#### Tests
+
+- Added tests for TrueType font-program deduplication by binary hash.
+- Added tests for TrueType subsetting plans and checksum calculation.
+- Added tests for named destinations, internal links, and outline bookmarks.
+- Added tests for ordered and unordered lists.
+- Added tests for flow reports, headers, footers, and keep-together behavior.
+- Added tests for paginated tables with repeated headers.
+
+### Changed
+
+- Changed the package version to `0.4.0`.
+- Updated the README for the 0.4.0 subsetting, layout, and navigation work.
+
+### Limitations
+
+- Final physical `/FontFile2` reconstruction is still in progress. The new
+  subsetting planner resolves dependencies and checksum data, but PaperForge
+  still embeds the original font program when generating PDFs.
+- Table row splitting currently supports keeping rows together with
+  `row_split: :keep`; splitting a single row across pages is not implemented
+  yet.
+- Additional annotation types beyond URI links and internal links are still
+  planned.
+
 ## [0.3.0] - 2026-07-26
 
 ### Added
@@ -485,6 +552,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Uses native PDF coordinates with the origin at the bottom-left corner
 - Isolates graphic operations using the PDF `q` and `Q` operators
 
+[0.4.0]: https://github.com/Manuel1471/paper_forge/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Manuel1471/paper_forge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.1.0
