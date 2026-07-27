@@ -142,6 +142,53 @@ defmodule PaperForge.FontRegistry do
   end
 
   @doc """
+  Adds a fully built font to the registry.
+  """
+  @spec put(t(), Font.t()) :: {t(), Font.t()}
+  def put(
+        %__MODULE__{} = registry,
+        %Font{} = font
+      ) do
+    case fetch(registry, font.key) do
+      {:ok, existing_font} ->
+        {registry, existing_font}
+
+      :error ->
+        updated_registry = %{
+          registry
+          | fonts:
+              Map.put(
+                registry.fonts,
+                font.key,
+                font
+              ),
+            next_resource_id: registry.next_resource_id + 1
+        }
+
+        {updated_registry, font}
+    end
+  end
+
+  @doc """
+  Replaces an already registered font without changing resource numbering.
+  """
+  @spec replace(t(), Font.t()) :: t()
+  def replace(
+        %__MODULE__{} = registry,
+        %Font{} = font
+      ) do
+    %{
+      registry
+      | fonts:
+          Map.put(
+            registry.fonts,
+            font.key,
+            font
+          )
+    }
+  end
+
+  @doc """
   Returns all registered fonts sorted by their resource identifier.
   """
   @spec all(t()) :: [Font.t()]

@@ -5,6 +5,130 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-07-26
+
+### Added
+
+#### Embedded TrueType fonts
+
+- Added `PaperForge.register_font/3` for registering embedded TrueType fonts.
+- Added support for loading TrueType fonts from file paths.
+- Added support for loading TrueType fonts from in-memory binaries.
+- Added `PaperForge.Fonts.TrueType` for parsing compatible `.ttf` files.
+- Added validation for unsupported OpenType CFF fonts.
+- Added validation for invalid or truncated TrueType files.
+- Added parsing for required TrueType tables:
+    - `head`
+    - `hhea`
+    - `maxp`
+    - `hmtx`
+    - `cmap`
+    - `name`
+    - `OS/2`
+    - `post`
+    - `loca`
+    - `glyf`
+- Added extraction of:
+    - Units per em
+    - Glyph count
+    - Unicode-to-glyph mappings
+    - Glyph widths
+    - Font bounding box
+    - Ascent
+    - Descent
+    - Cap height
+    - Italic angle
+    - PostScript font name
+- Added support for Unicode `cmap` format 4 and format 12 subtables.
+- Added embedded PDF Type 0 fonts with CIDFontType2 descendants.
+- Added `/Identity-H` encoding for embedded TrueType fonts.
+- Added `/FontFile2` streams for embedded TrueType font programs.
+- Added `/FontDescriptor` dictionaries for embedded TrueType fonts.
+- Added CID width arrays from real TrueType metrics.
+- Added prefixed embedded font names such as `PF0001+FontName`.
+- Added subsetting of generated CID width arrays to glyphs used by the
+  document.
+- Added subsetting of generated `/ToUnicode` CMaps to glyphs used by the
+  document.
+- Added `PaperForge.register_font_family/3` for TrueType font families.
+- Added support for `:regular`, `:bold`, `:italic`, and `:bold_italic`
+  TrueType family variants.
+- Added document-level default font selection through `PaperForge.default_font/2`.
+- Added `:default_font` support to `PaperForge.new/1`.
+
+#### Unicode visible text
+
+- Added visible Unicode text rendering through registered TrueType fonts.
+- Added glyph-id text encoding for embedded Type 0 fonts.
+- Added `/ToUnicode` CMaps for registered TrueType fonts.
+- Added Unicode extraction/search support for generated embedded-font text.
+- Added `PaperForge.FontError` for font registration, parsing, and glyph
+  errors.
+- Added clear errors for unregistered font keys.
+- Added clear errors when a registered TrueType font does not contain a
+  required glyph.
+- Added support for Spanish accents, `ñ`, `ü`, inverted punctuation,
+  typographic symbols, Greek, and Cyrillic when the registered font contains
+  those glyphs.
+
+#### Text metrics
+
+- Added TrueType-backed width measurement in `PaperForge.TextMetrics`.
+- Updated text alignment to use real TrueType glyph widths when a registered
+  font is used.
+- Updated text wrapping and text boxes to use registered TrueType metrics.
+- Updated page compilation to pass registered font instances into text
+  measurement and rendering.
+
+#### Tests
+
+- Added unit tests for TrueType parsing and metrics.
+- Added unit tests for Unicode `cmap` glyph resolution.
+- Added unit tests for Spanish, symbol, Greek, and Cyrillic glyph coverage.
+- Added unit tests for truncated and unsupported font files.
+- Added integration tests for TrueType registration from paths and binaries.
+- Added integration tests for TrueType font deduplication by registered key.
+- Added structural PDF tests for `/Type0`, `/CIDFontType2`, `/FontFile2`,
+  `/Identity-H`, and `/ToUnicode`.
+- Added tests for TrueType-backed text measurement.
+- Added tests for unregistered fonts and missing glyph errors.
+- Added `benchmarks/truetype.exs` for TrueType registration, text measurement,
+  multiline rendering, and multilingual PDF generation.
+- Added tests for TrueType width and `/ToUnicode` subsetting.
+- Added tests for default fonts and font-family variant resolution.
+- Added PDF compatibility smoke tests for multilingual documents, xref markers,
+  `startxref`, EOF markers, and `/ToUnicode`.
+
+#### Document layout
+
+- Added `PaperForge.add_flow/4` for vertical content flow.
+- Added automatic page breaks for flowed text blocks.
+- Added `PaperForge.Page.paragraph/3` as a paragraph-oriented text-box alias.
+- Added `PaperForge.Page.table/3` for basic table rendering.
+- Added `PaperForge.Page.link/3` for URI link annotations.
+- Added PDF `/Annot` link dictionaries with URI actions.
+- Added page `/Annots` arrays when a page contains link annotations.
+- Added tests for tables, links, vertical flow, and automatic page breaks.
+
+### Changed
+
+- Changed unknown non-standard font keys to raise `PaperForge.FontError`
+  instead of a generic `ArgumentError`.
+- Changed the package version to `0.3.0`.
+- Updated the README to document embedded TrueType fonts, visible Unicode text,
+  font families, default fonts, vertical flow, tables, links, and current font
+  limitations.
+
+### Limitations
+
+- Physical TrueType table reconstruction is not implemented yet; generated PDF
+  width arrays and `/ToUnicode` maps are subset to used glyphs, but the full
+  `.ttf` program is still embedded in `/FontFile2`.
+- OpenType CFF (`OTTO`) and TrueType Collection (`.ttc`) fonts are not
+  supported yet.
+- Complex shaping for scripts such as Arabic and Devanagari is not performed
+  yet.
+
 ## [0.2.0] - 2026-07-26
 
 ### Added
@@ -361,5 +485,6 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Uses native PDF coordinates with the origin at the bottom-left corner
 - Isolates graphic operations using the PDF `q` and `Q` operators
 
-[0.2.0]: https://github.com/Manuel1471/paper_forge/compare/v0.2.0
+[0.3.0]: https://github.com/Manuel1471/paper_forge/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.1.0

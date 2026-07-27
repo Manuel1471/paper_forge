@@ -7,8 +7,10 @@ defmodule PaperForge.Document do
   """
 
   alias PaperForge.Font
+  alias PaperForge.FontError
   alias PaperForge.FontRegistry
   alias PaperForge.Fonts.Builtin
+  alias PaperForge.Fonts.TrueType
   alias PaperForge.Image
   alias PaperForge.ImageRegistry
   alias PaperForge.Images.JPEG
@@ -32,6 +34,8 @@ defmodule PaperForge.Document do
             info_reference: nil,
             pdf_version: @default_pdf_version,
             font_registry: nil,
+            font_families: %{},
+            default_font: :helvetica,
             image_registry: nil,
             compress: @default_compression
 
@@ -43,6 +47,8 @@ defmodule PaperForge.Document do
           info_reference: Reference.t() | nil,
           pdf_version: binary(),
           font_registry: FontRegistry.t(),
+          font_families: %{optional(atom()) => %{optional(atom()) => atom()}},
+          default_font: atom(),
           image_registry: ImageRegistry.t(),
           compress: boolean()
         }
@@ -57,6 +63,8 @@ defmodule PaperForge.Document do
 
   - `:compress` — enables Flate compression. Defaults to `true`.
   - `:pdf_version` — PDF header version. Defaults to `"1.7"`.
+  - `:default_font` — default font key for text operations. Defaults to
+    `:helvetica`.
   """
   @spec new(keyword()) :: t()
   def new(options \\ []) when is_list(options) do
@@ -71,6 +79,11 @@ defmodule PaperForge.Document do
       options
       |> Keyword.get(:pdf_version, @default_pdf_version)
       |> validate_pdf_version!()
+
+    default_font =
+      options
+      |> Keyword.get(:default_font, :helvetica)
+      |> validate_font_key!(:default_font)
 
     pages_reference = Reference.new(@pages_object_id)
     catalog_reference = Reference.new(@catalog_object_id)
@@ -105,9 +118,83 @@ defmodule PaperForge.Document do
       info_reference: nil,
       pdf_version: pdf_version,
       font_registry: FontRegistry.new(),
+      font_families: %{},
+      default_font: default_font,
       image_registry: ImageRegistry.new(),
       compress: compress
     }
+  end
+
+  @doc """
+  Sets the document default font key.
+  """
+  @spec default_font(t(), atom()) :: t()
+  def default_font(%__MODULE__{} = document, font_key)
+      when is_atom(font_key) do
+    %{document | default_font: font_key}
+  end
+
+  @doc """
+  Registers a TrueType font family.
+
+  Supported variants are `:regular`, `:bold`, `:italic`, and
+  `:bold_italic`. Each variant accepts the same options as
+  `register_font/3`, usually `path: "Font.ttf"` or `data: binary`.
+  """
+  @spec register_font_family(t(), atom(), keyword()) :: t()
+  def register_font_family(%__MODULE__{} = document, family_key, variants)
+      when is_atom(family_key) and is_list(variants) do
+    if variants == [] do
+      raise FontError, :invalid_font
+    end
+
+    Enum.reduce(
+      variants,
+      document,
+      fn {variant, font_options}, current_document ->
+        validate_font_variant!(variant)
+
+        font_key =
+          family_font_key(family_key, variant)
+
+        current_document
+        |> register_font(font_key, List.wrap(font_options))
+        |> put_font_family_variant(family_key, variant, font_key)
+      end
+    )
+  end
+
+  @doc """
+  Resolves the font key for text options, including default fonts and
+  registered font-family variants.
+  """
+  @spec resolve_font_key(t(), keyword()) :: atom()
+  def resolve_font_key(%__MODULE__{} = document, options)
+      when is_list(options) do
+    font_key =
+      Keyword.get(
+        options,
+        :font,
+        document.default_font
+      )
+
+    case Map.fetch(document.font_families, font_key) do
+      {:ok, variants} ->
+        variant =
+          font_variant(
+            Keyword.get(options, :weight, :regular),
+            Keyword.get(options, :style, :regular)
+          )
+
+        Map.get(
+          variants,
+          variant,
+          Map.fetch!(variants, :regular)
+        )
+
+      :error ->
+        font_key
+    end
   end
 
   @doc """
@@ -207,7 +294,94 @@ defmodule PaperForge.Document do
         {document, font}
 
       :error ->
-        create_and_register_font(document, font_key)
+        if Builtin.valid?(font_key) do
+          create_and_register_font(document, font_key)
+        else
+          raise FontError, {:font_not_registered, font_key}
+        end
+    end
+  end
+
+  @doc """
+  Records Unicode text used by an embedded TrueType font.
+
+  PaperForge keeps the embedded font file intact, but subsets the PDF
+  width array and `/ToUnicode` map to the glyphs that have actually
+  been used so far.
+  """
+  @spec use_font_text(t(), atom(), binary()) :: {t(), Font.t()}
+  def use_font_text(%__MODULE__{} = document, font_key, text)
+      when is_atom(font_key) and is_binary(text) do
+    font =
+      FontRegistry.fetch!(
+        document.font_registry,
+        font_key
+      )
+
+    case font.kind do
+      :truetype ->
+        glyph_ids =
+          text
+          |> String.to_charlist()
+          |> Enum.reject(&(&1 in [?\n, ?\r]))
+          |> Enum.map(fn codepoint ->
+            case TrueType.glyph_id(font, codepoint) do
+              {:ok, glyph_id} ->
+                glyph_id
+
+              :error ->
+                raise FontError, {:missing_glyph, font_key, codepoint}
+            end
+          end)
+
+        used_glyphs =
+          Enum.reduce(
+            glyph_ids,
+            font.used_glyphs,
+            &MapSet.put(&2, &1)
+          )
+
+        font =
+          %{font | used_glyphs: used_glyphs}
+
+        document =
+          document
+          |> put_font(font)
+          |> update_true_type_subset(font)
+
+        {
+          document,
+          font
+        }
+
+      :builtin ->
+        {
+          document,
+          font
+        }
+    end
+  end
+
+  @doc """
+  Registers and reuses an embedded TrueType font.
+  """
+  @spec register_font(t(), atom(), keyword()) :: t()
+  def register_font(
+        %__MODULE__{} = document,
+        font_key,
+        options
+      )
+      when is_atom(font_key) and is_list(options) do
+    case FontRegistry.fetch(document.font_registry, font_key) do
+      {:ok, _font} ->
+        document
+
+      :error ->
+        create_and_register_true_type_font(
+          document,
+          font_key,
+          options
+        )
     end
   end
 
@@ -350,6 +524,300 @@ defmodule PaperForge.Document do
     }
 
     {updated_document, registered_font}
+  end
+
+  defp create_and_register_true_type_font(
+         %__MODULE__{} = document,
+         font_key,
+         options
+       ) do
+    data =
+      true_type_data!(options)
+
+    true_type =
+      TrueType.parse!(data)
+
+    resource_name =
+      FontRegistry.next_resource_name(document.font_registry)
+
+    base_font =
+      embedded_base_font_name(resource_name, true_type.postscript_name)
+
+    font_file_stream =
+      Stream.new(
+        data,
+        dictionary: %{
+          "Length1" => byte_size(data)
+        },
+        filters: [:flate]
+      )
+
+    {document, font_file_reference} =
+      add_object(
+        document,
+        font_file_stream
+      )
+
+    descriptor_dictionary = %{
+      "Type" => {:name, "FontDescriptor"},
+      "FontName" => {:name, base_font},
+      "Flags" => true_type.flags,
+      "FontBBox" => true_type.bbox,
+      "ItalicAngle" => true_type.italic_angle,
+      "Ascent" => true_type.ascent,
+      "Descent" => true_type.descent,
+      "CapHeight" => true_type.cap_height,
+      "StemV" => 80,
+      "FontFile2" => font_file_reference
+    }
+
+    {document, descriptor_reference} =
+      add_object(
+        document,
+        descriptor_dictionary
+      )
+
+    cid_font_dictionary = %{
+      "Type" => {:name, "Font"},
+      "Subtype" => {:name, "CIDFontType2"},
+      "BaseFont" => {:name, base_font},
+      "CIDSystemInfo" => %{
+        "Registry" => "Adobe",
+        "Ordering" => "Identity",
+        "Supplement" => 0
+      },
+      "FontDescriptor" => descriptor_reference,
+      "DW" => 1000,
+      "W" => true_type_widths(true_type, MapSet.new())
+    }
+
+    {document, cid_font_reference} =
+      add_object(
+        document,
+        cid_font_dictionary
+      )
+
+    to_unicode_stream =
+      Stream.new(
+        to_unicode_cmap(true_type),
+        filters: [:flate]
+      )
+
+    {document, to_unicode_reference} =
+      add_object(
+        document,
+        to_unicode_stream
+      )
+
+    type0_dictionary = %{
+      "Type" => {:name, "Font"},
+      "Subtype" => {:name, "Type0"},
+      "BaseFont" => {:name, base_font},
+      "Encoding" => {:name, "Identity-H"},
+      "DescendantFonts" => [cid_font_reference],
+      "ToUnicode" => to_unicode_reference
+    }
+
+    {document, type0_reference} =
+      add_object(
+        document,
+        type0_dictionary
+      )
+
+    font =
+      true_type
+      |> Map.put(:postscript_name, base_font)
+      |> then(
+        &Font.true_type(
+          font_key,
+          &1,
+          resource_name,
+          type0_reference,
+          cid_font_reference: cid_font_reference,
+          to_unicode_reference: to_unicode_reference
+        )
+      )
+
+    {font_registry, _registered_font} =
+      FontRegistry.put(
+        document.font_registry,
+        font
+      )
+
+    %{document | font_registry: font_registry}
+  end
+
+  defp true_type_data!(options) do
+    case {Keyword.fetch(options, :path), Keyword.fetch(options, :data)} do
+      {{:ok, path}, :error}
+      when is_binary(path) and byte_size(path) > 0 ->
+        File.read!(path)
+
+      {:error, {:ok, data}}
+      when is_binary(data) and byte_size(data) > 0 ->
+        data
+
+      {{:ok, _path}, {:ok, _data}} ->
+        raise FontError, :invalid_font
+
+      _other ->
+        raise FontError, :invalid_font
+    end
+  end
+
+  defp embedded_base_font_name(resource_name, postscript_name) do
+    prefix =
+      resource_name
+      |> String.trim_leading("F")
+      |> String.pad_leading(4, "0")
+      |> then(&("PF" <> &1))
+
+    prefix <> "+" <> postscript_name
+  end
+
+  defp put_font(%__MODULE__{} = document, %Font{} = font) do
+    font_registry =
+      FontRegistry.replace(
+        document.font_registry,
+        font
+      )
+
+    %{document | font_registry: font_registry}
+  end
+
+  defp update_true_type_subset(%__MODULE__{} = document, %Font{kind: :truetype} = font) do
+    document
+    |> update_object(
+      font.cid_font_reference,
+      fn dictionary ->
+        Map.put(
+          dictionary,
+          "W",
+          true_type_widths(font, font.used_glyphs)
+        )
+      end
+    )
+    |> update_object(
+      font.to_unicode_reference,
+      fn stream ->
+        %{
+          stream
+          | data: to_unicode_cmap(font)
+        }
+      end
+    )
+  end
+
+  defp true_type_widths(true_type, used_glyphs) do
+    glyph_ids =
+      if MapSet.size(used_glyphs) == 0 do
+        []
+      else
+        used_glyphs
+        |> MapSet.to_list()
+        |> Enum.sort()
+      end
+
+    Enum.flat_map(glyph_ids, fn glyph_id ->
+      [
+        glyph_id,
+        [
+          TrueType.pdf_width(
+            true_type,
+            glyph_id
+          )
+        ]
+      ]
+    end)
+  end
+
+  defp to_unicode_cmap(true_type) do
+    used_glyphs =
+      Map.get(
+        true_type,
+        :used_glyphs,
+        MapSet.new()
+      )
+
+    entries =
+      true_type.unicode_to_gid
+      |> Enum.filter(fn {_codepoint, glyph_id} ->
+        MapSet.size(used_glyphs) == 0 or
+          MapSet.member?(used_glyphs, glyph_id)
+      end)
+      |> Enum.reject(fn {_codepoint, glyph_id} ->
+        glyph_id == 0
+      end)
+      |> Enum.sort_by(fn {_codepoint, glyph_id} ->
+        glyph_id
+      end)
+      |> Enum.uniq_by(fn {_codepoint, glyph_id} ->
+        glyph_id
+      end)
+
+    [
+      "/CIDInit /ProcSet findresource begin\n",
+      "12 dict begin\n",
+      "begincmap\n",
+      "/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> def\n",
+      "/CMapName /PaperForge-ToUnicode def\n",
+      "/CMapType 2 def\n",
+      "1 begincodespacerange\n",
+      "<0000> <FFFF>\n",
+      "endcodespacerange\n",
+      encode_bfchar_entries(entries),
+      "endcmap\n",
+      "CMapName currentdict /CMap defineresource pop\n",
+      "end\n",
+      "end\n"
+    ]
+    |> IO.iodata_to_binary()
+  end
+
+  defp encode_bfchar_entries(entries) do
+    entries
+    |> Enum.chunk_every(100)
+    |> Enum.map(fn chunk ->
+      [
+        Integer.to_string(length(chunk)),
+        " beginbfchar\n",
+        Enum.map(chunk, fn {codepoint, glyph_id} ->
+          [
+            "<",
+            hex16(glyph_id),
+            "> <",
+            unicode_hex(codepoint),
+            ">\n"
+          ]
+        end),
+        "endbfchar\n"
+      ]
+    end)
+  end
+
+  defp hex16(value) do
+    value
+    |> Integer.to_string(16)
+    |> String.upcase()
+    |> String.pad_leading(4, "0")
+  end
+
+  defp unicode_hex(codepoint)
+       when codepoint <= 0xFFFF do
+    hex16(codepoint)
+  end
+
+  defp unicode_hex(codepoint) do
+    adjusted =
+      codepoint - 0x10000
+
+    high =
+      0xD800 + Bitwise.bsr(adjusted, 10)
+
+    low =
+      0xDC00 + Bitwise.band(adjusted, 0x3FF)
+
+    hex16(high) <> hex16(low)
   end
 
   defp create_and_register_jpeg(
@@ -569,7 +1037,7 @@ defmodule PaperForge.Document do
   end
 
   defp validate_options!(options) do
-    supported_options = MapSet.new([:compress, :pdf_version])
+    supported_options = MapSet.new([:compress, :pdf_version, :default_font])
 
     invalid_options =
       options
@@ -614,6 +1082,50 @@ defmodule PaperForge.Document do
           "pdf_version must be a string, received: " <>
             inspect(value)
   end
+
+  defp validate_font_key!(value, _option)
+       when is_atom(value) do
+    value
+  end
+
+  defp validate_font_key!(value, option) do
+    raise ArgumentError,
+          "#{option} must be an atom, received: " <> inspect(value)
+  end
+
+  defp validate_font_variant!(variant)
+       when variant in [:regular, :bold, :italic, :bold_italic] do
+    :ok
+  end
+
+  defp validate_font_variant!(variant) do
+    raise ArgumentError,
+          "unsupported font variant #{inspect(variant)}. " <>
+            "Expected :regular, :bold, :italic, or :bold_italic"
+  end
+
+  defp put_font_family_variant(document, family_key, variant, font_key) do
+    font_families =
+      Map.update(
+        document.font_families,
+        family_key,
+        %{variant => font_key},
+        &Map.put(&1, variant, font_key)
+      )
+
+    %{document | font_families: font_families}
+  end
+
+  defp family_font_key(family_key, variant) do
+    :"#{family_key}_#{variant}"
+  end
+
+  defp font_variant(:bold, :italic), do: :bold_italic
+  defp font_variant(:bold, :oblique), do: :bold_italic
+  defp font_variant(:bold, _style), do: :bold
+  defp font_variant(_weight, :italic), do: :italic
+  defp font_variant(_weight, :oblique), do: :italic
+  defp font_variant(_weight, _style), do: :regular
 
   defp validate_jpeg_data!(jpeg_data) do
     cond do

@@ -12,6 +12,9 @@ defmodule PaperForge.Graphics.Text do
   """
 
   alias PaperForge.Color
+  alias PaperForge.Font
+  alias PaperForge.FontError
+  alias PaperForge.Fonts.TrueType
   alias PaperForge.Graphics
   alias PaperForge.Serializer
   alias PaperForge.TextMetrics
@@ -24,6 +27,7 @@ defmodule PaperForge.Graphics.Text do
           | {:y, number()}
           | {:size, number()}
           | {:font, atom()}
+          | {:font_instance, Font.t()}
           | {:resource_name, binary()}
           | {:color, Color.t()}
           | {:width, number()}
@@ -85,6 +89,12 @@ defmodule PaperForge.Graphics.Text do
         :font
       )
 
+    font_instance =
+      Keyword.get(
+        options,
+        :font_instance
+      )
+
     resource_name =
       Keyword.fetch!(
         options,
@@ -124,8 +134,15 @@ defmodule PaperForge.Graphics.Text do
         x,
         width,
         alignment,
-        font,
+        font_instance || font,
         size
+      )
+
+    encoded_text =
+      encode_text(
+        text,
+        font,
+        font_instance
       )
 
     [
@@ -143,11 +160,39 @@ defmodule PaperForge.Graphics.Text do
       " ",
       Serializer.encode(y),
       " Tm\n",
-      Serializer.encode(text),
+      Serializer.encode(encoded_text),
       " Tj\n",
       "ET\n",
       "Q"
     ]
+  end
+
+  defp encode_text(
+         text,
+         font_key,
+         %Font{kind: :truetype} = font
+       ) do
+    glyph_data =
+      text
+      |> String.to_charlist()
+      |> Enum.map(fn codepoint ->
+        case TrueType.glyph_id(font, codepoint) do
+          {:ok, glyph_id} ->
+            <<glyph_id::16-big>>
+
+          :error ->
+            raise FontError, {:missing_glyph, font_key, codepoint}
+        end
+      end)
+
+    {
+      :hex_string,
+      IO.iodata_to_binary(glyph_data)
+    }
+  end
+
+  defp encode_text(text, _font_key, _font_instance) do
+    text
   end
 
   defp calculate_x(

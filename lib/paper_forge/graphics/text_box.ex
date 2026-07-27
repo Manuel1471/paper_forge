@@ -44,6 +44,7 @@ defmodule PaperForge.Graphics.TextBox do
   - `:line_height`
   - `:align`
   - `:color`
+  - `:font_instance`
 
   ## Example
 
@@ -93,6 +94,7 @@ defmodule PaperForge.Graphics.TextBox do
         text,
         width: width,
         font: Keyword.fetch!(options, :font),
+        font_instance: Keyword.get(options, :font_instance),
         size: size
       )
 
