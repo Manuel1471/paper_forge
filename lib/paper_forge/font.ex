@@ -1,6 +1,6 @@
 defmodule PaperForge.Font do
   @moduledoc """
-  Represents a standard PDF font registered inside a document.
+  Represents a PDF font registered inside a document.
   """
 
   alias PaperForge.Reference
@@ -11,8 +11,16 @@ defmodule PaperForge.Font do
     :family,
     :style,
     :encoding,
+    :kind,
     :resource_name,
-    :reference
+    :reference,
+    :unicode_to_gid,
+    :widths,
+    :units_per_em,
+    :number_of_glyphs,
+    :cid_font_reference,
+    :to_unicode_reference,
+    :used_glyphs
   ]
 
   defstruct [
@@ -21,8 +29,16 @@ defmodule PaperForge.Font do
     :family,
     :style,
     :encoding,
+    :kind,
     :resource_name,
-    :reference
+    :reference,
+    :unicode_to_gid,
+    :widths,
+    :units_per_em,
+    :number_of_glyphs,
+    :cid_font_reference,
+    :to_unicode_reference,
+    :used_glyphs
   ]
 
   @type family ::
@@ -31,6 +47,7 @@ defmodule PaperForge.Font do
           | :courier
           | :symbol
           | :zapf_dingbats
+          | :truetype
 
   @type style ::
           :regular
@@ -41,6 +58,11 @@ defmodule PaperForge.Font do
   @type encoding ::
           :win_ansi
           | :builtin
+          | :identity_h
+
+  @type kind ::
+          :builtin
+          | :truetype
 
   @type t :: %__MODULE__{
           key: atom(),
@@ -48,8 +70,16 @@ defmodule PaperForge.Font do
           family: family(),
           style: style(),
           encoding: encoding(),
+          kind: kind(),
           resource_name: binary(),
-          reference: Reference.t()
+          reference: Reference.t(),
+          unicode_to_gid: map() | nil,
+          widths: map() | nil,
+          units_per_em: pos_integer() | nil,
+          number_of_glyphs: non_neg_integer() | nil,
+          cid_font_reference: Reference.t() | nil,
+          to_unicode_reference: Reference.t() | nil,
+          used_glyphs: MapSet.t(non_neg_integer()) | nil
         }
 
   @doc """
@@ -70,8 +100,50 @@ defmodule PaperForge.Font do
       family: Map.fetch!(definition, :family),
       style: Map.fetch!(definition, :style),
       encoding: Map.fetch!(definition, :encoding),
+      kind: :builtin,
       resource_name: resource_name,
-      reference: reference
+      reference: reference,
+      unicode_to_gid: nil,
+      widths: nil,
+      units_per_em: nil,
+      number_of_glyphs: nil,
+      cid_font_reference: nil,
+      to_unicode_reference: nil,
+      used_glyphs: nil
+    }
+  end
+
+  @doc """
+  Creates a registered TrueType font.
+  """
+  @spec true_type(atom(), map(), binary(), Reference.t()) :: t()
+  def true_type(
+        key,
+        font,
+        resource_name,
+        %Reference{} = reference,
+        options \\ []
+      )
+      when is_atom(key) and
+             is_map(font) and
+             is_binary(resource_name) and
+             byte_size(resource_name) > 0 do
+    %__MODULE__{
+      key: key,
+      base_font: Map.fetch!(font, :postscript_name),
+      family: :truetype,
+      style: :regular,
+      encoding: :identity_h,
+      kind: :truetype,
+      resource_name: resource_name,
+      reference: reference,
+      unicode_to_gid: Map.fetch!(font, :unicode_to_gid),
+      widths: Map.fetch!(font, :widths),
+      units_per_em: Map.fetch!(font, :units_per_em),
+      number_of_glyphs: Map.fetch!(font, :number_of_glyphs),
+      cid_font_reference: Keyword.get(options, :cid_font_reference),
+      to_unicode_reference: Keyword.get(options, :to_unicode_reference),
+      used_glyphs: Keyword.get(options, :used_glyphs, MapSet.new())
     }
   end
 
@@ -124,5 +196,16 @@ defmodule PaperForge.Font do
          :builtin
        ) do
     dictionary
+  end
+
+  defp maybe_put_encoding(
+         dictionary,
+         :identity_h
+       ) do
+    Map.put(
+      dictionary,
+      "Encoding",
+      {:name, "Identity-H"}
+    )
   end
 end

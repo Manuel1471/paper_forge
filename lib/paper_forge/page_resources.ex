@@ -10,9 +10,8 @@ defmodule PaperForge.PageResources do
   - color spaces;
   - patterns.
 
-  PaperForge v0.2.0 currently uses fonts and image XObjects directly,
-  while the remaining resource groups are included to keep the
-  structure extensible.
+  PaperForge currently uses fonts and image XObjects directly, while the
+  remaining resource groups are included to keep the structure extensible.
   """
 
   alias PaperForge.Font

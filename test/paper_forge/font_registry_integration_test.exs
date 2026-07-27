@@ -2,6 +2,7 @@ defmodule PaperForge.FontRegistryIntegrationTest do
   use ExUnit.Case, async: true
 
   alias PaperForge.Document
+  alias PaperForge.FontError
   alias PaperForge.FontRegistry
 
   test "reuses the same registered font" do
@@ -116,7 +117,7 @@ defmodule PaperForge.FontRegistryIntegrationTest do
   end
 
   test "rejects unknown fonts" do
-    assert_raise ArgumentError, ~r/unsupported font :unknown_font/, fn ->
+    assert_raise FontError, ~r/font :unknown_font has not been registered/, fn ->
       Document.register_font(
         Document.new(),
         :unknown_font

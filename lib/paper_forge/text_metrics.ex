@@ -7,6 +7,7 @@ defmodule PaperForge.TextMetrics do
 
   alias PaperForge.Fonts.Builtin
   alias PaperForge.Fonts.Metrics
+  alias PaperForge.Fonts.TrueType
 
   @default_font :helvetica
   @default_size 12
@@ -33,12 +34,7 @@ defmodule PaperForge.TextMetrics do
   @spec width(binary(), keyword()) :: float()
   def width(text, options \\ [])
       when is_binary(text) and is_list(options) do
-    font =
-      Keyword.get(
-        options,
-        :font,
-        @default_font
-      )
+    font = font_option(options)
 
     size =
       Keyword.get(
@@ -62,12 +58,7 @@ defmodule PaperForge.TextMetrics do
   @spec line_width(binary(), keyword()) :: float()
   def line_width(text, options \\ [])
       when is_binary(text) and is_list(options) do
-    font =
-      Keyword.get(
-        options,
-        :font,
-        @default_font
-      )
+    font = font_option(options)
 
     size =
       Keyword.get(
@@ -82,7 +73,7 @@ defmodule PaperForge.TextMetrics do
     text
     |> String.to_charlist()
     |> Enum.reduce(0, fn codepoint, total ->
-      total + Metrics.width(font, codepoint)
+      total + glyph_width(font, codepoint)
     end)
     |> then(fn width_in_font_units ->
       width_in_font_units * size / 1000
@@ -146,9 +137,45 @@ defmodule PaperForge.TextMetrics do
     end
   end
 
+  defp font_option(options) do
+    case Keyword.get(options, :font_instance) do
+      nil ->
+        Keyword.get(options, :font, @default_font)
+
+      font_instance ->
+        font_instance
+    end
+  end
+
+  defp validate_font!(%PaperForge.Font{kind: :truetype}) do
+    :ok
+  end
+
+  defp validate_font!(%PaperForge.Font{kind: :builtin, key: font_key}) do
+    validate_font!(font_key)
+  end
+
   defp validate_font!(font) do
     Builtin.fetch!(font)
     :ok
+  end
+
+  defp glyph_width(%PaperForge.Font{kind: :truetype} = font, codepoint) do
+    case TrueType.glyph_id(font, codepoint) do
+      {:ok, glyph_id} ->
+        TrueType.pdf_width(font, glyph_id)
+
+      :error ->
+        0
+    end
+  end
+
+  defp glyph_width(%PaperForge.Font{kind: :builtin, key: font_key}, codepoint) do
+    glyph_width(font_key, codepoint)
+  end
+
+  defp glyph_width(font, codepoint) do
+    Metrics.width(font, codepoint)
   end
 
   defp validate_size!(size)

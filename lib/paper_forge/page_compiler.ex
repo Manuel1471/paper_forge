@@ -114,12 +114,22 @@ defmodule PaperForge.PageCompiler do
 
   defp compile_operation(page, document, resources, {:text, text, options}) do
     font_key =
-      Keyword.get(options, :font, :helvetica)
+      Document.resolve_font_key(
+        document,
+        options
+      )
 
-    {document, font} =
+    {document, _font} =
       Document.register_font(
         document,
         font_key
+      )
+
+    {document, font} =
+      Document.use_font_text(
+        document,
+        font_key,
+        text
       )
 
     command_options =
@@ -127,6 +137,7 @@ defmodule PaperForge.PageCompiler do
       |> put_default_position(page)
       |> transform_text_coordinates(page)
       |> Keyword.put(:font, font_key)
+      |> Keyword.put(:font_instance, font)
       |> Keyword.put(
         :resource_name,
         font.resource_name
@@ -146,12 +157,22 @@ defmodule PaperForge.PageCompiler do
 
   defp compile_operation(page, document, resources, {:text_box, text, options}) do
     font_key =
-      Keyword.get(options, :font, :helvetica)
+      Document.resolve_font_key(
+        document,
+        options
+      )
 
-    {document, font} =
+    {document, _font} =
       Document.register_font(
         document,
         font_key
+      )
+
+    {document, font} =
+      Document.use_font_text(
+        document,
+        font_key,
+        text
       )
 
     command_options =
@@ -159,6 +180,7 @@ defmodule PaperForge.PageCompiler do
       |> put_default_position(page)
       |> transform_text_box_coordinates(page)
       |> Keyword.put(:font, font_key)
+      |> Keyword.put(:font_instance, font)
       |> Keyword.put(
         :resource_name,
         font.resource_name
@@ -253,6 +275,10 @@ defmodule PaperForge.PageCompiler do
     {document, command, resources}
   end
 
+  defp compile_operation(_page, document, resources, {:link, _uri, _options}) do
+    {document, [], resources}
+  end
+
   defp compile_local_operation(page, {:text, text, options}, font_resources) do
     font_key =
       Keyword.get(options, :font, :helvetica)
@@ -312,6 +338,10 @@ defmodule PaperForge.PageCompiler do
     raise ArgumentError,
           "Page.content/1 cannot compile images because image XObjects " <>
             "must be registered in a document"
+  end
+
+  defp compile_local_operation(_page, {:link, _uri, _options}, _font_resources) do
+    []
   end
 
   defp compile_line_operation(page, options) do

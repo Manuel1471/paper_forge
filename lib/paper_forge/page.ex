@@ -32,6 +32,7 @@ defmodule PaperForge.Page do
           | {:rectangle, keyword()}
           | {:circle, keyword()}
           | {:image, binary(), keyword()}
+          | {:link, binary(), keyword()}
 
   @type t :: %__MODULE__{
           width: number(),
@@ -95,13 +96,6 @@ defmodule PaperForge.Page do
         options \\ []
       )
       when is_binary(text) and is_list(options) do
-    options =
-      Keyword.put_new(
-        options,
-        :font,
-        :helvetica
-      )
-
     add_operation(
       page,
       {:text, text, options}
@@ -118,16 +112,26 @@ defmodule PaperForge.Page do
         options
       )
       when is_binary(text) and is_list(options) do
-    options =
-      Keyword.put_new(
-        options,
-        :font,
-        :helvetica
-      )
-
     add_operation(
       page,
       {:text_box, text, options}
+    )
+  end
+
+  @doc """
+  Adds a paragraph using the multiline text-box layout engine.
+  """
+  @spec paragraph(t(), binary(), keyword()) :: t()
+  def paragraph(
+        %__MODULE__{} = page,
+        text,
+        options
+      )
+      when is_binary(text) and is_list(options) do
+    text_box(
+      page,
+      text,
+      options
     )
   end
 
@@ -172,6 +176,100 @@ defmodule PaperForge.Page do
       page,
       {:image, source, options}
     )
+  end
+
+  @doc """
+  Adds a URI link annotation over a rectangular area.
+  """
+  @spec link(t(), binary(), keyword()) :: t()
+  def link(
+        %__MODULE__{} = page,
+        uri,
+        options
+      )
+      when is_binary(uri) and is_list(options) do
+    add_operation(
+      page,
+      {:link, uri, options}
+    )
+  end
+
+  @doc """
+  Adds a basic table.
+
+  Rows are lists of cell values. Table cells are drawn with rectangles
+  and text operations so they work with the normal font pipeline.
+  """
+  @spec table(t(), [[term()]], keyword()) :: t()
+  def table(
+        %__MODULE__{} = page,
+        rows,
+        options
+      )
+      when is_list(rows) and is_list(options) do
+    x = Keyword.get(options, :x, content_left(page))
+    y = Keyword.fetch!(options, :y)
+    width = Keyword.get(options, :width, content_width(page))
+    row_height = Keyword.get(options, :row_height, 24)
+    padding = Keyword.get(options, :padding, 6)
+    font = Keyword.get(options, :font)
+    size = Keyword.get(options, :size, 10)
+    header? = Keyword.get(options, :header, false)
+
+    column_count =
+      rows
+      |> Enum.map(&length/1)
+      |> Enum.max(fn -> 1 end)
+
+    column_widths =
+      Keyword.get(
+        options,
+        :column_widths,
+        List.duplicate(width / column_count, column_count)
+      )
+
+    rows
+    |> Enum.with_index()
+    |> Enum.reduce(page, fn {row, row_index}, current_page ->
+      row_y = y + row_index * row_height
+      fill? = header? and row_index == 0
+
+      row
+      |> Enum.zip(column_widths)
+      |> Enum.reduce({current_page, x}, fn {cell, cell_width}, {row_page, cell_x} ->
+        cell_options =
+          [
+            x: cell_x,
+            y: row_y,
+            width: cell_width,
+            height: row_height,
+            stroke: true,
+            fill: fill?,
+            fill_color: Keyword.get(options, :header_fill_color, PaperForge.Color.gray(0.92)),
+            stroke_color: Keyword.get(options, :stroke_color, PaperForge.Color.gray(0.65)),
+            line_width: Keyword.get(options, :line_width, 0.5)
+          ]
+
+        text_options =
+          [
+            x: cell_x + padding,
+            y: row_y + padding + size,
+            width: max(cell_width - padding * 2, 1),
+            font: font,
+            size: size,
+            color: Keyword.get(options, :color, PaperForge.Color.black())
+          ]
+          |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+
+        row_page =
+          row_page
+          |> rectangle(cell_options)
+          |> text(to_string(cell), text_options)
+
+        {row_page, cell_x + cell_width}
+      end)
+      |> elem(0)
+    end)
   end
 
   @doc """
@@ -264,18 +362,26 @@ defmodule PaperForge.Page do
         content_stream
       )
 
-    page_dictionary = %{
-      "Type" => {:name, "Page"},
-      "Parent" => document.pages_reference,
-      "MediaBox" => [
-        0,
-        0,
-        page.width,
-        page.height
-      ],
-      "Resources" => PageResources.to_dictionary(resources),
-      "Contents" => content_reference
-    }
+    {document, annotations} =
+      add_annotations(
+        page,
+        document
+      )
+
+    page_dictionary =
+      %{
+        "Type" => {:name, "Page"},
+        "Parent" => document.pages_reference,
+        "MediaBox" => [
+          0,
+          0,
+          page.width,
+          page.height
+        ],
+        "Resources" => PageResources.to_dictionary(resources),
+        "Contents" => content_reference
+      }
+      |> maybe_put_annotations(annotations)
 
     {document, page_reference} =
       Document.add_object(
@@ -295,6 +401,59 @@ defmodule PaperForge.Page do
 
   defp content_stream_filters(%Document{compress: false}) do
     []
+  end
+
+  defp add_annotations(%__MODULE__{} = page, %Document{} = document) do
+    page.operations
+    |> Enum.reverse()
+    |> Enum.reduce({document, []}, fn
+      {:link, uri, options}, {current_document, annotations} ->
+        {current_document, reference} =
+          Document.add_object(
+            current_document,
+            link_annotation(page, uri, options)
+          )
+
+        {current_document, annotations ++ [reference]}
+
+      _operation, state ->
+        state
+    end)
+  end
+
+  defp link_annotation(page, uri, options) do
+    x = Keyword.fetch!(options, :x)
+    y = Keyword.fetch!(options, :y)
+    width = Keyword.fetch!(options, :width)
+    height = Keyword.fetch!(options, :height)
+    origin = Keyword.get(options, :origin, page.origin)
+
+    bottom_y =
+      Coordinates.box_y(
+        page.height,
+        y,
+        height,
+        origin
+      )
+
+    %{
+      "Type" => {:name, "Annot"},
+      "Subtype" => {:name, "Link"},
+      "Rect" => [x, bottom_y, x + width, bottom_y + height],
+      "Border" => [0, 0, 0],
+      "A" => %{
+        "S" => {:name, "URI"},
+        "URI" => uri
+      }
+    }
+  end
+
+  defp maybe_put_annotations(dictionary, []) do
+    dictionary
+  end
+
+  defp maybe_put_annotations(dictionary, annotations) do
+    Map.put(dictionary, "Annots", annotations)
   end
 
   defp add_operation(

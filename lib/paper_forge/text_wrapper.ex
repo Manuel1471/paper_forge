@@ -108,6 +108,7 @@ defmodule PaperForge.TextWrapper do
     TextMetrics.line_width(
       text,
       font: Keyword.get(options, :font, :helvetica),
+      font_instance: Keyword.get(options, :font_instance),
       size: Keyword.get(options, :size, 12)
     ) <= Keyword.fetch!(options, :width)
   end

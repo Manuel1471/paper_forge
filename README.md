@@ -7,7 +7,7 @@ vector graphics, metadata, and image XObjects directly in Elixir.
 No browser, wkhtmltopdf, Chromium, ImageMagick, Ghostscript, or external
 rendering service is required.
 
-PaperForge is currently pre-1.0. The `0.2.x` API is usable, but some details may
+PaperForge is currently pre-1.0. The `0.3.x` API is usable, but some details may
 still change while layout and image support mature.
 
 ## Highlights
@@ -24,6 +24,16 @@ still change while layout and image support mature.
 - Multiline text boxes with wrapping, explicit line breaks, line height, height
   limits, and overflow reporting
 - The 14 standard PDF Type 1 fonts
+- Embedded TrueType fonts loaded from paths or binaries
+- TrueType PDF width and `/ToUnicode` subsetting for used glyphs
+- Font-family registration with regular, bold, italic, and bold italic variants
+- Document-level default font selection
+- Visible Unicode text through Type 0 / CIDFontType2 fonts
+- Identity-H encoding and `/ToUnicode` maps for embedded fonts
+- Real TrueType metrics for width, wrapping, and alignment
+- Vertical text flow with automatic page breaks
+- Basic tables
+- URI link annotations
 - Lines, rectangles, circles, fill, stroke, and line widths
 - RGB and grayscale colors
 - JPEG image XObjects with RGB, grayscale, and CMYK support
@@ -43,7 +53,7 @@ def deps do
   [
     {:paper_forge,
      github: "Manuel1471/paper_forge",
-     tag: "v0.2.0"}
+     tag: "v0.3.0"}
   ]
 end
 ```
@@ -65,7 +75,7 @@ After PaperForge is published to Hex, installation will use:
 ```elixir
 def deps do
   [
-    {:paper_forge, "~> 0.2.0"}
+    {:paper_forge, "~> 0.3.0"}
   ]
 end
 ```
@@ -84,6 +94,10 @@ alias PaperForge.Page
 
 document =
   PaperForge.new(compress: true, pdf_version: "1.7")
+  |> PaperForge.register_font(
+    :inter,
+    path: "assets/fonts/Inter-Regular.ttf"
+  )
   |> PaperForge.metadata(
     title: "PaperForge Example",
     author: "Manuel Garcia",
@@ -99,19 +113,19 @@ document =
     fn page ->
       page
       |> Page.text(
-        "Hello from PaperForge",
+        "Informacion del usuario — 你好 — Привет",
         y: 72,
         width: Page.content_width(page),
         align: :center,
-        font: :helvetica_bold,
+        font: :inter,
         size: 28,
         color: Color.rgb255(35, 60, 120)
       )
       |> Page.text_box(
-        "PaperForge creates PDF files directly from Elixir data structures.",
+        "PaperForge creates PDF files directly from Elixir data structures, with embedded fonts for visible Unicode text.",
         y: 120,
         width: Page.content_width(page),
-        font: :helvetica,
+        font: :inter,
         size: 12,
         line_height: 17
       )
@@ -134,6 +148,7 @@ PaperForge.write!(document, "example.pdf")
 PaperForge.new()
 PaperForge.new(compress: false)
 PaperForge.new(pdf_version: "1.4")
+PaperForge.new(default_font: :helvetica)
 ```
 
 ## Pages
@@ -273,10 +288,12 @@ Supported alignment values:
 :right
 ```
 
-## Fonts
+## Fonts And Unicode Text
 
-PaperForge supports the 14 standard PDF Type 1 fonts and registers them only
-when used:
+PaperForge supports two font paths: the 14 standard PDF Type 1 fonts and
+embedded TrueType fonts.
+
+Standard Type 1 fonts are registered automatically when used:
 
 ```elixir
 :helvetica
@@ -295,10 +312,103 @@ when used:
 :zapf_dingbats
 ```
 
-Standard Type 1 fonts are not full Unicode fonts. Document metadata can be
-encoded as UTF-16BE, but visible page text is limited by the selected standard
-font encoding. Embedded TrueType/OpenType fonts are planned for a future
-release.
+Standard Type 1 fonts are convenient for simple Latin text, but they are not
+full Unicode fonts. For visible Unicode text, register a TrueType `.ttf` font
+before adding pages:
+
+```elixir
+document =
+  PaperForge.new()
+  |> PaperForge.register_font(
+    :inter,
+    path: "assets/fonts/Inter-Regular.ttf"
+  )
+```
+
+You can also register a font from an in-memory binary:
+
+```elixir
+document =
+  PaperForge.register_font(
+    document,
+    :inter,
+    data: File.read!("assets/fonts/Inter-Regular.ttf")
+  )
+```
+
+Then use the registered key in text operations:
+
+```elixir
+Page.text(
+  page,
+  "El pingüino comió camarón — ¿listo? — Привет — Ω",
+  x: 72,
+  y: 720,
+  font: :inter,
+  size: 18
+)
+```
+
+Embedded TrueType fonts are written as PDF Type 0 fonts with a CIDFontType2
+descendant, `Identity-H` encoding, a `/FontFile2` stream, widths from the TTF
+`hmtx` table, and a `/ToUnicode` CMap so text extraction and search can recover
+Unicode characters.
+
+Supported embedded font input:
+
+- TrueType outlines (`.ttf`)
+- Unicode `cmap` format 4 or 12
+- 8-bit and Unicode text strings supported by the font's glyph coverage
+
+Current limitations:
+
+- OpenType CFF (`OTTO`) and TrueType Collection (`.ttc`) files are not
+  supported yet.
+- Complex text shaping is not performed, so scripts such as Arabic,
+  Devanagari, and advanced ligatures may not render as expected.
+- PaperForge subsets the generated PDF width arrays and `/ToUnicode` maps to
+  the glyphs used by the document. Physical TTF table reconstruction is not
+  implemented yet, so the full `.ttf` program is still embedded in `/FontFile2`.
+- A missing glyph raises `PaperForge.FontError`.
+
+### Font Families
+
+Register related TrueType files as a family:
+
+```elixir
+document =
+  PaperForge.new()
+  |> PaperForge.register_font_family(
+    :inter,
+    regular: [path: "assets/fonts/Inter-Regular.ttf"],
+    bold: [path: "assets/fonts/Inter-Bold.ttf"],
+    italic: [path: "assets/fonts/Inter-Italic.ttf"],
+    bold_italic: [path: "assets/fonts/Inter-BoldItalic.ttf"]
+  )
+```
+
+Then select a variant with `:weight` and `:style`:
+
+```elixir
+Page.text(
+  page,
+  "Important",
+  x: 72,
+  y: 720,
+  font: :inter,
+  weight: :bold,
+  style: :italic
+)
+```
+
+Set a document default font when most text should use the same font:
+
+```elixir
+document =
+  PaperForge.new()
+  |> PaperForge.register_font(:inter, path: "assets/fonts/Inter-Regular.ttf")
+  |> PaperForge.default_font(:inter)
+```
 
 ## Shapes
 
@@ -415,6 +525,59 @@ directly with `/DCTDecode`.
 Images are deduplicated by SHA-256 hash, so drawing the same image several times
 does not embed duplicate image streams.
 
+## Flow, Tables, And Links
+
+Flow text blocks across pages:
+
+```elixir
+document =
+  PaperForge.new()
+  |> PaperForge.add_flow(
+    [
+      "First paragraph with enough text to wrap.",
+      "Second paragraph. PaperForge creates new pages as needed."
+    ],
+    [size: :letter, margins: 72],
+    font: :helvetica,
+    size: 11,
+    line_height: 15,
+    gap: 8
+  )
+```
+
+Draw a basic table:
+
+```elixir
+page =
+  page
+  |> Page.table(
+    [
+      ["Name", "Score"],
+      ["Ana", 10],
+      ["Luis", 9]
+    ],
+    x: Page.content_left(page),
+    y: 96,
+    width: Page.content_width(page),
+    header: true
+  )
+```
+
+Add a URI link annotation:
+
+```elixir
+page =
+  page
+  |> Page.text("Project", x: 72, y: 720)
+  |> Page.link(
+    "https://github.com/Manuel1471/paper_forge",
+    x: 72,
+    y: 700,
+    width: 180,
+    height: 24
+  )
+```
+
 ## Metadata
 
 ```elixir
@@ -512,6 +675,8 @@ mix run examples/graphics.exs
 mix run examples/two_pages.exs
 mix run examples/new_features.exs
 mix run examples/png.exs
+mix run examples/multilingual_layout.exs
+mix run examples/complete_showcase.exs
 ```
 
 Generated files are written under `tmp/`.
@@ -549,20 +714,22 @@ Run all checks:
 mix do format, compile --warnings-as-errors, test
 ```
 
+Run the TrueType and Unicode benchmark script:
+
+```bash
+mix run benchmarks/truetype.exs
+```
+
 ## Roadmap
 
-### 0.3.0
+### 0.4.x
 
-- Vertical content flow
-- Automatic page breaks
-- Tables
 - Better paragraph layout APIs
-- Links and annotations
+- Physical TrueType table subsetting for smaller `/FontFile2` streams
 
 ### Future
 
-- Embedded TrueType and OpenType fonts
-- Full Unicode visible text through embedded fonts
+- OpenType CFF fonts
 - PNG palette support
 - Reusable Form XObjects
 - HTML parsing
