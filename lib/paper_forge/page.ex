@@ -33,6 +33,9 @@ defmodule PaperForge.Page do
           | {:circle, keyword()}
           | {:image, binary(), keyword()}
           | {:link, binary(), keyword()}
+          | {:link_to, binary() | atom(), keyword()}
+          | {:destination, binary() | atom(), keyword()}
+          | {:bookmark, binary(), keyword()}
 
   @type t :: %__MODULE__{
           width: number(),
@@ -195,6 +198,54 @@ defmodule PaperForge.Page do
   end
 
   @doc """
+  Adds an internal link annotation to a named destination.
+  """
+  @spec link_to(t(), binary() | atom(), keyword()) :: t()
+  def link_to(
+        %__MODULE__{} = page,
+        destination_name,
+        options
+      )
+      when (is_binary(destination_name) or is_atom(destination_name)) and is_list(options) do
+    add_operation(
+      page,
+      {:link_to, destination_name, options}
+    )
+  end
+
+  @doc """
+  Adds a named destination on this page.
+  """
+  @spec destination(t(), binary() | atom(), keyword()) :: t()
+  def destination(
+        %__MODULE__{} = page,
+        name,
+        options \\ []
+      )
+      when (is_binary(name) or is_atom(name)) and is_list(options) do
+    add_operation(
+      page,
+      {:destination, name, options}
+    )
+  end
+
+  @doc """
+  Adds a PDF outline/bookmark pointing to this page.
+  """
+  @spec bookmark(t(), binary(), keyword()) :: t()
+  def bookmark(
+        %__MODULE__{} = page,
+        title,
+        options \\ []
+      )
+      when is_binary(title) and is_list(options) do
+    add_operation(
+      page,
+      {:bookmark, title, options}
+    )
+  end
+
+  @doc """
   Adds a basic table.
 
   Rows are lists of cell values. Table cells are drawn with rectangles
@@ -270,6 +321,60 @@ defmodule PaperForge.Page do
       end)
       |> elem(0)
     end)
+  end
+
+  @doc """
+  Adds an ordered or unordered list.
+  """
+  @spec list(t(), [term()], keyword()) :: t()
+  def list(
+        %__MODULE__{} = page,
+        items,
+        options
+      )
+      when is_list(items) and is_list(options) do
+    x = Keyword.get(options, :x, content_left(page))
+    y = Keyword.fetch!(options, :y)
+    width = Keyword.get(options, :width, content_width(page))
+    size = Keyword.get(options, :size, 10)
+    line_height = Keyword.get(options, :line_height, size * 1.4)
+    marker_width = Keyword.get(options, :marker_width, 24)
+    type = Keyword.get(options, :type, :unordered)
+    font = Keyword.get(options, :font)
+
+    items
+    |> Enum.with_index(1)
+    |> Enum.reduce(page, fn {item, index}, current_page ->
+      row_y = y + (index - 1) * line_height
+      marker = list_marker(type, index)
+
+      text_options =
+        [
+          y: row_y,
+          font: font,
+          size: size,
+          color: Keyword.get(options, :color, PaperForge.Color.black())
+        ]
+        |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+
+      current_page
+      |> text(marker, Keyword.merge(text_options, x: x, width: marker_width))
+      |> text(
+        to_string(item),
+        Keyword.merge(text_options,
+          x: x + marker_width,
+          width: max(width - marker_width, 1)
+        )
+      )
+    end)
+  end
+
+  defp list_marker(:ordered, index), do: "#{index}."
+  defp list_marker(:unordered, _index), do: "•"
+
+  defp list_marker(type, _index) do
+    raise ArgumentError,
+          "unsupported list type #{inspect(type)}. Expected :ordered or :unordered"
   end
 
   @doc """
@@ -389,6 +494,13 @@ defmodule PaperForge.Page do
         page_dictionary
       )
 
+    document =
+      add_navigation(
+        page,
+        document,
+        page_reference
+      )
+
     Document.append_page(
       document,
       page_reference
@@ -416,8 +528,42 @@ defmodule PaperForge.Page do
 
         {current_document, annotations ++ [reference]}
 
+      {:link_to, destination_name, options}, {current_document, annotations} ->
+        {current_document, reference} =
+          Document.add_object(
+            current_document,
+            internal_link_annotation(page, destination_name, options)
+          )
+
+        {current_document, annotations ++ [reference]}
+
       _operation, state ->
         state
+    end)
+  end
+
+  defp add_navigation(%__MODULE__{} = page, %Document{} = document, page_reference) do
+    page.operations
+    |> Enum.reverse()
+    |> Enum.reduce(document, fn
+      {:destination, name, options}, current_document ->
+        Document.add_named_destination(
+          current_document,
+          name,
+          page_reference,
+          destination_options(page, options)
+        )
+
+      {:bookmark, title, options}, current_document ->
+        Document.add_outline(
+          current_document,
+          title,
+          page_reference,
+          destination_options(page, options)
+        )
+
+      _operation, current_document ->
+        current_document
     end)
   end
 
@@ -447,6 +593,53 @@ defmodule PaperForge.Page do
       }
     }
   end
+
+  defp internal_link_annotation(page, destination_name, options) do
+    x = Keyword.fetch!(options, :x)
+    y = Keyword.fetch!(options, :y)
+    width = Keyword.fetch!(options, :width)
+    height = Keyword.fetch!(options, :height)
+    origin = Keyword.get(options, :origin, page.origin)
+
+    bottom_y =
+      Coordinates.box_y(
+        page.height,
+        y,
+        height,
+        origin
+      )
+
+    %{
+      "Type" => {:name, "Annot"},
+      "Subtype" => {:name, "Link"},
+      "Rect" => [x, bottom_y, x + width, bottom_y + height],
+      "Border" => [0, 0, 0],
+      "Dest" => normalize_destination_name(destination_name)
+    }
+  end
+
+  defp destination_options(page, options) do
+    origin =
+      Keyword.get(
+        options,
+        :origin,
+        page.origin
+      )
+
+    y =
+      options
+      |> Keyword.get(:y, content_top(page))
+      |> then(&Coordinates.point_y(page.height, &1, origin))
+
+    [
+      x: Keyword.get(options, :x),
+      y: y,
+      zoom: Keyword.get(options, :zoom)
+    ]
+  end
+
+  defp normalize_destination_name(name) when is_atom(name), do: Atom.to_string(name)
+  defp normalize_destination_name(name), do: name
 
   defp maybe_put_annotations(dictionary, []) do
     dictionary

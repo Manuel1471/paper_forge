@@ -30,7 +30,10 @@ defmodule PaperForge.Fonts.TrueType do
           cap_height: integer(),
           italic_angle: number(),
           postscript_name: binary(),
-          flags: pos_integer()
+          flags: pos_integer(),
+          index_to_loc_format: integer(),
+          glyph_offsets: [non_neg_integer()],
+          raw_tables: %{optional(binary()) => binary()}
         }
 
   @spec parse(binary()) :: {:ok, t()} | {:error, term()}
@@ -40,6 +43,12 @@ defmodule PaperForge.Fonts.TrueType do
          {:ok, head} <- parse_head(table(data, tables, "head")),
          {:ok, hhea} <- parse_hhea(table(data, tables, "hhea")),
          {:ok, maxp} <- parse_maxp(table(data, tables, "maxp")),
+         {:ok, glyph_offsets} <-
+           parse_loca(
+             table(data, tables, "loca"),
+             head.index_to_loc_format,
+             maxp.number_of_glyphs
+           ),
          {:ok, widths} <-
            parse_hmtx(
              table(data, tables, "hmtx"),
@@ -63,7 +72,10 @@ defmodule PaperForge.Fonts.TrueType do
          cap_height: os2.cap_height || hhea.ascent,
          italic_angle: post.italic_angle,
          postscript_name: postscript_name,
-         flags: font_flags(post.italic_angle)
+         flags: font_flags(post.italic_angle),
+         index_to_loc_format: head.index_to_loc_format,
+         glyph_offsets: glyph_offsets,
+         raw_tables: raw_tables(data, tables)
        }}
     end
   rescue
@@ -101,6 +113,21 @@ defmodule PaperForge.Fonts.TrueType do
     |> glyph_width(glyph_id)
     |> Kernel.*(1000)
     |> div(units_per_em)
+  end
+
+  @spec glyph_dependencies(t(), non_neg_integer()) :: [non_neg_integer()]
+  def glyph_dependencies(font, glyph_id) do
+    font
+    |> glyph_binary(glyph_id)
+    |> composite_dependencies([])
+    |> Enum.uniq()
+  end
+
+  @spec expand_glyph_dependencies(t(), Enumerable.t()) :: MapSet.t(non_neg_integer())
+  def expand_glyph_dependencies(font, glyph_ids) do
+    Enum.reduce(glyph_ids, MapSet.new(), fn glyph_id, used ->
+      expand_glyph(font, glyph_id, used)
+    end)
   end
 
   defp table_directory(<<0x00010000::32, num_tables::16, _rest::binary>> = data) do
@@ -150,6 +177,21 @@ defmodule PaperForge.Fonts.TrueType do
     binary_part(data, offset, length)
   end
 
+  defp raw_tables(data, tables) do
+    tables
+    |> Enum.map(fn {tag, {offset, length}} ->
+      {
+        tag,
+        binary_part(
+          data,
+          offset,
+          length
+        )
+      }
+    end)
+    |> Map.new()
+  end
+
   defp parse_head(<<
          _version::32,
          _revision::32,
@@ -166,14 +208,15 @@ defmodule PaperForge.Fonts.TrueType do
          _mac_style::16,
          _lowest_rec_ppem::16,
          _font_direction_hint::signed-16,
-         _index_to_loc_format::signed-16,
+         index_to_loc_format::signed-16,
          _glyph_data_format::signed-16,
          _rest::binary
        >>) do
     {:ok,
      %{
        units_per_em: units_per_em,
-       bbox: [x_min, y_min, x_max, y_max]
+       bbox: [x_min, y_min, x_max, y_max],
+       index_to_loc_format: index_to_loc_format
      }}
   end
 
@@ -211,6 +254,50 @@ defmodule PaperForge.Fonts.TrueType do
   end
 
   defp parse_maxp(_data), do: {:error, :invalid_font}
+
+  defp parse_loca(data, 0, number_of_glyphs) do
+    required_size = (number_of_glyphs + 1) * 2
+
+    if byte_size(data) < required_size do
+      {:error, :invalid_font}
+    else
+      offsets =
+        data
+        |> binary_part(0, required_size)
+        |> parse_short_loca([])
+
+      {:ok, offsets}
+    end
+  end
+
+  defp parse_loca(data, 1, number_of_glyphs) do
+    required_size = (number_of_glyphs + 1) * 4
+
+    if byte_size(data) < required_size do
+      {:error, :invalid_font}
+    else
+      offsets =
+        data
+        |> binary_part(0, required_size)
+        |> parse_long_loca([])
+
+      {:ok, offsets}
+    end
+  end
+
+  defp parse_loca(_data, _format, _number_of_glyphs), do: {:error, :invalid_font}
+
+  defp parse_short_loca(<<>>, offsets), do: Enum.reverse(offsets)
+
+  defp parse_short_loca(<<offset::16, rest::binary>>, offsets) do
+    parse_short_loca(rest, [offset * 2 | offsets])
+  end
+
+  defp parse_long_loca(<<>>, offsets), do: Enum.reverse(offsets)
+
+  defp parse_long_loca(<<offset::32, rest::binary>>, offsets) do
+    parse_long_loca(rest, [offset | offsets])
+  end
 
   defp parse_hmtx(data, number_of_hmetrics, number_of_glyphs) do
     metrics_size = number_of_hmetrics * 4
@@ -552,6 +639,114 @@ defmodule PaperForge.Fonts.TrueType do
     |> case do
       "" -> "EmbeddedFont"
       sanitized -> sanitized
+    end
+  end
+
+  defp glyph_binary(%{raw_tables: %{"glyf" => glyf}, glyph_offsets: offsets}, glyph_id) do
+    start_offset =
+      Enum.at(
+        offsets,
+        glyph_id,
+        0
+      )
+
+    end_offset =
+      Enum.at(
+        offsets,
+        glyph_id + 1,
+        start_offset
+      )
+
+    length =
+      max(
+        end_offset - start_offset,
+        0
+      )
+
+    if start_offset + length <= byte_size(glyf) do
+      binary_part(
+        glyf,
+        start_offset,
+        length
+      )
+    else
+      <<>>
+    end
+  end
+
+  defp composite_dependencies(
+         <<number_of_contours::signed-16, _bbox::binary-size(8), components::binary>>,
+         _deps
+       )
+       when number_of_contours < 0 do
+    parse_composite_components(components, [])
+  end
+
+  defp composite_dependencies(_glyph, _deps), do: []
+
+  defp parse_composite_components(<<>>, dependencies), do: Enum.reverse(dependencies)
+
+  defp parse_composite_components(<<flags::16, glyph_id::16, rest::binary>>, dependencies) do
+    skip =
+      composite_argument_size(flags) +
+        composite_transform_size(flags)
+
+    if byte_size(rest) < skip do
+      Enum.reverse([glyph_id | dependencies])
+    else
+      rest =
+        binary_part(
+          rest,
+          skip,
+          byte_size(rest) - skip
+        )
+
+      dependencies = [glyph_id | dependencies]
+
+      if Bitwise.band(flags, 0x0020) == 0x0020 do
+        parse_composite_components(rest, dependencies)
+      else
+        Enum.reverse(dependencies)
+      end
+    end
+  end
+
+  defp composite_argument_size(flags) do
+    if Bitwise.band(flags, 0x0001) == 0x0001 do
+      4
+    else
+      2
+    end
+  end
+
+  defp composite_transform_size(flags) do
+    cond do
+      Bitwise.band(flags, 0x0008) == 0x0008 -> 2
+      Bitwise.band(flags, 0x0040) == 0x0040 -> 4
+      Bitwise.band(flags, 0x0080) == 0x0080 -> 8
+      true -> 0
+    end
+  end
+
+  defp expand_glyph(font, glyph_id, used) do
+    if MapSet.member?(used, glyph_id) do
+      used
+    else
+      used =
+        MapSet.put(
+          used,
+          glyph_id
+        )
+
+      font
+      |> glyph_dependencies(glyph_id)
+      |> Enum.reduce(used, fn dependency, current ->
+        expand_glyph(
+          font,
+          dependency,
+          current
+        )
+      end)
     end
   end
 end

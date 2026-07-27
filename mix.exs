@@ -1,7 +1,7 @@
 defmodule PaperForge.MixProject do
   use Mix.Project
 
-  @version "0.3.0"
+  @version "0.4.0"
   @source_url "https://github.com/Manuel1471/paper_forge"
 
   def project do
@@ -34,9 +34,9 @@ defmodule PaperForge.MixProject do
   defp description do
     """
     A pure Elixir PDF generation engine with multi-page documents,
-    text layout, vector graphics, standard PDF fonts, embedded TrueType fonts,
-    Unicode visible text, JPEG and PNG images, transparency, compression,
-    page margins, coordinate systems, and metadata.
+    text layout, document navigation, vector graphics, standard PDF fonts,
+    embedded TrueType fonts, Unicode visible text, JPEG and PNG images,
+    transparency, compression, page margins, coordinate systems, and metadata.
     """
   end
 

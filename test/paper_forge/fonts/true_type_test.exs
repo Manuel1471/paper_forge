@@ -3,6 +3,7 @@ defmodule PaperForge.Fonts.TrueTypeTest do
 
   alias PaperForge.FontError
   alias PaperForge.Fonts.TrueType
+  alias PaperForge.Fonts.TrueType.Subsetter
 
   @font_path "test/fixtures/fonts/SFNSMono.ttf"
 
@@ -20,6 +21,10 @@ defmodule PaperForge.Fonts.TrueTypeTest do
     assert y_min < y_max
     assert is_integer(font.ascent)
     assert is_integer(font.descent)
+    assert is_integer(font.index_to_loc_format)
+    assert length(font.glyph_offsets) == font.number_of_glyphs + 1
+    assert is_binary(font.raw_tables["glyf"])
+    assert is_binary(font.raw_tables["loca"])
   end
 
   test "resolves Unicode codepoints through cmap" do
@@ -70,5 +75,34 @@ defmodule PaperForge.Fonts.TrueTypeTest do
     assert_raise FontError, ~r/unsupported font format/, fn ->
       TrueType.parse!(<<"OTTO", 0::size(64)>>)
     end
+  end
+
+  test "builds a physical subsetting plan" do
+    font =
+      @font_path
+      |> File.read!()
+      |> TrueType.parse!()
+
+    {:ok, glyph_a} =
+      TrueType.glyph_id(
+        font,
+        ?A
+      )
+
+    plan =
+      Subsetter.plan(
+        font,
+        [glyph_a]
+      )
+
+    assert plan.binary_hash == Subsetter.binary_hash(font.data)
+    assert 0 in plan.glyphs
+    assert glyph_a in plan.glyphs
+    assert plan.rebuild_tables == ["glyf", "loca", "hmtx", "maxp"]
+    assert is_integer(plan.checksums["head"])
+  end
+
+  test "calculates TrueType table checksums with four byte padding" do
+    assert Subsetter.checksum(<<1, 2, 3>>) == 0x01020300
   end
 end

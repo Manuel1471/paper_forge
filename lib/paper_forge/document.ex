@@ -35,9 +35,14 @@ defmodule PaperForge.Document do
             pdf_version: @default_pdf_version,
             font_registry: nil,
             font_families: %{},
+            font_program_registry: %{},
             default_font: :helvetica,
             image_registry: nil,
-            compress: @default_compression
+            compress: @default_compression,
+            named_destinations: %{},
+            outlines_reference: nil,
+            last_outline_reference: nil,
+            outline_count: 0
 
   @type t :: %__MODULE__{
           objects: %{optional(pos_integer()) => Object.t()},
@@ -48,9 +53,14 @@ defmodule PaperForge.Document do
           pdf_version: binary(),
           font_registry: FontRegistry.t(),
           font_families: %{optional(atom()) => %{optional(atom()) => atom()}},
+          font_program_registry: %{optional(binary()) => Reference.t()},
           default_font: atom(),
           image_registry: ImageRegistry.t(),
-          compress: boolean()
+          compress: boolean(),
+          named_destinations: %{optional(binary()) => list()},
+          outlines_reference: Reference.t() | nil,
+          last_outline_reference: Reference.t() | nil,
+          outline_count: non_neg_integer()
         }
 
   @doc """
@@ -119,9 +129,14 @@ defmodule PaperForge.Document do
       pdf_version: pdf_version,
       font_registry: FontRegistry.new(),
       font_families: %{},
+      font_program_registry: %{},
       default_font: default_font,
       image_registry: ImageRegistry.new(),
-      compress: compress
+      compress: compress,
+      named_destinations: %{},
+      outlines_reference: nil,
+      last_outline_reference: nil,
+      outline_count: 0
     }
   end
 
@@ -278,6 +293,105 @@ defmodule PaperForge.Document do
         )
       end
     )
+  end
+
+  @doc """
+  Adds or replaces a named destination in the PDF catalog.
+  """
+  @spec add_named_destination(t(), binary() | atom(), Reference.t(), keyword()) :: t()
+  def add_named_destination(
+        %__MODULE__{} = document,
+        name,
+        %Reference{} = page_reference,
+        options \\ []
+      ) do
+    name =
+      normalize_destination_name(name)
+
+    destination =
+      [
+        page_reference,
+        {:name, "XYZ"},
+        Keyword.get(options, :x),
+        Keyword.get(options, :y),
+        Keyword.get(options, :zoom)
+      ]
+
+    document = %{
+      document
+      | named_destinations:
+          Map.put(
+            document.named_destinations,
+            name,
+            destination
+          )
+    }
+
+    update_catalog_names(document)
+  end
+
+  @doc """
+  Adds a PDF outline/bookmark item that points to a page.
+  """
+  @spec add_outline(t(), binary(), Reference.t(), keyword()) :: t()
+  def add_outline(%__MODULE__{} = document, title, %Reference{} = page_reference, options \\ [])
+      when is_binary(title) do
+    {document, outlines_reference} =
+      ensure_outlines(document)
+
+    destination = [
+      page_reference,
+      {:name, "XYZ"},
+      Keyword.get(options, :x),
+      Keyword.get(options, :y),
+      Keyword.get(options, :zoom)
+    ]
+
+    item_dictionary =
+      %{
+        "Title" => title,
+        "Parent" => outlines_reference,
+        "Dest" => destination
+      }
+      |> maybe_put_previous_outline(document.last_outline_reference)
+
+    {document, item_reference} =
+      add_object(
+        document,
+        item_dictionary
+      )
+
+    document =
+      case document.last_outline_reference do
+        nil ->
+          document
+
+        previous_reference ->
+          update_object(
+            document,
+            previous_reference,
+            &Map.put(&1, "Next", item_reference)
+          )
+      end
+
+    document =
+      update_object(
+        document,
+        outlines_reference,
+        fn outlines ->
+          outlines
+          |> Map.put_new("First", item_reference)
+          |> Map.put("Last", item_reference)
+          |> Map.put("Count", document.outline_count + 1)
+        end
+      )
+
+    %{
+      document
+      | outlines_reference: outlines_reference,
+        last_outline_reference: item_reference,
+        outline_count: document.outline_count + 1
+    }
   end
 
   @doc """
@@ -499,6 +613,91 @@ defmodule PaperForge.Document do
     Map.fetch!(document.objects, object_id)
   end
 
+  defp normalize_destination_name(name) when is_atom(name) do
+    Atom.to_string(name)
+  end
+
+  defp normalize_destination_name(name)
+       when is_binary(name) and byte_size(name) > 0 do
+    name
+  end
+
+  defp normalize_destination_name(name) do
+    raise ArgumentError,
+          "destination name must be a non-empty string or atom, received: " <>
+            inspect(name)
+  end
+
+  defp update_catalog_names(%__MODULE__{} = document) do
+    names =
+      document.named_destinations
+      |> Enum.sort_by(fn {name, _destination} -> name end)
+      |> Enum.flat_map(fn {name, destination} ->
+        [
+          name,
+          destination
+        ]
+      end)
+
+    update_object(
+      document,
+      document.root_reference,
+      fn catalog ->
+        Map.put(
+          catalog,
+          "Names",
+          %{
+            "Dests" => %{
+              "Names" => names
+            }
+          }
+        )
+      end
+    )
+  end
+
+  defp ensure_outlines(%__MODULE__{outlines_reference: %Reference{} = reference} = document) do
+    {
+      document,
+      reference
+    }
+  end
+
+  defp ensure_outlines(%__MODULE__{} = document) do
+    {document, outlines_reference} =
+      add_object(
+        document,
+        %{
+          "Type" => {:name, "Outlines"},
+          "Count" => 0
+        }
+      )
+
+    document =
+      update_object(
+        document,
+        document.root_reference,
+        &Map.put(&1, "Outlines", outlines_reference)
+      )
+
+    {
+      %{document | outlines_reference: outlines_reference},
+      outlines_reference
+    }
+  end
+
+  defp maybe_put_previous_outline(dictionary, nil) do
+    dictionary
+  end
+
+  defp maybe_put_previous_outline(dictionary, previous_reference) do
+    Map.put(
+      dictionary,
+      "Prev",
+      previous_reference
+    )
+  end
+
   defp create_and_register_font(
          %__MODULE__{} = document,
          font_key
@@ -553,8 +752,9 @@ defmodule PaperForge.Document do
       )
 
     {document, font_file_reference} =
-      add_object(
+      register_font_program(
         document,
+        data,
         font_file_stream
       )
 
@@ -645,6 +845,40 @@ defmodule PaperForge.Document do
       )
 
     %{document | font_registry: font_registry}
+  end
+
+  defp register_font_program(%__MODULE__{} = document, data, %Stream{} = stream) do
+    hash =
+      :crypto.hash(:sha256, data)
+      |> Base.encode16(case: :lower)
+
+    case Map.fetch(document.font_program_registry, hash) do
+      {:ok, reference} ->
+        {
+          document,
+          reference
+        }
+
+      :error ->
+        {document, reference} =
+          add_object(
+            document,
+            stream
+          )
+
+        {
+          %{
+            document
+            | font_program_registry:
+                Map.put(
+                  document.font_program_registry,
+                  hash,
+                  reference
+                )
+          },
+          reference
+        }
+    end
   end
 
   defp true_type_data!(options) do

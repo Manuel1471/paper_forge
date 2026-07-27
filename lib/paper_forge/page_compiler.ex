@@ -279,6 +279,18 @@ defmodule PaperForge.PageCompiler do
     {document, [], resources}
   end
 
+  defp compile_operation(_page, document, resources, {:link_to, _destination, _options}) do
+    {document, [], resources}
+  end
+
+  defp compile_operation(_page, document, resources, {:destination, _name, _options}) do
+    {document, [], resources}
+  end
+
+  defp compile_operation(_page, document, resources, {:bookmark, _title, _options}) do
+    {document, [], resources}
+  end
+
   defp compile_local_operation(page, {:text, text, options}, font_resources) do
     font_key =
       Keyword.get(options, :font, :helvetica)
@@ -341,6 +353,18 @@ defmodule PaperForge.PageCompiler do
   end
 
   defp compile_local_operation(_page, {:link, _uri, _options}, _font_resources) do
+    []
+  end
+
+  defp compile_local_operation(_page, {:link_to, _destination, _options}, _font_resources) do
+    []
+  end
+
+  defp compile_local_operation(_page, {:destination, _name, _options}, _font_resources) do
+    []
+  end
+
+  defp compile_local_operation(_page, {:bookmark, _title, _options}, _font_resources) do
     []
   end
 

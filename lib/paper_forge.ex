@@ -199,6 +199,29 @@ defmodule PaperForge do
         options \\ []
       )
       when is_list(blocks) and is_list(page_options) and is_list(options) do
+    {document, _report} =
+      layout_flow(
+        document,
+        blocks,
+        page_options,
+        options
+      )
+
+    document
+  end
+
+  @doc """
+  Adds vertically flowed text blocks and returns a layout report.
+  """
+  @spec layout_flow(Document.t(), [iodata()], keyword(), keyword()) ::
+          {Document.t(), map()}
+  def layout_flow(
+        %Document{} = document,
+        blocks,
+        page_options \\ [],
+        options \\ []
+      )
+      when is_list(blocks) and is_list(page_options) and is_list(options) do
     page_options =
       Keyword.put_new(
         page_options,
@@ -207,6 +230,7 @@ defmodule PaperForge do
       )
 
     page = Page.new(page_options)
+    page = decorate_flow_page(page, options)
 
     font_key =
       Document.resolve_font_key(
@@ -234,13 +258,83 @@ defmodule PaperForge do
       line_height: Keyword.get(options, :line_height, Keyword.get(options, :size, 12) * 1.2),
       gap: Keyword.get(options, :gap, Keyword.get(options, :size, 12) * 0.5),
       options: options,
-      has_content?: false
+      has_content?: false,
+      pages_added: 0,
+      blocks_seen: 0,
+      overflow?: false
     }
 
-    blocks
-    |> Enum.map(&IO.iodata_to_binary/1)
-    |> Enum.reduce(flow_state, &flow_block/2)
-    |> finish_flow()
+    state =
+      blocks
+      |> Enum.map(&IO.iodata_to_binary/1)
+      |> Enum.reduce(flow_state, &flow_block/2)
+      |> finish_flow()
+
+    {
+      state.document,
+      %{
+        pages_added: state.pages_added,
+        blocks: state.blocks_seen,
+        overflow?: state.overflow? or state.pages_added > 1
+      }
+    }
+  end
+
+  @doc """
+  Adds a table across pages.
+
+  When `:repeat_header` is true, the first `:header_rows` rows are
+  repeated at the top of every generated page. Rows are currently kept
+  together; pass `row_split: :keep`.
+  """
+  @spec add_table(Document.t(), [[term()]], keyword(), keyword()) :: Document.t()
+  def add_table(
+        %Document{} = document,
+        rows,
+        page_options \\ [],
+        options \\ []
+      )
+      when is_list(rows) and is_list(page_options) and is_list(options) do
+    validate_row_split!(Keyword.get(options, :row_split, :keep))
+
+    page_options =
+      Keyword.put_new(
+        page_options,
+        :origin,
+        :top_left
+      )
+
+    page = Page.new(page_options)
+    row_height = Keyword.get(options, :row_height, 24)
+    y = Keyword.get(options, :y, Page.content_top(page))
+    available_height = Page.content_bottom(page) - y
+    rows_per_page = max(floor(available_height / row_height), 1)
+
+    header_rows =
+      if Keyword.get(options, :repeat_header, false),
+        do: Keyword.get(options, :header_rows, 1),
+        else: 0
+
+    {headers, body_rows} = Enum.split(rows, header_rows)
+    body_capacity = max(rows_per_page - header_rows, 1)
+
+    body_rows
+    |> Enum.chunk_every(body_capacity)
+    |> Enum.reduce(document, fn chunk, current_document ->
+      page_rows = headers ++ chunk
+
+      add_page(
+        current_document,
+        page_options,
+        fn current_page ->
+          Page.table(
+            current_page,
+            page_rows,
+            table_page_options(current_page, options, header_rows > 0)
+          )
+        end
+      )
+    end)
   end
 
   @doc """
@@ -289,6 +383,25 @@ defmodule PaperForge do
     File.write!(path, to_binary(document))
   end
 
+  defp validate_row_split!(:keep), do: :ok
+
+  defp validate_row_split!(row_split) do
+    raise ArgumentError,
+          "unsupported row split policy #{inspect(row_split)}. " <>
+            "Expected :keep"
+  end
+
+  defp table_page_options(%Page{} = page, options, header?) do
+    options
+    |> Keyword.put_new(:x, Page.content_left(page))
+    |> Keyword.put_new(:y, Page.content_top(page))
+    |> Keyword.put_new(:width, Page.content_width(page))
+    |> Keyword.put(:header, header?)
+    |> Keyword.delete(:repeat_header)
+    |> Keyword.delete(:header_rows)
+    |> Keyword.delete(:row_split)
+  end
+
   defp validate_path!(path)
        when is_binary(path) and byte_size(path) > 0 do
     path
@@ -312,7 +425,18 @@ defmodule PaperForge do
         size: state.size
       )
 
-    flow_lines(lines, state)
+    state =
+      %{state | blocks_seen: state.blocks_seen + 1}
+
+    if Keyword.get(state.options, :keep_together, false) and
+         state.has_content? and
+         length(lines) * state.line_height > state.bottom_y - state.cursor_y do
+      state
+      |> next_flow_page()
+      |> then(&flow_lines(lines, &1))
+    else
+      flow_lines(lines, state)
+    end
   end
 
   defp flow_lines([], state), do: state
@@ -360,7 +484,8 @@ defmodule PaperForge do
       state
       | page: page,
         cursor_y: state.cursor_y + consumed_height + state.gap,
-        has_content?: true
+        has_content?: true,
+        overflow?: state.overflow? or remaining_lines != []
     }
 
     if remaining_lines == [] do
@@ -394,6 +519,7 @@ defmodule PaperForge do
 
     page =
       Page.new(state.page_options)
+      |> decorate_flow_page(state.options)
 
     %{
       state
@@ -401,18 +527,73 @@ defmodule PaperForge do
         page: page,
         cursor_y: Page.content_top(page),
         bottom_y: Page.content_bottom(page),
-        has_content?: false
+        has_content?: false,
+        pages_added: state.pages_added + 1
     }
   end
 
   defp finish_flow(%{has_content?: true} = state) do
-    add_page(
-      state.document,
-      state.page
-    )
+    document =
+      add_page(
+        state.document,
+        state.page
+      )
+
+    %{state | document: document, pages_added: state.pages_added + 1}
   end
 
   defp finish_flow(state) do
-    state.document
+    state
+  end
+
+  defp decorate_flow_page(%Page{} = page, options) do
+    page
+    |> maybe_add_header(options)
+    |> maybe_add_footer(options)
+  end
+
+  defp maybe_add_header(%Page{} = page, options) do
+    case Keyword.get(options, :header) do
+      nil ->
+        page
+
+      header when is_binary(header) ->
+        Page.text(
+          page,
+          header,
+          x: Page.content_left(page),
+          y: Keyword.get(options, :header_y, max(Page.content_top(page) - 28, 12)),
+          width: Page.content_width(page),
+          align: Keyword.get(options, :header_align, :center),
+          font: Keyword.get(options, :header_font, Keyword.get(options, :font, :helvetica)),
+          size: Keyword.get(options, :header_size, 9)
+        )
+
+      header_function when is_function(header_function, 1) ->
+        header_function.(page)
+    end
+  end
+
+  defp maybe_add_footer(%Page{} = page, options) do
+    case Keyword.get(options, :footer) do
+      nil ->
+        page
+
+      footer when is_binary(footer) ->
+        Page.text(
+          page,
+          footer,
+          x: Page.content_left(page),
+          y:
+            Keyword.get(options, :footer_y, min(Page.content_bottom(page) + 22, page.height - 12)),
+          width: Page.content_width(page),
+          align: Keyword.get(options, :footer_align, :center),
+          font: Keyword.get(options, :footer_font, Keyword.get(options, :font, :helvetica)),
+          size: Keyword.get(options, :footer_size, 9)
+        )
+
+      footer_function when is_function(footer_function, 1) ->
+        footer_function.(page)
+    end
   end
 end
