@@ -5,6 +5,133 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-07-27
+
+### Added
+
+#### Unified document layout
+
+- Added `PaperForge.Layout.Block` as the common block representation.
+- Added stable block identifiers for layout debugging and reports.
+- Added `PaperForge.Flow` as the builder for unified layout documents.
+- Added `PaperForge.flow/2` for rendering unified document flows.
+- Added `PaperForge.layout/3` for rendering flows with layout reports.
+- Added an internal layout engine with deterministic pagination and rendering.
+- Added block measurement before rendering.
+- Added block splitting for paragraphs, lists, and tables.
+- Added page-break blocks.
+- Added `page_break_before` and `page_break_after` block options.
+- Added `keep_with_next` support for headings and related content.
+- Added minimum remaining-height checks before heading placement.
+- Added keep-together containers.
+- Added oversized-block detection to prevent infinite pagination loops.
+- Added custom blocks that receive `Page` and `PageContext`.
+- Added layout reports with page count, block count, placements, warnings, and
+  rendered pages.
+- Added placement reports containing block ID, block type, page number,
+  coordinates, dimensions, and section metadata.
+- Added structured layout debug reports through `PaperForge.debug/2`.
+
+#### Flow API
+
+- Added `PaperForge.Flow.heading/3`.
+- Added `PaperForge.Flow.paragraph/3`.
+- Added `PaperForge.Flow.image/3`.
+- Added `PaperForge.Flow.table/4`.
+- Added `PaperForge.Flow.list/3`.
+- Added `PaperForge.Flow.spacer/2`.
+- Added `PaperForge.Flow.separator/2`.
+- Added `PaperForge.Flow.page_break/1`.
+- Added `PaperForge.Flow.keep_together/2`.
+- Added `PaperForge.Flow.custom/3`.
+- Added `PaperForge.Flow.section/4`.
+
+#### Two-pass rendering
+
+- Added `PaperForge.PageContext`.
+- Added page number and total page count in layout context.
+- Added content bounds and section metadata in layout context.
+- Added late header/footer rendering after total pages are known.
+- Added `Page {page} of {total}` footer placeholders for string footers.
+- Added automatic named destinations for rendered headings.
+- Added outline bookmark generation from rendered headings.
+- Added duplicate destination validation before rendering.
+- Added unresolved internal link-target validation for flow block link metadata.
+
+#### Sections and templates
+
+- Added flow sections with IDs, titles, template selection, page-break behavior,
+  destinations, bookmarks, and section metadata.
+- Added `PaperForge.page_template/3`.
+- Added named page template registration on documents.
+- Added named page templates with page size, orientation, margins, headers, and
+  footers.
+- Added template resolution in `PaperForge.layout/3` and section template
+  switching inside flow documents.
+- Added reserved header and footer regions through page margins and content
+  bounds.
+- Added dynamic header and footer callbacks receiving `PaperForge.PageContext`.
+- Added `PaperForge.PageTemplateError` for missing templates.
+
+#### Layout blocks
+
+- Added heading blocks with levels.
+- Added paragraph blocks with wrapping and page splitting.
+- Added image blocks with `width: :content`, fixed width/height, alignment, and
+  captions.
+- Added multipage table blocks with repeated headers.
+- Added deterministic table continuation across pages.
+- Added list blocks with ordered and unordered markers.
+- Added spacer and separator blocks.
+
+#### Structured errors
+
+- Added `PaperForge.LayoutError`.
+- Added `PaperForge.TableError`.
+- Added `PaperForge.NavigationError`.
+- Added `PaperForge.PageTemplateError`.
+- Added structured metadata fields for layout, table, navigation, and template
+  failures.
+
+#### Tests
+
+- Added tests for stable block IDs.
+- Added tests for flow builder APIs.
+- Added tests for unified flow rendering, headings, paragraphs, lists, sections,
+  page breaks, tables, images, templates, debug reports, and bookmarks.
+- Added tests for pagination controls, section template switching, placement
+  reports, duplicate destinations, unresolved link targets, and oversized-block
+  diagnostics.
+
+### Changed
+
+- Changed the package version to `0.5.0`.
+- Updated README for the unified layout API.
+
+### Compatibility
+
+- Existing `Page`, `add_flow/4`, and `add_table/4` APIs remain supported.
+- New applications should prefer `PaperForge.Flow` and `PaperForge.layout/3`.
+- Legacy APIs are not removed or formally deprecated in this release.
+
+### Limitations
+
+- The 0.5.0 layout engine is the new unified rendering path. Existing page-level
+  APIs remain available for compatibility, but new applications should prefer
+  `PaperForge.Flow` and `PaperForge.layout/3`.
+- Rich text and inline mixed-style runs are not yet supported.
+- Advanced widow and orphan control is not yet supported.
+- Table rows can continue across pages as grouped units, but content inside an
+  individual row or cell cannot yet be split across pages.
+- Automatic table-of-contents generation is not yet supported.
+- Advanced image cropping, fitting modes, and object positioning remain future
+  work.
+- Page-template inheritance and advanced first, odd, even, or final-page
+  variants are not yet supported.
+- Physical TrueType `/FontFile2` reconstruction is not enabled yet. PaperForge
+  continues to use the subsetting planner foundation introduced in 0.4.0 while
+  embedding the original TrueType font program.
+
 ## [0.4.0] - 2026-07-27
 
 ### Added
@@ -552,6 +679,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Uses native PDF coordinates with the origin at the bottom-left corner
 - Isolates graphic operations using the PDF `q` and `Q` operators
 
+[0.5.0]: https://github.com/Manuel1471/paper_forge/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Manuel1471/paper_forge/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Manuel1471/paper_forge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.2.0

@@ -46,8 +46,11 @@ defmodule PaperForge do
   """
 
   alias PaperForge.Document
+  alias PaperForge.Flow
+  alias PaperForge.Layout.Engine
   alias PaperForge.Metadata
   alias PaperForge.Page
+  alias PaperForge.PageTemplateError
   alias PaperForge.TextWrapper
   alias PaperForge.Writer
 
@@ -120,6 +123,74 @@ defmodule PaperForge do
       document,
       font_key
     )
+  end
+
+  @doc """
+  Registers a reusable page template.
+  """
+  @spec page_template(Document.t(), atom(), keyword()) :: Document.t()
+  def page_template(%Document{} = document, template_name, options)
+      when is_atom(template_name) and is_list(options) do
+    Document.page_template(document, template_name, options)
+  end
+
+  @doc """
+  Renders a unified document flow.
+  """
+  @spec flow(Document.t(), (Flow.t() -> Flow.t()) | keyword()) :: Document.t()
+  def flow(%Document{} = document, flow_function)
+      when is_function(flow_function, 1) do
+    {document, _report} =
+      layout(
+        document,
+        flow_function,
+        []
+      )
+
+    document
+  end
+
+  @doc """
+  Renders a unified document flow and returns a layout report.
+  """
+  @spec layout(Document.t(), (Flow.t() -> Flow.t()), keyword()) :: {Document.t(), map()}
+  def layout(%Document{} = document, flow_function, options \\ [])
+      when is_function(flow_function, 1) and is_list(options) do
+    flow =
+      Flow.new()
+      |> flow_function.()
+
+    options =
+      options
+      |> resolve_template_options(document)
+
+    Engine.render(
+      document,
+      flow,
+      options
+    )
+  end
+
+  @doc """
+  Returns a structured debug report for a document.
+  """
+  @spec debug(Document.t(), keyword()) :: map()
+  def debug(%Document{} = document, options \\ []) when is_list(options) do
+    pages =
+      document
+      |> Document.fetch_object!(document.pages_reference)
+      |> Map.fetch!(:value)
+
+    %{
+      pages: pages["Count"],
+      objects: Document.object_count(document),
+      fonts: map_size(document.font_registry.fonts),
+      images: map_size(document.image_registry.images),
+      show_margins: Keyword.get(options, :show_margins, false),
+      show_blocks: Keyword.get(options, :show_blocks, false),
+      show_baselines: Keyword.get(options, :show_baselines, false),
+      show_page_breaks: Keyword.get(options, :show_page_breaks, false)
+    }
   end
 
   @doc """
@@ -381,6 +452,35 @@ defmodule PaperForge do
       ) do
     path = validate_path!(path)
     File.write!(path, to_binary(document))
+  end
+
+  defp resolve_template_options(options, document) do
+    case Keyword.get(options, :template) do
+      nil ->
+        options
+
+      template_name ->
+        case Document.fetch_page_template(document, template_name) do
+          {:ok, template_options} ->
+            page_options =
+              template_options
+              |> Keyword.take([:size, :orientation, :margins])
+              |> Keyword.put_new(:origin, :top_left)
+
+            options
+            |> Keyword.put(
+              :page_options,
+              Keyword.merge(page_options, Keyword.get(options, :page_options, []))
+            )
+            |> Keyword.put_new(:header, Keyword.get(template_options, :header))
+            |> Keyword.put_new(:footer, Keyword.get(template_options, :footer))
+
+          :error ->
+            raise PageTemplateError,
+              reason: :unknown_template,
+              template: template_name
+        end
+    end
   end
 
   defp validate_row_split!(:keep), do: :ok

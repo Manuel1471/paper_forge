@@ -7,10 +7,34 @@ vector graphics, metadata, and image XObjects directly in Elixir.
 No browser, wkhtmltopdf, Chromium, ImageMagick, Ghostscript, or external
 rendering service is required.
 
-PaperForge is currently pre-1.0. The `0.4.x` API is usable, but some details may
+PaperForge is currently pre-1.0. The `0.5.x` API is usable, but some details may
 still change while layout and image support mature.
 
+## Why PaperForge?
+
+- Generate PDFs without leaving Elixir or the BEAM.
+- Avoid Chromium, Node.js, Python, native executables, and external rendering
+  services.
+- Build structured documents with automatic pagination.
+- Render visible Unicode text with embedded TrueType fonts.
+- Create reports, invoices, statements, contracts, and other business PDFs.
+- Work with immutable Elixir data structures and process-safe APIs.
+
 ## Highlights
+
+### Document Layout
+
+- Unified block-based layout through `PaperForge.Flow`.
+- Deterministic pagination with page-break and keep-together controls.
+- Two-pass rendering with `PageContext` and total page counts.
+- Named page templates with page size, orientation, margins, headers, and
+  footers.
+- Sections with metadata, template switching, destinations, and bookmarks.
+- Multipage tables with repeated headers.
+- Automatic heading destinations and outline bookmarks.
+- Structured layout reports and debug reports.
+
+### PDF Engine
 
 - Pure Elixir PDF generation
 - Multi-page documents
@@ -34,12 +58,6 @@ still change while layout and image support mature.
 - Visible Unicode text through Type 0 / CIDFontType2 fonts
 - Identity-H encoding and `/ToUnicode` maps for embedded fonts
 - Real TrueType metrics for width, wrapping, and alignment
-- Vertical text flow with automatic page breaks
-- Flow reports with page and overflow information
-- Headers and footers for flowed pages
-- Basic tables
-- Repeating table headers across pages
-- Ordered and unordered lists
 - Internal links, named destinations, outlines, and bookmarks
 - URI link annotations
 - Lines, rectangles, circles, fill, stroke, and line widths
@@ -52,16 +70,42 @@ still change while layout and image support mature.
 - Unicode-aware document metadata using Latin-1 or UTF-16BE as needed
 - Traditional PDF xref table generation
 
+## Which API Should I Use?
+
+| Use case | Recommended API |
+| --- | --- |
+| Reports, invoices, statements, contracts | `PaperForge.Flow` |
+| Automatic pagination | `PaperForge.layout/3` |
+| Manual graphics and precise coordinates | `PaperForge.Page` |
+| Existing applications using older flow APIs | `add_flow/4`, `add_table/4` |
+| Debugging layout | `PaperForge.debug/2` |
+
 ## Installation
 
-PaperForge can be used from GitHub:
+Add PaperForge to your dependencies:
+
+```elixir
+def deps do
+  [
+    {:paper_forge, "~> 0.5.0"}
+  ]
+end
+```
+
+Then run:
+
+```bash
+mix deps.get
+```
+
+To use the GitHub release directly:
 
 ```elixir
 def deps do
   [
     {:paper_forge,
      github: "Manuel1471/paper_forge",
-     tag: "v0.4.0"}
+     tag: "v0.5.0"}
   ]
 end
 ```
@@ -78,69 +122,45 @@ def deps do
 end
 ```
 
-After PaperForge is published to Hex, installation will use:
-
-```elixir
-def deps do
-  [
-    {:paper_forge, "~> 0.4.0"}
-  ]
-end
-```
-
-Then run:
-
-```bash
-mix deps.get
-```
-
 ## Quick Start
 
 ```elixir
-alias PaperForge.Color
-alias PaperForge.Page
+alias PaperForge.Flow
 
-document =
+{document, report} =
   PaperForge.new(compress: true, pdf_version: "1.7")
-  |> PaperForge.register_font(
-    :inter,
-    path: "assets/fonts/Inter-Regular.ttf"
+  |> PaperForge.page_template(
+    :default,
+    size: :a4,
+    margins: [top: 72, right: 54, bottom: 72, left: 54],
+    header: "Quarterly Report",
+    footer: "Page {page} of {total}"
   )
-  |> PaperForge.metadata(
-    title: "PaperForge Example",
-    author: "Manuel Garcia",
-    subject: "Pure Elixir PDF generation",
-    keywords: ["Elixir", "PDF", "PaperForge"]
-  )
-  |> PaperForge.add_page(
-    [
-      size: :a4,
-      origin: :top_left,
-      margins: 72
-    ],
-    fn page ->
-      page
-      |> Page.text(
-        "Informacion del usuario — 你好 — Привет",
-        y: 72,
-        width: Page.content_width(page),
-        align: :center,
-        font: :inter,
-        size: 28,
-        color: Color.rgb255(35, 60, 120)
+  |> PaperForge.layout(
+    fn flow ->
+      flow
+      |> Flow.heading("Quarterly Report", level: 1)
+      |> Flow.paragraph("""
+      PaperForge measures, paginates, and renders document blocks automatically.
+      """)
+      |> Flow.list(
+        ["Unified layout", "Automatic pagination", "Reusable templates"],
+        type: :unordered
       )
-      |> Page.text_box(
-        "PaperForge creates PDF files directly from Elixir data structures, with embedded fonts for visible Unicode text.",
-        y: 120,
-        width: Page.content_width(page),
-        font: :inter,
-        size: 12,
-        line_height: 17
+      |> Flow.table(
+        ["Metric", "Value"],
+        [
+          ["Revenue", "$120K"],
+          ["Margin", "24%"]
+        ],
+        repeat_header: true
       )
-    end
+    end,
+    template: :default
   )
 
-PaperForge.write!(document, "example.pdf")
+IO.inspect(report.pages, label: "Pages")
+PaperForge.write!(document, "report.pdf")
 ```
 
 ## Document Options
@@ -159,7 +179,11 @@ PaperForge.new(pdf_version: "1.4")
 PaperForge.new(default_font: :helvetica)
 ```
 
-## Pages
+## Low-level Page API
+
+Use `PaperForge.Page` when you need manual graphics, exact coordinates, or a
+lower-level drawing surface. New structured documents should usually start with
+`PaperForge.Flow` and `PaperForge.layout/3`.
 
 Add a page with default options:
 
@@ -534,7 +558,131 @@ directly with `/DCTDecode`.
 Images are deduplicated by SHA-256 hash, so drawing the same image several times
 does not embed duplicate image streams.
 
-## Flow, Tables, And Links
+## Unified Flow
+
+`PaperForge.flow/2` builds a document from layout blocks instead of manual page
+operations. The engine measures blocks, paginates them, calculates total pages,
+and then renders the final pages.
+
+```elixir
+alias PaperForge.Flow
+
+{document, report} =
+  PaperForge.new()
+  |> PaperForge.page_template(
+    :report,
+    size: :a4,
+    margins: [top: 72, right: 54, bottom: 72, left: 54],
+    header: "Quarterly report",
+    footer: "Page {page} of {total}"
+  )
+  |> PaperForge.layout(
+    fn flow ->
+      flow
+      |> Flow.heading("Quarterly report", level: 1)
+      |> Flow.paragraph("Summary text that wraps and splits across pages.")
+      |> Flow.list(["Revenue", "Expenses", "Cash"], type: :ordered)
+      |> Flow.table(
+        ["Metric", "Value"],
+        [
+          ["Revenue", "$120K"],
+          ["Margin", "24%"]
+        ],
+        repeat_header: true
+      )
+      |> Flow.separator()
+      |> Flow.page_break()
+      |> Flow.section(:appendix, [title: "Appendix"], fn section ->
+        section
+        |> Flow.paragraph("Section content receives section metadata.")
+      end)
+    end,
+    template: :report
+  )
+```
+
+The report returned by `PaperForge.layout/3` contains page count, block count,
+placements, warnings, and rendered page values. Placements include block ID,
+block type, page number, coordinates, dimensions, and section metadata:
+
+```elixir
+{document, report} =
+  PaperForge.layout(document, flow_function, template: :report)
+
+report.pages
+report.blocks
+report.placements
+```
+
+Pagination options can be set on flow blocks:
+
+```elixir
+flow
+|> Flow.heading("Appendix", page_break_before: true, keep_with_next: true)
+|> Flow.paragraph("This paragraph should stay visually connected.")
+|> Flow.separator(page_break_after: true)
+```
+
+Sections group related content under a stable section ID. A section can add a
+title heading, start or end with page breaks, switch to a named page template,
+and pass section metadata into `PageContext`:
+
+```elixir
+flow
+|> Flow.section(:appendix, [title: "Appendix", template: :appendix], fn section ->
+  section
+  |> Flow.paragraph("Appendix content")
+end)
+```
+
+Page templates can configure page geometry and reusable header/footer content:
+
+```elixir
+document =
+  PaperForge.new()
+  |> PaperForge.page_template(
+    :appendix,
+    size: :letter,
+    orientation: :landscape,
+    margins: [top: 60, right: 48, bottom: 60, left: 48],
+    header: fn page, context ->
+      Page.text(page, "Appendix", x: context.content_left, y: 24)
+    end,
+    footer: "Page {page} of {total}"
+  )
+```
+
+Custom blocks receive the current `Page` and `PageContext`:
+
+```elixir
+Flow.custom(flow, fn page, context ->
+  Page.text(
+    page,
+    "Page #{context.page_number} of #{context.total_pages}",
+    x: context.content_left,
+    y: context.content_top
+  )
+end, height: 24)
+```
+
+Debug reports summarize the generated document:
+
+```elixir
+PaperForge.debug(document,
+  show_margins: true,
+  show_blocks: true,
+  show_page_breaks: true
+)
+```
+
+Existing `Page`, `add_flow/4`, and `add_table/4` APIs remain supported for
+compatibility. New applications should prefer `PaperForge.Flow` and
+`PaperForge.layout/3`.
+
+## Legacy Flow And Page-level APIs
+
+The APIs in this section remain supported for compatibility. New applications
+should prefer `PaperForge.Flow` and `PaperForge.layout/3`.
 
 Flow text blocks across pages:
 
@@ -697,6 +845,12 @@ PaperForge
 |   `-- metadata reference
 |-- Page
 |   `-- high-level drawing operations
+|-- Flow
+|   `-- block-based document layout builder
+|-- Layout
+|   |-- Block
+|   |-- Engine
+|   `-- two-pass pagination and rendering
 |-- PageCompiler
 |   |-- coordinate transforms
 |   |-- font registration
@@ -735,6 +889,7 @@ mix run examples/png.exs
 mix run examples/multilingual_layout.exs
 mix run examples/complete_showcase.exs
 mix run examples/paper_forge_0_4_showcase.exs
+mix run examples/paper_forge_0_5_showcase.exs
 ```
 
 Generated files are written under `tmp/`.
@@ -778,32 +933,62 @@ Run the TrueType and Unicode benchmark script:
 mix run benchmarks/truetype.exs
 ```
 
+## Current Limitations
+
+- The unified layout engine is the preferred rendering path for new
+  applications, while page-level APIs remain available for compatibility.
+- Rich text and inline mixed-style runs are not yet supported.
+- Advanced widow and orphan control is not yet supported.
+- Tables can continue across multiple pages, while individual rows are kept
+  together. Content inside a single row or cell cannot yet be split across
+  pages.
+- Automatic table-of-contents generation is not yet supported.
+- Advanced image cropping, fitting modes, and object positioning remain future
+  work.
+- Page-template inheritance and first, odd, even, or final-page template
+  variants are not yet supported.
+- Physical TrueType `/FontFile2` reconstruction is not enabled yet. PaperForge
+  uses the subsetting planner foundation while embedding the original TrueType
+  font program.
+
 ## Roadmap
 
-### 0.4.x
+### 0.6.x - Document Authoring
 
-- Physical TrueType table subsetting for smaller `/FontFile2` streams
-- Better paragraph layout APIs
-- Additional annotation types
+- Rich text and inline styles
+- Physical TrueType subsetting
+- Font fallback
+- Automatic table of contents
+- Advanced tables
+- Advanced page templates
+- Reusable document components
 
-### Future
+### 1.x - Production And Distributed Generation
 
-- OpenType CFF fonts
-- PNG palette support
-- Reusable Form XObjects
+- Streaming output
+- Compiled templates
+- Shared local caches
+- Batch generation
+- Telemetry
+- Cancellation and timeouts
+- Fault-tolerant job integration
+- High-volume benchmarks
+
+### 2.x - HTML And CSS
+
 - HTML parsing
-- CSS style resolution
-- HTML/CSS layout engine
-- Existing PDF parsing
-- Incremental updates
-- Digital signatures
+- CSS cascade and computed styles
+- HTML/CSS to PaperForge Layout IR
+- Paged-media layout
+- Flexbox and advanced document styling
 
 ## Project Status
 
-PaperForge is experimental and currently intended for learning, testing, and
-early integration.
+PaperForge is pre-1.0 and suitable for experimentation, prototypes, internal
+tools, and early production evaluation.
 
-The public API may change before version `1.0.0`.
+The unified layout API is usable, but public API details may still change before
+version `1.0.0`.
 
 ## Contributing
 
