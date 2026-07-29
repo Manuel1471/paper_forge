@@ -49,7 +49,8 @@ defmodule PaperForge.Images.JPEG do
           height: pos_integer(),
           bits_per_component: pos_integer(),
           components: pos_integer(),
-          color_space: color_space()
+          color_space: color_space(),
+          orientation: 1..8
         }
 
   @type error_reason ::
@@ -72,7 +73,10 @@ defmodule PaperForge.Images.JPEG do
         @start_of_image,
         remaining::binary
       >>) do
-    parse_segments(remaining)
+    case parse_segments(remaining) do
+      {:ok, metadata} -> {:ok, Map.put(metadata, :orientation, exif_orientation(remaining))}
+      error -> error
+    end
   end
 
   def parse(_data) do
@@ -107,6 +111,83 @@ defmodule PaperForge.Images.JPEG do
   end
 
   def jpeg?(_data), do: false
+
+  defp exif_orientation(data), do: find_exif_orientation(data, 1)
+
+  defp find_exif_orientation(<<>>, default), do: default
+
+  defp find_exif_orientation(<<0xFF, 0xE1, length::16-big, rest::binary>>, default)
+       when length >= 2 and byte_size(rest) >= length - 2 do
+    payload_length = length - 2
+    <<payload::binary-size(^payload_length), remaining::binary>> = rest
+
+    case parse_exif_orientation(payload) do
+      orientation when orientation in 1..8 -> orientation
+      _ -> find_exif_orientation(remaining, default)
+    end
+  end
+
+  defp find_exif_orientation(<<0xFF, marker, rest::binary>>, default)
+       when marker in @standalone_markers,
+       do: find_exif_orientation(rest, default)
+
+  defp find_exif_orientation(<<0xFF, _marker, length::16-big, rest::binary>>, default)
+       when length >= 2 and byte_size(rest) >= length - 2 do
+    payload_length = length - 2
+    <<_payload::binary-size(^payload_length), remaining::binary>> = rest
+    find_exif_orientation(remaining, default)
+  end
+
+  defp find_exif_orientation(<<_byte, rest::binary>>, default),
+    do: find_exif_orientation(rest, default)
+
+  defp parse_exif_orientation(<<"Exif", 0, 0, tiff::binary>>) do
+    with {:ok, endian} <- tiff_endian(tiff),
+         {:ok, ifd_offset} <- read_u32(tiff, 4, endian),
+         {:ok, count} <- read_u16(tiff, ifd_offset, endian) do
+      Enum.find_value(0..max(count - 1, 0), 1, fn index ->
+        offset = ifd_offset + 2 + index * 12
+
+        with {:ok, 0x0112} <- read_u16(tiff, offset, endian),
+             {:ok, 3} <- read_u16(tiff, offset + 2, endian),
+             {:ok, orientation} <- read_u16(tiff, offset + 8, endian) do
+          orientation
+        else
+          _ -> nil
+        end
+      end)
+    else
+      _ -> 1
+    end
+  end
+
+  defp parse_exif_orientation(_payload), do: 1
+
+  defp tiff_endian(<<"II", 42::16-little, _rest::binary>>), do: {:ok, :little}
+  defp tiff_endian(<<"MM", 42::16-big, _rest::binary>>), do: {:ok, :big}
+  defp tiff_endian(_data), do: {:error, :invalid_exif}
+
+  defp read_u16(data, offset, endian) when offset >= 0 and byte_size(data) >= offset + 2 do
+    <<_::binary-size(^offset), value::binary-size(2), _::binary>> = data
+
+    case {value, endian} do
+      {<<number::16-little>>, :little} -> {:ok, number}
+      {<<number::16-big>>, :big} -> {:ok, number}
+    end
+  end
+
+  defp read_u16(_data, _offset, _endian), do: {:error, :truncated_exif}
+
+  defp read_u32(data, offset, endian) when offset >= 0 and byte_size(data) >= offset + 4 do
+    <<_::binary-size(^offset), value::binary-size(4), _::binary>> = data
+
+    case {value, endian} do
+      {<<number::32-little>>, :little} -> {:ok, number}
+      {<<number::32-big>>, :big} -> {:ok, number}
+    end
+  end
+
+  defp read_u32(_data, _offset, _endian), do: {:error, :truncated_exif}
 
   defp parse_segments(<<>>) do
     {:error, :missing_start_of_frame}

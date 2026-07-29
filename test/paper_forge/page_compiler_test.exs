@@ -91,6 +91,40 @@ defmodule PaperForge.PageCompilerTest do
     assert ImageRegistry.count(document.image_registry) == 1
   end
 
+  test "supports contain and cover image fitting with focal positioning" do
+    contain_page =
+      Page.new(size: {200, 300}, origin: :top_left)
+      |> Page.image(jpeg(100, 50, 3),
+        x: 10,
+        y: 20,
+        width: 40,
+        height: 40,
+        fit: :contain
+      )
+
+    {_document, contain_content, _resources} =
+      PageCompiler.compile(contain_page, Document.new())
+
+    assert contain_content =~ "40 0 0 20 10 250 cm"
+
+    cover_page =
+      Page.new(size: {200, 300}, origin: :top_left)
+      |> Page.image(jpeg(100, 50, 3),
+        x: 10,
+        y: 20,
+        width: 40,
+        height: 40,
+        fit: :cover,
+        focal_point: {0.5, 0.5}
+      )
+
+    {_document, cover_content, _resources} =
+      PageCompiler.compile(cover_page, Document.new())
+
+    assert cover_content =~ "10 240 40 40 re W n"
+    assert cover_content =~ "80 0 0 40 -10 240 cm"
+  end
+
   test "compiles PNG images into XObject resources" do
     page =
       Page.new(size: {200, 300}, origin: :top_left)

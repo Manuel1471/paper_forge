@@ -36,6 +36,8 @@ defmodule PaperForge.Page do
           | {:link_to, binary() | atom(), keyword()}
           | {:destination, binary() | atom(), keyword()}
           | {:bookmark, binary(), keyword()}
+          | {:note, binary(), keyword()}
+          | {:highlight, binary(), keyword()}
 
   @type t :: %__MODULE__{
           width: number(),
@@ -165,6 +167,13 @@ defmodule PaperForge.Page do
     add_operation(page, {:circle, options})
   end
 
+  @doc "Adds a vector path made of move, line, cubic curve, and close segments."
+  @spec path(t(), [PaperForge.Graphics.Path.segment()], keyword()) :: t()
+  def path(%__MODULE__{} = page, segments, options \\ [])
+      when is_list(segments) and is_list(options) do
+    add_operation(page, {:path, segments, options})
+  end
+
   @doc """
   Adds a JPEG or PNG image from a path or binary.
   """
@@ -245,6 +254,20 @@ defmodule PaperForge.Page do
     )
   end
 
+  @doc "Adds a PDF text-note annotation."
+  @spec note(t(), binary(), keyword()) :: t()
+  def note(%__MODULE__{} = page, contents, options)
+      when is_binary(contents) and is_list(options) do
+    add_operation(page, {:note, contents, options})
+  end
+
+  @doc "Adds a highlight annotation over a rectangular text region."
+  @spec highlight(t(), binary(), keyword()) :: t()
+  def highlight(%__MODULE__{} = page, contents, options)
+      when is_binary(contents) and is_list(options) do
+    add_operation(page, {:highlight, contents, options})
+  end
+
   @doc """
   Adds a basic table.
 
@@ -262,6 +285,7 @@ defmodule PaperForge.Page do
     y = Keyword.fetch!(options, :y)
     width = Keyword.get(options, :width, content_width(page))
     row_height = Keyword.get(options, :row_height, 24)
+    row_heights = Keyword.get(options, :row_heights, List.duplicate(row_height, length(rows)))
     padding = Keyword.get(options, :padding, 6)
     font = Keyword.get(options, :font)
     size = Keyword.get(options, :size, 10)
@@ -282,44 +306,165 @@ defmodule PaperForge.Page do
     rows
     |> Enum.with_index()
     |> Enum.reduce(page, fn {row, row_index}, current_page ->
-      row_y = y + row_index * row_height
+      row_y = y + Enum.sum(Enum.take(row_heights, row_index))
       fill? = header? and row_index == 0
 
+      stripe? =
+        not fill? and rem(row_index, 2) == 1 and Keyword.has_key?(options, :stripe_fill_color)
+
       row
-      |> Enum.zip(column_widths)
-      |> Enum.reduce({current_page, x}, fn {cell, cell_width}, {row_page, cell_x} ->
+      |> Enum.reduce({current_page, 0}, fn raw_cell, {row_page, next_column} ->
+        cell = normalize_page_table_cell(raw_cell)
+        column = cell.column || next_column
+        colspan = min(cell.colspan, max(length(column_widths) - column, 1))
+        cell_x = x + Enum.sum(Enum.take(column_widths, column))
+        cell_width = column_widths |> Enum.slice(column, colspan) |> Enum.sum()
+        cell_height = row_heights |> Enum.slice(row_index, cell.rowspan) |> Enum.sum()
+        fill_color = cell.fill_color || table_cell_fill(fill?, stripe?, options)
+
         cell_options =
           [
             x: cell_x,
             y: row_y,
             width: cell_width,
-            height: row_height,
-            stroke: true,
-            fill: fill?,
-            fill_color: Keyword.get(options, :header_fill_color, PaperForge.Color.gray(0.92)),
+            height: cell_height,
+            stroke: false,
+            fill: fill? or stripe? or not is_nil(cell.fill_color),
+            fill_color: fill_color,
             stroke_color: Keyword.get(options, :stroke_color, PaperForge.Color.gray(0.65)),
             line_width: Keyword.get(options, :line_width, 0.5)
           ]
 
+        line_height = Keyword.get(options, :line_height, size * 1.3)
+        cell_text = to_string(cell.content)
+        line_count = max(length(String.split(cell_text, "\n")), 1)
+        text_height = line_count * line_height
+
+        text_y =
+          case cell.valign do
+            :middle -> row_y + max((cell_height - text_height) / 2, padding)
+            :bottom -> row_y + max(cell_height - text_height - padding, padding)
+            _top -> row_y + padding
+          end
+
         text_options =
           [
             x: cell_x + padding,
-            y: row_y + padding + size,
+            y: text_y,
             width: max(cell_width - padding * 2, 1),
+            height: max(cell_height - (text_y - row_y) - padding, line_height),
             font: font,
             size: size,
-            color: Keyword.get(options, :color, PaperForge.Color.black())
+            line_height: line_height,
+            color:
+              if(cell.color,
+                do: cell.color,
+                else:
+                  if(fill?,
+                    do:
+                      Keyword.get(
+                        options,
+                        :header_color,
+                        Keyword.get(options, :color, PaperForge.Color.black())
+                      ),
+                    else: Keyword.get(options, :color, PaperForge.Color.black())
+                  )
+              ),
+            align: cell.align || Keyword.get(options, :cell_align, :left)
           ]
           |> Enum.reject(fn {_key, value} -> is_nil(value) end)
 
         row_page =
           row_page
           |> rectangle(cell_options)
-          |> text(to_string(cell), text_options)
+          |> draw_table_cell_borders(
+            cell_x,
+            row_y,
+            cell_width,
+            cell_height,
+            cell.borders,
+            options
+          )
+          |> text_box(cell_text, text_options)
 
-        {row_page, cell_x + cell_width}
+        {row_page, column + colspan}
       end)
       |> elem(0)
+    end)
+  end
+
+  defp table_cell_fill(true, _stripe?, options),
+    do: Keyword.get(options, :header_fill_color, PaperForge.Color.gray(0.92))
+
+  defp table_cell_fill(false, true, options),
+    do: Keyword.get(options, :stripe_fill_color, PaperForge.Color.white())
+
+  defp table_cell_fill(false, false, _options), do: PaperForge.Color.white()
+
+  defp normalize_page_table_cell(%{content: _content} = cell) do
+    %{
+      content: cell.content,
+      colspan: Map.get(cell, :colspan, 1),
+      rowspan: Map.get(cell, :rowspan, 1),
+      column: Map.get(cell, :column),
+      align: Map.get(cell, :align),
+      valign: Map.get(cell, :valign, :top),
+      borders: Map.get(cell, :borders, :all),
+      fill_color: Map.get(cell, :fill_color),
+      color: Map.get(cell, :color)
+    }
+  end
+
+  defp normalize_page_table_cell(content) do
+    %{
+      content: content,
+      colspan: 1,
+      rowspan: 1,
+      column: nil,
+      align: nil,
+      valign: :top,
+      borders: :all,
+      fill_color: nil,
+      color: nil
+    }
+  end
+
+  defp draw_table_cell_borders(page, _x, _y, _width, _height, :none, _options), do: page
+
+  defp draw_table_cell_borders(page, x, y, width, height, borders, options) do
+    selected = if borders == :all, do: [:top, :right, :bottom, :left], else: List.wrap(borders)
+    color = Keyword.get(options, :stroke_color, PaperForge.Color.gray(0.65))
+    line_width = Keyword.get(options, :line_width, 0.5)
+
+    Enum.reduce(selected, page, fn
+      :top, current ->
+        line(current, x1: x, y1: y, x2: x + width, y2: y, color: color, width: line_width)
+
+      :right, current ->
+        line(current,
+          x1: x + width,
+          y1: y,
+          x2: x + width,
+          y2: y + height,
+          color: color,
+          width: line_width
+        )
+
+      :bottom, current ->
+        line(current,
+          x1: x,
+          y1: y + height,
+          x2: x + width,
+          y2: y + height,
+          color: color,
+          width: line_width
+        )
+
+      :left, current ->
+        line(current, x1: x, y1: y, x2: x, y2: y + height, color: color, width: line_width)
+
+      _unknown, current ->
+        current
     end)
   end
 
@@ -537,6 +682,18 @@ defmodule PaperForge.Page do
 
         {current_document, annotations ++ [reference]}
 
+      {:note, contents, options}, {current_document, annotations} ->
+        {current_document, reference} =
+          Document.add_object(current_document, note_annotation(page, contents, options))
+
+        {current_document, annotations ++ [reference]}
+
+      {:highlight, contents, options}, {current_document, annotations} ->
+        {current_document, reference} =
+          Document.add_object(current_document, highlight_annotation(page, contents, options))
+
+        {current_document, annotations ++ [reference]}
+
       _operation, state ->
         state
     end)
@@ -616,6 +773,41 @@ defmodule PaperForge.Page do
       "Border" => [0, 0, 0],
       "Dest" => normalize_destination_name(destination_name)
     }
+  end
+
+  defp note_annotation(page, contents, options) do
+    {x, y, width, height} = annotation_box(page, options)
+
+    %{
+      "Type" => {:name, "Annot"},
+      "Subtype" => {:name, "Text"},
+      "Rect" => [x, y, x + width, y + height],
+      "Contents" => contents,
+      "Name" => {:name, Atom.to_string(Keyword.get(options, :icon, :Comment))},
+      "Open" => Keyword.get(options, :open, false)
+    }
+  end
+
+  defp highlight_annotation(page, contents, options) do
+    {x, y, width, height} = annotation_box(page, options)
+
+    %{
+      "Type" => {:name, "Annot"},
+      "Subtype" => {:name, "Highlight"},
+      "Rect" => [x, y, x + width, y + height],
+      "QuadPoints" => [x, y + height, x + width, y + height, x, y, x + width, y],
+      "Contents" => contents,
+      "C" => Keyword.get(options, :color, [1, 0.92, 0.23])
+    }
+  end
+
+  defp annotation_box(page, options) do
+    x = Keyword.fetch!(options, :x)
+    top = Keyword.fetch!(options, :y)
+    width = Keyword.get(options, :width, 18)
+    height = Keyword.get(options, :height, 18)
+    y = Coordinates.box_y(page.height, top, height, Keyword.get(options, :origin, page.origin))
+    {x, y, width, height}
   end
 
   defp destination_options(page, options) do

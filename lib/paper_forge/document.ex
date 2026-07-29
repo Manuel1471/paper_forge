@@ -11,6 +11,7 @@ defmodule PaperForge.Document do
   alias PaperForge.FontRegistry
   alias PaperForge.Fonts.Builtin
   alias PaperForge.Fonts.TrueType
+  alias PaperForge.Fonts.TrueType.Subsetter
   alias PaperForge.Image
   alias PaperForge.ImageRegistry
   alias PaperForge.Images.JPEG
@@ -35,9 +36,13 @@ defmodule PaperForge.Document do
             pdf_version: @default_pdf_version,
             font_registry: nil,
             font_families: %{},
+            font_fallbacks: %{},
             font_program_registry: %{},
+            font_source_data: %{},
             default_font: :helvetica,
             page_templates: %{},
+            styles: %{},
+            components: %{},
             image_registry: nil,
             compress: @default_compression,
             named_destinations: %{},
@@ -54,9 +59,13 @@ defmodule PaperForge.Document do
           pdf_version: binary(),
           font_registry: FontRegistry.t(),
           font_families: %{optional(atom()) => %{optional(atom()) => atom()}},
+          font_fallbacks: %{optional(atom()) => [atom()]},
           font_program_registry: %{optional(binary()) => Reference.t()},
+          font_source_data: %{optional(atom()) => binary()},
           default_font: atom(),
           page_templates: %{optional(atom()) => keyword()},
+          styles: %{optional(atom()) => keyword()},
+          components: %{optional(atom()) => function()},
           image_registry: ImageRegistry.t(),
           compress: boolean(),
           named_destinations: %{optional(binary()) => list()},
@@ -131,9 +140,13 @@ defmodule PaperForge.Document do
       pdf_version: pdf_version,
       font_registry: FontRegistry.new(),
       font_families: %{},
+      font_fallbacks: %{},
       font_program_registry: %{},
+      font_source_data: %{},
       default_font: default_font,
       page_templates: %{},
+      styles: %{},
+      components: %{},
       image_registry: ImageRegistry.new(),
       compress: compress,
       named_destinations: %{},
@@ -152,6 +165,17 @@ defmodule PaperForge.Document do
     %{document | default_font: font_key}
   end
 
+  @doc "Registers fallback font keys for text that a primary TrueType font cannot render."
+  @spec font_fallback(t(), atom(), [atom()]) :: t()
+  def font_fallback(%__MODULE__{} = document, primary_font, fallbacks)
+      when is_atom(primary_font) and is_list(fallbacks) do
+    unless Enum.all?(fallbacks, &is_atom/1) do
+      raise ArgumentError, "font fallbacks must be font keys"
+    end
+
+    %{document | font_fallbacks: Map.put(document.font_fallbacks, primary_font, fallbacks)}
+  end
+
   @doc """
   Registers a reusable page template.
   """
@@ -161,6 +185,59 @@ defmodule PaperForge.Document do
     %{document | page_templates: Map.put(document.page_templates, template_name, options)}
   end
 
+  @doc "Registers a named document style used by `PaperForge.Flow` blocks."
+  @spec style(t(), atom(), keyword()) :: t()
+  def style(%__MODULE__{} = document, style_name, options)
+      when is_atom(style_name) and is_list(options) do
+    %{document | styles: Map.put(document.styles, style_name, options)}
+  end
+
+  @doc "Registers a reusable flow component receiving an assigns map."
+  @spec component(t(), atom(), (map() -> PaperForge.Flow.t())) :: t()
+  def component(%__MODULE__{} = document, component_name, renderer)
+      when is_atom(component_name) and is_function(renderer, 1) do
+    %{document | components: Map.put(document.components, component_name, renderer)}
+  end
+
+  @doc "Embeds a file in the PDF and associates it with the document catalog."
+  @spec attach(t(), binary(), binary(), keyword()) :: t()
+  def attach(%__MODULE__{} = document, filename, data, options \\ [])
+      when is_binary(filename) and byte_size(filename) > 0 and is_binary(data) do
+    stream =
+      Stream.new(data,
+        dictionary: %{
+          "Type" => {:name, "EmbeddedFile"},
+          "Subtype" => Keyword.get(options, :mime, "application/octet-stream")
+        },
+        filters: [:flate]
+      )
+
+    {document, stream_reference} = add_object(document, stream)
+
+    file_spec = %{
+      "Type" => {:name, "Filespec"},
+      "F" => filename,
+      "UF" => filename,
+      "Desc" => Keyword.get(options, :description, filename),
+      "AFRelationship" => {:name, Atom.to_string(Keyword.get(options, :relationship, :Data))},
+      "EF" => %{"F" => stream_reference}
+    }
+
+    {document, file_reference} = add_object(document, file_spec)
+
+    update_object(document, document.root_reference, fn catalog ->
+      names = Map.get(catalog, "Names", %{})
+      existing = get_in(names, ["EmbeddedFiles", "Names"]) || []
+
+      catalog
+      |> Map.put(
+        "Names",
+        Map.put(names, "EmbeddedFiles", %{"Names" => existing ++ [filename, file_reference]})
+      )
+      |> Map.update("AF", [file_reference], &(&1 ++ [file_reference]))
+    end)
+  end
+
   @doc """
   Fetches a page template.
   """
@@ -168,6 +245,40 @@ defmodule PaperForge.Document do
   def fetch_page_template(%__MODULE__{} = document, template_name)
       when is_atom(template_name) do
     Map.fetch(document.page_templates, template_name)
+  end
+
+  @doc "Resolves a page template and all of its `:extends` ancestors."
+  @spec resolve_page_template(t(), atom()) :: {:ok, keyword()} | :error | {:error, :cycle}
+  def resolve_page_template(%__MODULE__{} = document, template_name)
+      when is_atom(template_name) do
+    resolve_page_template(document.page_templates, template_name, MapSet.new())
+  end
+
+  defp resolve_page_template(templates, name, seen) do
+    cond do
+      MapSet.member?(seen, name) ->
+        {:error, :cycle}
+
+      not Map.has_key?(templates, name) ->
+        :error
+
+      true ->
+        options = Map.fetch!(templates, name)
+
+        case Keyword.get(options, :extends) do
+          nil ->
+            {:ok, Keyword.delete(options, :extends)}
+
+          parent ->
+            case resolve_page_template(templates, parent, MapSet.put(seen, name)) do
+              {:ok, inherited} ->
+                {:ok, Keyword.merge(inherited, Keyword.delete(options, :extends))}
+
+              error ->
+                error
+            end
+        end
+    end
   end
 
   @doc """
@@ -230,6 +341,33 @@ defmodule PaperForge.Document do
 
       :error ->
         font_key
+    end
+  end
+
+  @doc "Resolves a font for an entire text run, applying registered fallbacks when needed."
+  @spec resolve_text_font_key(t(), keyword(), binary()) :: atom()
+  def resolve_text_font_key(%__MODULE__{} = document, options, text)
+      when is_list(options) and is_binary(text) do
+    primary = resolve_font_key(document, options)
+
+    [primary | Map.get(document.font_fallbacks, primary, [])]
+    |> Enum.find(primary, &font_supports_text?(document, &1, text))
+  end
+
+  defp font_supports_text?(document, font_key, text) do
+    case FontRegistry.fetch(document.font_registry, font_key) do
+      {:ok, %{kind: :truetype} = font} ->
+        text
+        |> String.to_charlist()
+        |> Enum.all?(fn codepoint ->
+          codepoint in [?\n, ?\r] or match?({:ok, _}, TrueType.glyph_id(font, codepoint))
+        end)
+
+      {:ok, %{kind: :builtin}} ->
+        true
+
+      :error ->
+        false
     end
   end
 
@@ -664,15 +802,8 @@ defmodule PaperForge.Document do
       document,
       document.root_reference,
       fn catalog ->
-        Map.put(
-          catalog,
-          "Names",
-          %{
-            "Dests" => %{
-              "Names" => names
-            }
-          }
-        )
+        existing_names = Map.get(catalog, "Names", %{})
+        Map.put(catalog, "Names", Map.put(existing_names, "Dests", %{"Names" => names}))
       end
     )
   end
@@ -865,7 +996,11 @@ defmodule PaperForge.Document do
         font
       )
 
-    %{document | font_registry: font_registry}
+    %{
+      document
+      | font_registry: font_registry,
+        font_source_data: Map.put(document.font_source_data, font_key, data)
+    }
   end
 
   defp register_font_program(%__MODULE__{} = document, data, %Stream{} = stream) do
@@ -941,26 +1076,51 @@ defmodule PaperForge.Document do
   end
 
   defp update_true_type_subset(%__MODULE__{} = document, %Font{kind: :truetype} = font) do
+    document =
+      document
+      |> update_embedded_font_program(font)
+      |> update_object(
+        font.cid_font_reference,
+        fn dictionary ->
+          Map.put(
+            dictionary,
+            "W",
+            true_type_widths(font, font.used_glyphs)
+          )
+        end
+      )
+      |> update_object(
+        font.to_unicode_reference,
+        fn stream ->
+          %{
+            stream
+            | data: to_unicode_cmap(font)
+          }
+        end
+      )
+
     document
-    |> update_object(
-      font.cid_font_reference,
-      fn dictionary ->
-        Map.put(
-          dictionary,
-          "W",
-          true_type_widths(font, font.used_glyphs)
-        )
-      end
-    )
-    |> update_object(
-      font.to_unicode_reference,
-      fn stream ->
-        %{
-          stream
-          | data: to_unicode_cmap(font)
-        }
-      end
-    )
+  end
+
+  defp update_embedded_font_program(document, font) do
+    program_reference = font_program_reference(document, font)
+    parsed = document.font_source_data |> Map.fetch!(font.key) |> TrueType.parse!()
+    subset = Subsetter.subset(parsed, font.used_glyphs)
+
+    update_object(document, program_reference, fn stream ->
+      %{
+        stream
+        | data: subset.data,
+          dictionary: Map.put(stream.dictionary, "Length1", byte_size(subset.data))
+      }
+    end)
+  end
+
+  defp font_program_reference(document, font) do
+    cid_font = document |> fetch_object!(font.cid_font_reference) |> Map.fetch!(:value)
+    descriptor_reference = Map.fetch!(cid_font, "FontDescriptor")
+    descriptor = document |> fetch_object!(descriptor_reference) |> Map.fetch!(:value)
+    Map.fetch!(descriptor, "FontFile2")
   end
 
   defp true_type_widths(true_type, used_glyphs) do

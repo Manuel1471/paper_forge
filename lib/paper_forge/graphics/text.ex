@@ -7,7 +7,7 @@ defmodule PaperForge.Graphics.Text do
   - standard PDF fonts;
   - font size;
   - text color;
-  - left, center, and right alignment;
+  - left, center, right, and justified alignment;
   - positioning inside a defined width.
   """
 
@@ -31,7 +31,7 @@ defmodule PaperForge.Graphics.Text do
           | {:resource_name, binary()}
           | {:color, Color.t()}
           | {:width, number()}
-          | {:align, :left | :center | :right}
+          | {:align, :left | :center | :right | :justify}
 
   @doc """
   Generates the PDF commands required to draw one line of text.
@@ -145,6 +145,8 @@ defmodule PaperForge.Graphics.Text do
         font_instance
       )
 
+    word_spacing = word_spacing(text, width, alignment, font_instance || font, size)
+
     [
       "q\n",
       Graphics.fill_color(color),
@@ -155,6 +157,7 @@ defmodule PaperForge.Graphics.Text do
       " ",
       Serializer.encode(size),
       " Tf\n",
+      maybe_word_spacing(word_spacing),
       "1 0 0 1 ",
       Serializer.encode(final_x),
       " ",
@@ -206,6 +209,8 @@ defmodule PaperForge.Graphics.Text do
     x
   end
 
+  defp calculate_x(_text, x, _width, :justify, _font, _size), do: x
+
   defp calculate_x(
          _text,
          _x,
@@ -236,6 +241,22 @@ defmodule PaperForge.Graphics.Text do
       size: size
     )
   end
+
+  defp word_spacing(text, width, :justify, font, size) when is_number(width) do
+    spaces = text |> String.graphemes() |> Enum.count(&(&1 == " "))
+
+    if spaces > 0 do
+      extra = max(width - TextMetrics.line_width(text, font: font, size: size), 0)
+      extra / spaces / size
+    else
+      0
+    end
+  end
+
+  defp word_spacing(_text, _width, _alignment, _font, _size), do: 0
+
+  defp maybe_word_spacing(0), do: []
+  defp maybe_word_spacing(value), do: [Serializer.encode(value), " Tw\n"]
 
   defp validate_options!(options) do
     validate_required_option!(
@@ -322,14 +343,14 @@ defmodule PaperForge.Graphics.Text do
   end
 
   defp validate_alignment!(alignment)
-       when alignment in [:left, :center, :right] do
+       when alignment in [:left, :center, :right, :justify] do
     :ok
   end
 
   defp validate_alignment!(alignment) do
     raise ArgumentError,
           "unsupported text alignment #{inspect(alignment)}. " <>
-            "Expected :left, :center, or :right"
+            "Expected :left, :center, :right, or :justify"
   end
 
   defp validate_optional_width!(nil) do

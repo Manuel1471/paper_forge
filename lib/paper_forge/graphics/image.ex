@@ -20,6 +20,8 @@ defmodule PaperForge.Graphics.Image do
           | {:y, number()}
           | {:width, number()}
           | {:height, number()}
+          | {:clip, {number(), number(), number(), number()}}
+          | {:matrix, {number(), number(), number(), number(), number(), number()}}
 
   @doc """
   Generates the PDF commands required to draw an image.
@@ -75,15 +77,31 @@ defmodule PaperForge.Graphics.Image do
         :height
       )
 
+    clip =
+      case Keyword.get(options, :clip) do
+        nil ->
+          []
+
+        {clip_x, clip_y, clip_width, clip_height} ->
+          [
+            Serializer.encode(clip_x),
+            " ",
+            Serializer.encode(clip_y),
+            " ",
+            Serializer.encode(clip_width),
+            " ",
+            Serializer.encode(clip_height),
+            " re W n\n"
+          ]
+      end
+
+    matrix =
+      Keyword.get(options, :matrix, {width, 0, 0, height, x, y})
+
     [
       "q\n",
-      Serializer.encode(width),
-      " 0 0 ",
-      Serializer.encode(height),
-      " ",
-      Serializer.encode(x),
-      " ",
-      Serializer.encode(y),
+      clip,
+      encode_matrix(matrix),
       " cm\n",
       "/",
       resource_name,
@@ -132,6 +150,40 @@ defmodule PaperForge.Graphics.Image do
       :height,
       Keyword.fetch!(options, :height)
     )
+
+    validate_clip!(Keyword.get(options, :clip))
+    validate_matrix!(Keyword.get(options, :matrix))
+  end
+
+  defp encode_matrix(matrix) do
+    matrix
+    |> Tuple.to_list()
+    |> Enum.map_intersperse(" ", &Serializer.encode/1)
+  end
+
+  defp validate_clip!(nil), do: :ok
+
+  defp validate_clip!({x, y, width, height})
+       when is_number(x) and is_number(y) and is_number(width) and width > 0 and
+              is_number(height) and height > 0,
+       do: :ok
+
+  defp validate_clip!(clip) do
+    raise ArgumentError,
+          "image clip must be {x, y, width, height} with positive dimensions, received: " <>
+            inspect(clip)
+  end
+
+  defp validate_matrix!(nil), do: :ok
+
+  defp validate_matrix!({a, b, c, d, e, f})
+       when is_number(a) and is_number(b) and is_number(c) and is_number(d) and is_number(e) and
+              is_number(f),
+       do: :ok
+
+  defp validate_matrix!(matrix) do
+    raise ArgumentError,
+          "image matrix must contain six numbers, received: #{inspect(matrix)}"
   end
 
   defp validate_required_option!(

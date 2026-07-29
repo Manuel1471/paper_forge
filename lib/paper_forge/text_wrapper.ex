@@ -12,6 +12,7 @@ defmodule PaperForge.TextWrapper do
           {:width, number()}
           | {:font, atom()}
           | {:size, number()}
+          | {:hyphenate, boolean()}
 
   @doc """
   Splits a string into lines that do not exceed the requested width.
@@ -84,20 +85,26 @@ defmodule PaperForge.TextWrapper do
     if fits?(word, options) do
       [word]
     else
+      hyphenate? = Keyword.get(options, :hyphenate, false)
+
       word
       |> String.graphemes()
       |> Enum.reduce([""], fn grapheme, [current | rest] ->
         candidate = current <> grapheme
 
+        hyphenated_candidate =
+          if hyphenate? and current != "", do: candidate <> "-", else: candidate
+
         cond do
           current == "" ->
             [candidate | rest]
 
-          fits?(candidate, options) ->
+          fits?(hyphenated_candidate, options) ->
             [candidate | rest]
 
           true ->
-            [grapheme, current | rest]
+            previous = if hyphenate?, do: current <> "-", else: current
+            [grapheme, previous | rest]
         end
       end)
       |> Enum.reverse()

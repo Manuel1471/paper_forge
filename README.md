@@ -7,7 +7,7 @@ vector graphics, metadata, and image XObjects directly in Elixir.
 No browser, wkhtmltopdf, Chromium, ImageMagick, Ghostscript, or external
 rendering service is required.
 
-PaperForge is currently pre-1.0. The `0.5.x` API is usable, but some details may
+PaperForge is currently pre-1.0. The `0.6.x` API is usable, but some details may
 still change while layout and image support mature.
 
 ## Why PaperForge?
@@ -30,9 +30,20 @@ still change while layout and image support mature.
 - Named page templates with page size, orientation, margins, headers, and
   footers.
 - Sections with metadata, template switching, destinations, and bookmarks.
-- Multipage tables with repeated headers.
+- Multipage tables with wrapped cells, content-aware row heights, repeated
+  headers, and configurable row splitting.
 - Automatic heading destinations and outline bookmarks.
 - Structured layout reports and debug reports.
+- Rich text runs, document styles, reusable components, and automatic tables
+  of contents with linked page numbers.
+- Template inheritance, grid layouts, and multi-column document sections.
+- Widow/orphan controls, optional hyphenation, and per-block measurement diagnostics.
+- Native bar charts and XML-parsed SVG vectors with paths, Bézier curves,
+  polygons, groups, transforms, `viewBox`, clipping, and cascading styles.
+- Vector QR codes and Interleaved 2 of 5 barcodes.
+- Embedded document attachments, text-note annotations, highlights,
+  bottom-of-page footnotes, and automatic endnotes.
+- Page-aware internal cross-references and positioned custom drawing blocks.
 
 ### PDF Engine
 
@@ -46,12 +57,12 @@ still change while layout and image support mature.
 - Uniform and side-specific page margins
 - Text drawing with color, alignment, and width-aware positioning
 - Multiline text boxes with wrapping, explicit line breaks, line height, height
-  limits, and overflow reporting
+  limits, justification, and `:clip | :ellipsis | :continue | :error` overflow
 - The 14 standard PDF Type 1 fonts
 - Embedded TrueType fonts loaded from paths or binaries
 - TrueType font-program deduplication by binary hash
-- TrueType subsetting planning with composite glyph dependency resolution,
-  table checksums, and `glyf`/`loca`/`hmtx`/`maxp` rebuild metadata
+- Physical TrueType subsetting with composite glyph dependency resolution,
+  checksum recalculation, and `glyf`/`loca`/`hmtx`/`maxp` reconstruction
 - TrueType PDF width and `/ToUnicode` subsetting for used glyphs
 - Font-family registration with regular, bold, italic, and bold italic variants
 - Document-level default font selection
@@ -63,6 +74,7 @@ still change while layout and image support mature.
 - Lines, rectangles, circles, fill, stroke, and line widths
 - RGB and grayscale colors
 - JPEG image XObjects with RGB, grayscale, and CMYK support
+- JPEG EXIF orientation and aspect-aware `:contain`/`:cover` fitting
 - PNG image XObjects for non-interlaced 8-bit grayscale, RGB,
   grayscale-alpha, and RGBA images
 - PNG transparency through PDF soft masks (`/SMask`)
@@ -87,7 +99,7 @@ Add PaperForge to your dependencies:
 ```elixir
 def deps do
   [
-    {:paper_forge, "~> 0.5.0"}
+    {:paper_forge, "~> 0.6.0"}
   ]
 end
 ```
@@ -105,7 +117,7 @@ def deps do
   [
     {:paper_forge,
      github: "Manuel1471/paper_forge",
-     tag: "v0.5.0"}
+     tag: "v0.6.0"}
   ]
 end
 ```
@@ -162,6 +174,112 @@ alias PaperForge.Flow
 IO.inspect(report.pages, label: "Pages")
 PaperForge.write!(document, "report.pdf")
 ```
+
+## Document Authoring
+
+`0.6.0` adds a higher-level authoring layer on top of `PaperForge.Flow`.
+Register shared styles, reusable components, and inherited page templates once;
+then compose documents from declarative blocks.
+
+```elixir
+alias PaperForge.Flow
+
+document =
+  PaperForge.new()
+  |> PaperForge.style(:body, size: 10, line_height: 14)
+  |> PaperForge.component(:customer, fn assigns ->
+    Flow.new()
+    |> Flow.rich_text([
+      {assigns.name, [weight: :bold]},
+      {"\n#{assigns.address}", [size: 9]}
+    ])
+  end)
+  |> PaperForge.page_template(:base, size: :a4, margins: 54, footer: "Page {page} of {total}")
+  |> PaperForge.page_template(:invoice, extends: :base, header: "Invoice")
+
+{document, _report} =
+  PaperForge.layout(document, fn flow ->
+    flow
+    |> Flow.table_of_contents()
+    |> Flow.heading("Invoice")
+    |> Flow.component(:customer, %{name: "Acme", address: "Monterrey, MX"})
+    |> Flow.grid(2, ["Subtotal\n$1,200", "Due\n30 days"], cell_height: 60)
+    |> Flow.columns(2, ["Terms and conditions...", "Payment instructions..."])
+  end, template: :invoice)
+```
+
+Available authoring blocks include `rich_text/3`, `table_of_contents/2`,
+`reference/3`, `component/4`, `grid/4`, and `columns/4`. Tables accept explicit
+`:column_widths`, `:header_fill_color`, `:header_color`, and
+`:stripe_fill_color` options. See
+[`paper_forge_0_6_authoring.exs`](examples/paper_forge_0_6_authoring.exs) and
+[`linkedin_document_showcase.exs`](examples/linkedin_document_showcase.exs) for
+complete documents.
+
+Images support `fit: :fill | :contain | :cover`, horizontal and vertical
+alignment, and `focal_point: {x, y}`. Numbered images and tables create stable
+destinations for page-aware references.
+
+The complete release example is
+[`paper_forge_0_6_complete.exs`](examples/paper_forge_0_6_complete.exs). It
+combines navigation, advanced tables, footnotes, endnotes, charts, SVG, QR,
+barcode, attachments, components, and custom report panels in one PDF.
+
+Page-aware navigation is resolved with bounded multi-pass pagination:
+
+```elixir
+flow
+|> Flow.table_of_contents(title: "Contents")
+|> Flow.heading("Financial results", destination: :financial_results)
+|> Flow.reference(:financial_results, prefix: "Financial results begin on page ")
+```
+
+Custom blocks receive their measured `block_x`, `block_y`, `block_width`, and
+`block_height` in `PageContext`, so bespoke report panels can participate in
+normal flow without hard-coding page coordinates.
+
+### Typography And Report Visuals
+
+Paragraph blocks can request hyphenation and minimum line counts around page
+breaks. Layout reports expose `:measurements` for each placed block.
+
+```elixir
+flow
+|> Flow.paragraph(long_copy, hyphenate: true, min_lines_at_top: 2, min_lines_at_bottom: 2)
+|> Flow.chart([{"Q1", 418}, {"Q2", 432}, {"Q3", 451}], height: 140)
+|> Flow.svg("<svg><rect x='0' y='0' width='80' height='30' fill='#0077b5'/></svg>", height: 40)
+|> Flow.qr_code("https://example.com/pay/INV-2048", width: 96, height: 96)
+|> Flow.barcode("20481234", width: 180, height: 64)
+```
+
+### Advanced Tables And Notes
+
+Table rows are measured from their wrapped cell content. `:keep` moves an
+oversized row to a fresh page, `:split` continues cell content across pages, and
+`:error` raises `PaperForge.TableError` when a row cannot fit.
+
+Use `Flow.cell/2` for composable cells with `:colspan`, `:rowspan`, `:valign`,
+per-cell colors, per-side borders, and nested flow blocks.
+
+```elixir
+flow
+|> Flow.table(
+  ["Item", "Description"],
+  rows,
+  column_widths: [110, 340],
+  repeat_header: true,
+  row_split: :split,
+  cell_line_height: 12
+)
+|> Flow.footnote("Values are unaudited and shown in USD.")
+|> Flow.endnotes([])
+```
+
+Footnotes reserve space at the bottom of the current flow page, number
+themselves when the number is omitted, append a visible call marker to the
+preceding paragraph, rich-text block, heading, or final table cell, and continue
+on another page when necessary. Pass `marker: false` to author the call marker
+manually. `Flow.endnotes/3` emits the collected notes as a document section.
 
 ## Document Options
 
@@ -398,11 +516,11 @@ Current limitations:
   supported yet.
 - Complex text shaping is not performed, so scripts such as Arabic,
   Devanagari, and advanced ligatures may not render as expected.
-- PaperForge subsets the generated PDF width arrays and `/ToUnicode` maps to
-  the glyphs used by the document. The physical TrueType subsetting planner can
-  resolve composite glyph dependencies and calculate table checksums, but final
-  `/FontFile2` table reconstruction is still in progress.
-- A missing glyph raises `PaperForge.FontError`.
+- PaperForge physically subsets embedded TrueType programs while preserving
+  original glyph identifiers, and rebuilds affected `glyf`, `loca`, `hmtx`, and
+  `maxp` tables with valid checksums.
+- A missing glyph raises `PaperForge.FontError` unless a registered full-run
+  fallback is configured through `PaperForge.font_fallback/3`.
 
 ### Font Families
 
@@ -890,6 +1008,9 @@ mix run examples/multilingual_layout.exs
 mix run examples/complete_showcase.exs
 mix run examples/paper_forge_0_4_showcase.exs
 mix run examples/paper_forge_0_5_showcase.exs
+mix run examples/paper_forge_0_6_authoring.exs
+mix run examples/linkedin_document_showcase.exs
+mix run examples/paper_forge_0_6_complete.exs
 ```
 
 Generated files are written under `tmp/`.
@@ -937,31 +1058,64 @@ mix run benchmarks/truetype.exs
 
 - The unified layout engine is the preferred rendering path for new
   applications, while page-level APIs remain available for compatibility.
-- Rich text and inline mixed-style runs are not yet supported.
-- Advanced widow and orphan control is not yet supported.
-- Tables can continue across multiple pages, while individual rows are kept
-  together. Content inside a single row or cell cannot yet be split across
-  pages.
-- Automatic table-of-contents generation is not yet supported.
-- Advanced image cropping, fitting modes, and object positioning remain future
-  work.
-- Page-template inheritance and first, odd, even, or final-page template
-  variants are not yet supported.
-- Physical TrueType `/FontFile2` reconstruction is not enabled yet. PaperForge
-  uses the subsetting planner foundation while embedding the original TrueType
-  font program.
+- Complex-script shaping, advanced bidirectional reordering, and glyph-level
+  font fallback are not implemented. Correct Arabic, Indic, and similar
+  scripts require numeric shaped glyph IDs. Integration is waiting for
+  `harfbuzz_ex` to expose those IDs; PaperForge does not fake this behavior.
+- Widow and orphan control uses minimum line counts; full typographic
+  justification, language dictionaries, and discretionary hyphenation remain
+  future work.
+- PDF/A validation requires VeraPDF in CI. Standard PDF generation remains
+  independent of external executables.
+
+## Performance Envelope
+
+`mix run benchmarks/document_scale.exs` measures a 5,000-row report. On the
+reference development machine it generated 179 pages in about 805 ms, serialized
+in about 62 ms, produced a 617 KB PDF, and increased total BEAM memory by about
+67 MB. Treat these values as a reproducible baseline, not fixed assertions.
+
+See [`API.md`](API.md) for the public compatibility policy and
+[`MIGRATING.md`](MIGRATING.md) for the developing 1.0 upgrade contract.
+
+## Production Hardening
+
+- `PaperForge.validate/1` returns structured validation reports and issue codes.
+- `PaperForge.validate!/1` raises `PaperForge.ValidationError` on corrupt
+  document graphs.
+- Serialization validates required objects, indirect references, page-tree
+  counts, object identity, and PDF versions.
+- Identical immutable documents produce byte-for-byte identical output.
+- Corrupted-image fuzz tests exercise deterministic error handling.
+- Internal conformance tests verify PDF headers, xref offsets, and EOF markers.
+- The compatibility test uses `pdfinfo` when it is available.
+
+See [`MIGRATING.md`](MIGRATING.md) for the developing 1.0 compatibility
+contract.
 
 ## Roadmap
 
 ### 0.6.x - Document Authoring
 
 - Rich text and inline styles
-- Physical TrueType subsetting
-- Font fallback
-- Automatic table of contents
-- Advanced tables
-- Advanced page templates
-- Reusable document components
+- Physical TrueType subsetting and full-run font fallback
+- Automatic tables of contents
+- Styled tables with explicit columns and alternating rows
+- Reusable document components and style registration
+- Template inheritance
+- Grid and multi-column layouts
+- Widow/orphan controls, optional hyphenation, SVG vector fragments, and charts
+
+### Remaining 1.0 Gate
+
+- Connect complex-script shaping, bidirectional paragraph layout, and
+  glyph-level font fallback after `harfbuzz_ex` exposes numeric glyph IDs.
+  PaperForge will consume that public API without adding a private NIF or an
+  installation-time native build.
+- Add language dictionaries for discretionary hyphenation. The current
+  `hyphenate: true` option only breaks overlong words deterministically.
+- Establish PDF/A output profiles. VeraPDF remains an optional external
+  validator and is not required to install or run PaperForge.
 
 ### 1.x - Production And Distributed Generation
 

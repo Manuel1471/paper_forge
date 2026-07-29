@@ -75,6 +75,41 @@ defmodule PaperForge.Graphics.TextBoxTest do
     assert length(result.lines) == 2
     assert result.consumed_height == 20
     assert result.overflow?
+    assert result.remaining_lines != []
+  end
+
+  test "supports ellipsis, continuation, error, and justified text" do
+    ellipsis =
+      TextBox.commands(
+        "one two three four five six",
+        base_options(width: 35, height: 10, line_height: 10, overflow: :ellipsis)
+      )
+
+    assert List.last(ellipsis.lines) =~ "..."
+
+    continuation =
+      TextBox.commands(
+        "one two three four five six",
+        base_options(width: 35, height: 10, line_height: 10, overflow: :continue)
+      )
+
+    assert continuation.remaining_lines != []
+
+    assert_raise ArgumentError, ~r/does not fit/, fn ->
+      TextBox.commands(
+        "one two three four five six",
+        base_options(width: 35, height: 10, line_height: 10, overflow: :error)
+      )
+    end
+
+    justified =
+      TextBox.commands(
+        "one two three four",
+        base_options(width: 55, align: :justify)
+      ).commands
+      |> IO.iodata_to_binary()
+
+    assert justified =~ " Tw"
   end
 
   test "handles empty text" do

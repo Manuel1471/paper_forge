@@ -44,7 +44,8 @@ defmodule PaperForge.Image do
     :bits_per_component,
     :data,
     :resource_name,
-    :reference
+    :reference,
+    :orientation
   ]
 
   defstruct [
@@ -56,7 +57,8 @@ defmodule PaperForge.Image do
     :bits_per_component,
     :data,
     :resource_name,
-    :reference
+    :reference,
+    :orientation
   ]
 
   @type format ::
@@ -77,7 +79,8 @@ defmodule PaperForge.Image do
           bits_per_component: pos_integer(),
           data: binary(),
           resource_name: binary(),
-          reference: Reference.t()
+          reference: Reference.t(),
+          orientation: 1..8
         }
 
   @doc """
@@ -142,7 +145,8 @@ defmodule PaperForge.Image do
       bits_per_component: bits_per_component,
       data: data,
       resource_name: resource_name,
-      reference: reference
+      reference: reference,
+      orientation: Map.get(metadata, :orientation, 1)
     }
   end
 
@@ -187,14 +191,16 @@ defmodule PaperForge.Image do
         :height
       )
 
+    {natural_width, natural_height} = oriented_dimensions(image)
+
     case {
       width,
       height
     } do
       {nil, nil} ->
         {
-          image.width,
-          image.height
+          natural_width,
+          natural_height
         }
 
       {width, nil}
@@ -203,8 +209,8 @@ defmodule PaperForge.Image do
         {
           width,
           width *
-            image.height /
-            image.width
+            natural_height /
+            natural_width
         }
 
       {nil, height}
@@ -212,8 +218,8 @@ defmodule PaperForge.Image do
              height > 0 ->
         {
           height *
-            image.width /
-            image.height,
+            natural_width /
+            natural_height,
           height
         }
 
@@ -232,6 +238,13 @@ defmodule PaperForge.Image do
               "image width and height must be positive numbers"
     end
   end
+
+  @spec oriented_dimensions(t()) :: {pos_integer(), pos_integer()}
+  def oriented_dimensions(%__MODULE__{orientation: orientation, width: width, height: height})
+      when orientation in 5..8,
+      do: {height, width}
+
+  def oriented_dimensions(%__MODULE__{width: width, height: height}), do: {width, height}
 
   @doc """
   Returns the PDF name associated with the image color space.

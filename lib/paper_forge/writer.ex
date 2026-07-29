@@ -15,6 +15,7 @@ defmodule PaperForge.Writer do
   alias PaperForge.Document
   alias PaperForge.Object
   alias PaperForge.Serializer
+  alias PaperForge.Validation
 
   @doc """
   Converts a document into a complete PDF binary.
@@ -31,6 +32,8 @@ defmodule PaperForge.Writer do
   """
   @spec to_binary(Document.t()) :: binary()
   def to_binary(%Document{} = document) do
+    Validation.validate!(document)
+
     header =
       pdf_header(document)
 

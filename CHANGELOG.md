@@ -5,6 +5,95 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-07-29
+
+### Added
+
+#### Authoring and layout
+
+- Added rich-text runs, named styles, reusable components, inherited templates,
+  grids, multi-column sections, and measured custom blocks.
+- Added linked tables of contents and page-aware cross-references using bounded
+  multi-pass pagination.
+- Added widow/orphan controls, optional long-word hyphenation, and placement
+  diagnostics.
+- Added bottom-of-page footnotes with automatic numbering and continuation,
+  plus automatic endnote sections.
+- Added automatic footnote call markers for preceding paragraphs, headings,
+  rich-text blocks, and final table cells.
+- Added first, last, odd, and even header/footer variants plus independent
+  section page counters.
+- Added justified text and explicit `:clip`, `:ellipsis`, `:continue`, and
+  `:error` overflow strategies.
+- Added configurable multilevel TOC formatting and numbered figure/table
+  destinations with page-aware references.
+
+#### Advanced tables
+
+- Added content-aware row heights and text wrapping inside cells.
+- Added repeated headers and `row_split: :keep | :split | :error`.
+- Added cell and row continuation across pages without dropping content.
+- Added explicit column widths, header colors, alignment, and striped rows.
+- Added composable cells with `colspan`, `rowspan`, vertical alignment,
+  per-side borders, colors, and nested block content.
+
+#### Fonts, graphics, and PDF features
+
+- Added physical TrueType subsetting with composite glyph retention and
+  reconstruction of `glyf`, `loca`, `hmtx`, and `maxp`.
+- Added font-program deduplication and primary-font fallback selection.
+- Added vector QR codes, Interleaved 2 of 5 barcodes, native bar charts, and an
+  XML-based SVG renderer supporting paths, Bézier curves, polygons, ellipses,
+  groups, transforms, `viewBox`, clipping, and inherited styles.
+- Added image `:contain`/`:cover` fitting, focal positioning, PDF clipping, and
+  automatic JPEG EXIF orientation.
+- Added embedded file attachments, text-note annotations, and highlights.
+
+#### Production hardening
+
+- Added `PaperForge.validate/1` and `PaperForge.validate!/1`.
+- Added `PaperForge.ValidationError` with machine-readable issue maps.
+- Added pre-serialization checks for catalog/page-tree integrity, object
+  identity, dangling references, page counts, and PDF versions.
+- Added byte-for-byte determinism tests.
+- Added corrupted-image fuzz coverage and internal xref/EOF conformance checks.
+- Added optional `pdfinfo` compatibility validation.
+- Added optional `qpdf --check` and VeraPDF CI checks.
+- Added a 5,000-row memory and runtime benchmark.
+- Added `API.md` with the developing `1.x` compatibility and deprecation policy.
+- Added `MIGRATING.md` for the developing 1.0 compatibility contract.
+
+### Changed
+
+- Changed the package version to `0.6.0`.
+- Changed navigation materialization to iterate until page labels stabilize.
+- Changed linked flow paragraphs, table-of-contents entries, and cross-references
+  to emit real PDF `/Link` annotations targeting their named destinations.
+- Changed bar-chart geometry to reserve consistent space above the plot for
+  value labels, including the tallest bar.
+- Increased the default footnote separator clearance so the rule cannot touch
+  the first line of note text.
+- Rebuilt the invoice and investor-report examples with production-oriented
+  visual layouts.
+
+### Examples and tests
+
+- Added `examples/paper_forge_0_6_complete.exs`, a complete release showcase.
+- Added polished invoice and investor-report examples.
+- Added integration coverage for authoring, navigation, advanced tables,
+  footnotes, graphics, attachments, annotations, and physical font subsets.
+
+### Known limitations
+
+- Complex-script shaping, advanced bidirectional layout, and glyph-level font
+  fallback are waiting for `harfbuzz_ex` to expose numeric glyph IDs. PaperForge
+  will consume that API without introducing a private NIF or manual native
+  installation steps; the behavior is intentionally not simulated.
+- Language-aware dictionary hyphenation is not included. `hyphenate: true`
+  deterministically splits only words that cannot fit on a line.
+- PDF/A output profiles are not yet emitted. Optional VeraPDF checks are skipped
+  when the validator is unavailable and never affect package installation.
+
 ## [0.5.0] - 2026-07-27
 
 ### Added
@@ -680,6 +769,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Isolates graphic operations using the PDF `q` and `Q` operators
 
 [0.5.0]: https://github.com/Manuel1471/paper_forge/compare/v0.4.0...v0.5.0
+[0.6.0]: https://github.com/Manuel1471/paper_forge/compare/v0.5.0...v0.6.0
 [0.4.0]: https://github.com/Manuel1471/paper_forge/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Manuel1471/paper_forge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.2.0

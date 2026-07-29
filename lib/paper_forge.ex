@@ -53,6 +53,7 @@ defmodule PaperForge do
   alias PaperForge.PageTemplateError
   alias PaperForge.TextWrapper
   alias PaperForge.Writer
+  alias PaperForge.Validation
 
   @doc """
   Creates a new empty PDF document.
@@ -125,6 +126,13 @@ defmodule PaperForge do
     )
   end
 
+  @doc "Registers fallback embedded fonts for a primary font."
+  @spec font_fallback(Document.t(), atom(), [atom()]) :: Document.t()
+  def font_fallback(%Document{} = document, primary_font, fallbacks)
+      when is_atom(primary_font) and is_list(fallbacks) do
+    Document.font_fallback(document, primary_font, fallbacks)
+  end
+
   @doc """
   Registers a reusable page template.
   """
@@ -132,6 +140,20 @@ defmodule PaperForge do
   def page_template(%Document{} = document, template_name, options)
       when is_atom(template_name) and is_list(options) do
     Document.page_template(document, template_name, options)
+  end
+
+  @doc "Registers a named style for headings, paragraphs, tables, and other flow blocks."
+  @spec style(Document.t(), atom(), keyword()) :: Document.t()
+  def style(%Document{} = document, style_name, options)
+      when is_atom(style_name) and is_list(options) do
+    Document.style(document, style_name, options)
+  end
+
+  @doc "Registers a reusable `PaperForge.Flow` component."
+  @spec component(Document.t(), atom(), (map() -> Flow.t())) :: Document.t()
+  def component(%Document{} = document, component_name, renderer)
+      when is_atom(component_name) and is_function(renderer, 1) do
+    Document.component(document, component_name, renderer)
   end
 
   @doc """
@@ -421,6 +443,12 @@ defmodule PaperForge do
     Document.put_metadata(document, metadata)
   end
 
+  @doc "Embeds a document attachment."
+  @spec attach(Document.t(), binary(), binary(), keyword()) :: Document.t()
+  def attach(%Document{} = document, filename, data, options \\ []) do
+    Document.attach(document, filename, data, options)
+  end
+
   @doc """
   Serializes a document into a complete PDF binary.
   """
@@ -428,6 +456,14 @@ defmodule PaperForge do
   def to_binary(%Document{} = document) do
     Writer.to_binary(document)
   end
+
+  @doc "Validates document structure and returns a deterministic validation report."
+  @spec validate(Document.t()) :: {:ok, map()} | {:error, [map()]}
+  def validate(%Document{} = document), do: Validation.validate(document)
+
+  @doc "Validates document structure and raises `PaperForge.ValidationError` on failure."
+  @spec validate!(Document.t()) :: map()
+  def validate!(%Document{} = document), do: Validation.validate!(document)
 
   @doc """
   Writes a document to a file.
@@ -460,7 +496,7 @@ defmodule PaperForge do
         options
 
       template_name ->
-        case Document.fetch_page_template(document, template_name) do
+        case Document.resolve_page_template(document, template_name) do
           {:ok, template_options} ->
             page_options =
               template_options
@@ -478,6 +514,11 @@ defmodule PaperForge do
           :error ->
             raise PageTemplateError,
               reason: :unknown_template,
+              template: template_name
+
+          {:error, :cycle} ->
+            raise PageTemplateError,
+              reason: :template_cycle,
               template: template_name
         end
     end
