@@ -37,6 +37,7 @@ defmodule PaperForge.Document do
             font_families: %{},
             font_program_registry: %{},
             default_font: :helvetica,
+            page_templates: %{},
             image_registry: nil,
             compress: @default_compression,
             named_destinations: %{},
@@ -55,6 +56,7 @@ defmodule PaperForge.Document do
           font_families: %{optional(atom()) => %{optional(atom()) => atom()}},
           font_program_registry: %{optional(binary()) => Reference.t()},
           default_font: atom(),
+          page_templates: %{optional(atom()) => keyword()},
           image_registry: ImageRegistry.t(),
           compress: boolean(),
           named_destinations: %{optional(binary()) => list()},
@@ -131,6 +133,7 @@ defmodule PaperForge.Document do
       font_families: %{},
       font_program_registry: %{},
       default_font: default_font,
+      page_templates: %{},
       image_registry: ImageRegistry.new(),
       compress: compress,
       named_destinations: %{},
@@ -147,6 +150,24 @@ defmodule PaperForge.Document do
   def default_font(%__MODULE__{} = document, font_key)
       when is_atom(font_key) do
     %{document | default_font: font_key}
+  end
+
+  @doc """
+  Registers a reusable page template.
+  """
+  @spec page_template(t(), atom(), keyword()) :: t()
+  def page_template(%__MODULE__{} = document, template_name, options)
+      when is_atom(template_name) and is_list(options) do
+    %{document | page_templates: Map.put(document.page_templates, template_name, options)}
+  end
+
+  @doc """
+  Fetches a page template.
+  """
+  @spec fetch_page_template(t(), atom()) :: {:ok, keyword()} | :error
+  def fetch_page_template(%__MODULE__{} = document, template_name)
+      when is_atom(template_name) do
+    Map.fetch(document.page_templates, template_name)
   end
 
   @doc """
