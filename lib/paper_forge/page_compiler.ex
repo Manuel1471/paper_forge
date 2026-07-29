@@ -13,6 +13,7 @@ defmodule PaperForge.PageCompiler do
   alias PaperForge.Graphics.Circle
   alias PaperForge.Graphics.Image, as: ImageGraphics
   alias PaperForge.Graphics.Line
+  alias PaperForge.Graphics.Path
   alias PaperForge.Graphics.Rectangle
   alias PaperForge.Graphics.Text
   alias PaperForge.Graphics.TextBox
@@ -113,11 +114,7 @@ defmodule PaperForge.PageCompiler do
   end
 
   defp compile_operation(page, document, resources, {:text, text, options}) do
-    font_key =
-      Document.resolve_font_key(
-        document,
-        options
-      )
+    font_key = Document.resolve_text_font_key(document, options, text)
 
     {document, _font} =
       Document.register_font(
@@ -156,11 +153,7 @@ defmodule PaperForge.PageCompiler do
   end
 
   defp compile_operation(page, document, resources, {:text_box, text, options}) do
-    font_key =
-      Document.resolve_font_key(
-        document,
-        options
-      )
+    font_key = Document.resolve_text_font_key(document, options, text)
 
     {document, _font} =
       Document.register_font(
@@ -228,6 +221,11 @@ defmodule PaperForge.PageCompiler do
     {document, command, resources}
   end
 
+  defp compile_operation(page, document, resources, {:path, segments, options}) do
+    command = compile_path_operation(page, segments, options)
+    {document, command, resources}
+  end
+
   defp compile_operation(page, document, resources, {:image, source, options}) do
     image_data = read_image_source!(source)
 
@@ -237,9 +235,6 @@ defmodule PaperForge.PageCompiler do
         image_data
       )
 
-    {width, height} =
-      Image.display_size(image, options)
-
     origin =
       Keyword.get(
         options,
@@ -247,23 +242,31 @@ defmodule PaperForge.PageCompiler do
         page.origin
       )
 
-    x = Keyword.fetch!(options, :x)
+    geometry = image_geometry(image, options)
+    x = geometry.x
+    y = Coordinates.box_y(page.height, geometry.y, geometry.height, origin)
 
-    y =
-      Coordinates.box_y(
-        page.height,
-        Keyword.fetch!(options, :y),
-        height,
-        origin
-      )
+    clip =
+      if geometry.clip do
+        {clip_x, clip_y, clip_width, clip_height} = geometry.clip
+
+        {
+          clip_x,
+          Coordinates.box_y(page.height, clip_y, clip_height, origin),
+          clip_width,
+          clip_height
+        }
+      end
 
     command =
       ImageGraphics.command(
         image.resource_name,
         x: x,
         y: y,
-        width: width,
-        height: height
+        width: geometry.width,
+        height: geometry.height,
+        clip: clip,
+        matrix: image_matrix(image.orientation, x, y, geometry.width, geometry.height)
       )
 
     resources =
@@ -288,6 +291,11 @@ defmodule PaperForge.PageCompiler do
   end
 
   defp compile_operation(_page, document, resources, {:bookmark, _title, _options}) do
+    {document, [], resources}
+  end
+
+  defp compile_operation(_page, document, resources, {type, _contents, _options})
+       when type in [:note, :highlight] do
     {document, [], resources}
   end
 
@@ -344,6 +352,10 @@ defmodule PaperForge.PageCompiler do
 
   defp compile_local_operation(page, {:circle, options}, _font_resources) do
     compile_circle_operation(page, options)
+  end
+
+  defp compile_local_operation(page, {:path, segments, options}, _font_resources) do
+    compile_path_operation(page, segments, options)
   end
 
   defp compile_local_operation(_page, {:image, _source, _options}, _font_resources) do
@@ -435,6 +447,107 @@ defmodule PaperForge.PageCompiler do
     |> Keyword.delete(:origin)
     |> Circle.command()
   end
+
+  defp compile_path_operation(page, segments, options) do
+    origin = Keyword.get(options, :origin, page.origin)
+
+    transform = fn
+      {:move_to, x, y} ->
+        {:move_to, x, Coordinates.point_y(page.height, y, origin)}
+
+      {:line_to, x, y} ->
+        {:line_to, x, Coordinates.point_y(page.height, y, origin)}
+
+      {:curve_to, x1, y1, x2, y2, x3, y3} ->
+        {:curve_to, x1, Coordinates.point_y(page.height, y1, origin), x2,
+         Coordinates.point_y(page.height, y2, origin), x3,
+         Coordinates.point_y(page.height, y3, origin)}
+
+      :close ->
+        :close
+    end
+
+    clip_path =
+      case Keyword.get(options, :clip_path) do
+        nil -> nil
+        path -> Enum.map(path, transform)
+      end
+
+    options
+    |> Keyword.put(:clip_path, clip_path)
+    |> Keyword.delete(:origin)
+    |> then(&Path.command(Enum.map(segments, transform), &1))
+  end
+
+  defp image_geometry(image, options) do
+    box_x = Keyword.fetch!(options, :x)
+    box_y = Keyword.fetch!(options, :y)
+    {box_width, box_height} = Image.display_size(image, options)
+
+    case Keyword.get(options, :fit, :fill) do
+      :fill ->
+        %{x: box_x, y: box_y, width: box_width, height: box_height, clip: nil}
+
+      fit when fit in [:contain, :cover] ->
+        {natural_width, natural_height} = Image.oriented_dimensions(image)
+        scale_fun = if fit == :contain, do: &min/2, else: &max/2
+        scale = scale_fun.(box_width / natural_width, box_height / natural_height)
+        width = natural_width * scale
+        height = natural_height * scale
+        {focus_x, focus_y} = image_focus(options)
+        x = box_x + (box_width - width) * focus_x
+        y = box_y + (box_height - height) * focus_y
+        clip = if fit == :cover, do: {box_x, box_y, box_width, box_height}, else: nil
+        %{x: x, y: y, width: width, height: height, clip: clip}
+
+      fit ->
+        raise ArgumentError,
+              "image fit must be :fill, :contain, or :cover, received: #{inspect(fit)}"
+    end
+  end
+
+  defp image_focus(options) do
+    case Keyword.get(options, :focal_point) do
+      {x, y} when is_number(x) and x >= 0 and x <= 1 and is_number(y) and y >= 0 and y <= 1 ->
+        {x, y}
+
+      nil ->
+        {horizontal_focus(Keyword.get(options, :align, :center)),
+         vertical_focus(Keyword.get(options, :valign, :middle))}
+
+      focal_point ->
+        raise ArgumentError,
+              "image focal_point must be a {horizontal, vertical} tuple between 0 and 1, " <>
+                "received: #{inspect(focal_point)}"
+    end
+  end
+
+  defp horizontal_focus(:left), do: 0.0
+  defp horizontal_focus(:center), do: 0.5
+  defp horizontal_focus(:right), do: 1.0
+  defp horizontal_focus(value) when is_number(value) and value >= 0 and value <= 1, do: value
+  defp horizontal_focus(_value), do: 0.5
+
+  defp vertical_focus(:top), do: 0.0
+  defp vertical_focus(:middle), do: 0.5
+  defp vertical_focus(:bottom), do: 1.0
+  defp vertical_focus(value) when is_number(value) and value >= 0 and value <= 1, do: value
+  defp vertical_focus(_value), do: 0.5
+
+  defp image_matrix(2, x, y, width, height), do: {-width, 0, 0, height, x + width, y}
+
+  defp image_matrix(3, x, y, width, height),
+    do: {-width, 0, 0, -height, x + width, y + height}
+
+  defp image_matrix(4, x, y, width, height), do: {width, 0, 0, -height, x, y + height}
+  defp image_matrix(5, x, y, width, height), do: {0, height, width, 0, x, y}
+  defp image_matrix(6, x, y, width, height), do: {0, height, -width, 0, x + width, y}
+
+  defp image_matrix(7, x, y, width, height),
+    do: {0, -height, -width, 0, x + width, y + height}
+
+  defp image_matrix(8, x, y, width, height), do: {0, -height, width, 0, x, y + height}
+  defp image_matrix(_orientation, x, y, width, height), do: {width, 0, 0, height, x, y}
 
   defp put_local_font_resource(resources, font_key) do
     Builtin.fetch!(font_key)

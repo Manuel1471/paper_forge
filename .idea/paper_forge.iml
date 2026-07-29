@@ -13,6 +13,13 @@
       <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/makeup_elixir" />
       <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/makeup_erlang" />
       <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/nimble_parsec" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/harfbuzz_ex" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/jason" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/nimble_pool" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/qiroex" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/rustler" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/dev/lib/rustler_precompiled" />
+      <excludeFolder url="file://$MODULE_DIR$/_build/test/lib/qiroex" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
@@ -79,5 +86,13 @@
     <orderEntry type="library" name="makeup_html [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
     <orderEntry type="library" name="jason [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
     <orderEntry type="library" name="lazy_html [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="qiroex [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="credo [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="dialyxir [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="harfbuzz_ex [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="nimble_pool [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="rustler [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="rustler_precompiled [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
+    <orderEntry type="library" name="hyphenation [file:///Users/manuelgarcia/Desktop/paper_forge]" level="project" />
   </component>
 </module>

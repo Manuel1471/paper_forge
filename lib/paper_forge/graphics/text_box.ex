@@ -22,6 +22,7 @@ defmodule PaperForge.Graphics.TextBox do
   @type result :: %{
           commands: iodata(),
           lines: [binary()],
+          remaining_lines: [binary()],
           overflow?: boolean(),
           consumed_height: number()
         }
@@ -98,12 +99,9 @@ defmodule PaperForge.Graphics.TextBox do
         size: size
       )
 
-    visible_lines =
-      visible_lines(
-        lines,
-        height,
-        line_height
-      )
+    {visible_lines, remaining_lines} = split_visible_lines(lines, height, line_height)
+    overflow = Keyword.get(options, :overflow, :clip)
+    visible_lines = apply_overflow(visible_lines, remaining_lines, overflow, options)
 
     commands =
       build_commands(
@@ -115,7 +113,8 @@ defmodule PaperForge.Graphics.TextBox do
     %{
       commands: commands,
       lines: visible_lines,
-      overflow?: length(visible_lines) < length(lines),
+      remaining_lines: remaining_lines,
+      overflow?: remaining_lines != [],
       consumed_height: length(visible_lines) * line_height
     }
   end
@@ -131,6 +130,8 @@ defmodule PaperForge.Graphics.TextBox do
         :y
       )
 
+    last_index = length(lines) - 1
+
     lines
     |> Enum.with_index()
     |> Enum.map(fn {line, index} ->
@@ -140,8 +141,10 @@ defmodule PaperForge.Graphics.TextBox do
       line_options =
         options
         |> Keyword.put(:y, line_y)
+        |> maybe_disable_last_justification(index == last_index)
         |> Keyword.delete(:height)
         |> Keyword.delete(:line_height)
+        |> Keyword.delete(:overflow)
 
       Text.command(
         line,
@@ -151,15 +154,15 @@ defmodule PaperForge.Graphics.TextBox do
     |> Enum.intersperse("\n")
   end
 
-  defp visible_lines(
+  defp split_visible_lines(
          lines,
          nil,
          _line_height
        ) do
-    lines
+    {lines, []}
   end
 
-  defp visible_lines(
+  defp split_visible_lines(
          lines,
          height,
          line_height
@@ -169,11 +172,60 @@ defmodule PaperForge.Graphics.TextBox do
       |> Kernel./(line_height)
       |> floor()
 
-    Enum.take(
-      lines,
-      maximum_lines
-    )
+    Enum.split(lines, maximum_lines)
   end
+
+  defp apply_overflow(visible, [], _strategy, _options), do: visible
+  defp apply_overflow(visible, _remaining, :clip, _options), do: visible
+  defp apply_overflow(visible, _remaining, :continue, _options), do: visible
+
+  defp apply_overflow([], _remaining, :ellipsis, _options), do: []
+
+  defp apply_overflow(visible, _remaining, :ellipsis, options) do
+    List.replace_at(visible, -1, ellipsize(List.last(visible), options))
+  end
+
+  defp apply_overflow(_visible, _remaining, :error, _options) do
+    raise ArgumentError, "text does not fit inside the requested text box height"
+  end
+
+  defp apply_overflow(_visible, _remaining, strategy, _options) do
+    raise ArgumentError,
+          "text overflow must be :clip, :ellipsis, :continue, or :error, received: " <>
+            inspect(strategy)
+  end
+
+  defp ellipsize(line, options) do
+    width = Keyword.fetch!(options, :width)
+    suffix = "..."
+
+    line
+    |> String.graphemes()
+    |> Enum.reverse()
+    |> Enum.reduce_while(line, fn _grapheme, current ->
+      candidate = String.slice(current, 0, max(String.length(current) - 1, 0)) <> suffix
+
+      if line_fits?(candidate, width, options),
+        do: {:halt, candidate},
+        else: {:cont, String.slice(current, 0, max(String.length(current) - 1, 0))}
+    end)
+  end
+
+  defp line_fits?(line, width, options) do
+    PaperForge.TextMetrics.line_width(line,
+      font: Keyword.fetch!(options, :font),
+      font_instance: Keyword.get(options, :font_instance),
+      size: Keyword.get(options, :size, @default_size)
+    ) <= width
+  end
+
+  defp maybe_disable_last_justification(options, true) do
+    if Keyword.get(options, :align) == :justify,
+      do: Keyword.put(options, :align, :left),
+      else: options
+  end
+
+  defp maybe_disable_last_justification(options, false), do: options
 
   defp validate_options!(options) do
     validate_required_option!(

@@ -16,6 +16,10 @@ defmodule PaperForge.PageTemplateError do
     "unknown page template #{inspect(Keyword.get(options, :template))}"
   end
 
+  defp message(:template_cycle, options) do
+    "page template inheritance cycle at #{inspect(Keyword.get(options, :template))}"
+  end
+
   defp message(reason, _options) do
     "page template failed: #{inspect(reason)}"
   end

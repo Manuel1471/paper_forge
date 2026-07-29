@@ -105,4 +105,17 @@ defmodule PaperForge.Fonts.TrueTypeTest do
   test "calculates TrueType table checksums with four byte padding" do
     assert Subsetter.checksum(<<1, 2, 3>>) == 0x01020300
   end
+
+  test "rebuilds a parseable physical subset while retaining glyph identifiers" do
+    font = @font_path |> File.read!() |> TrueType.parse!()
+    {:ok, glyph_a} = TrueType.glyph_id(font, ?A)
+
+    subset = Subsetter.subset(font, [glyph_a])
+    reparsed = TrueType.parse!(subset.data)
+
+    assert byte_size(subset.data) < byte_size(font.data)
+    assert reparsed.number_of_glyphs == font.number_of_glyphs
+    assert {:ok, ^glyph_a} = TrueType.glyph_id(reparsed, ?A)
+    assert rem(Subsetter.checksum(subset.data), 0x1_0000_0000) == 0xB1B0AFBA
+  end
 end

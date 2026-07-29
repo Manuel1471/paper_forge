@@ -28,6 +28,11 @@ defmodule PaperForge.Images.JPEGTest do
     assert metadata.color_space == :device_cmyk
   end
 
+  test "reads EXIF orientation without decoding JPEG pixels" do
+    assert {:ok, metadata} = JPEG.parse(oriented_jpeg(100, 50, 6))
+    assert metadata.orientation == 6
+  end
+
   test "rejects invalid JPEG data" do
     assert JPEG.parse("not a jpeg") == {:error, :invalid_jpeg}
   end
@@ -60,5 +65,17 @@ defmodule PaperForge.Images.JPEGTest do
       0xFF,
       0xD9
     >>
+  end
+
+  defp oriented_jpeg(width, height, orientation) do
+    <<"II", 42::16-little, 8::32-little, 1::16-little, 0x0112::16-little, 3::16-little,
+      1::32-little, orientation::16-little, 0::16, 0::32-little>>
+    |> then(fn tiff ->
+      payload = <<"Exif", 0, 0, tiff::binary>>
+      <<0xFF, 0xD8, remaining::binary>> = jpeg(width, height, 3)
+
+      <<0xFF, 0xD8, 0xFF, 0xE1, byte_size(payload) + 2::16-big, payload::binary,
+        remaining::binary>>
+    end)
   end
 end

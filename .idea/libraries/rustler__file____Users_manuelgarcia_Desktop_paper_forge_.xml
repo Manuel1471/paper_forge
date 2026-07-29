@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="rustler [file:///Users/manuelgarcia/Desktop/paper_forge]" type="mix">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/_build/dev/lib/rustler/ebin" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/deps/rustler/lib" />
+      <root url="file://$PROJECT_DIR$/deps/rustler/priv" />
+    </SOURCES>
+  </library>
+</component>
