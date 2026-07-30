@@ -5,6 +5,57 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-07-29
+
+PaperForge 1.0 is the first stable release of the pure-Elixir PDF authoring
+engine. It consolidates the document, layout, typography, graphics, navigation,
+and production-hardening work delivered throughout the 0.x series and
+establishes the public API and Semantic Versioning contract for 1.x.
+
+### Stable authoring platform
+
+- Unified flow layout with automatic pagination, keep controls, widow/orphan
+  handling, overflow strategies, reusable components, themes, inherited
+  templates, grids, columns, and structured layout diagnostics.
+- Rich text, embedded Unicode TrueType fonts, physical font subsetting, font
+  families, deterministic font deduplication, and searchable `/ToUnicode`
+  mappings.
+- Content-aware multipage tables with wrapped cells, repeated headers, row
+  splitting policies, `colspan`, `rowspan`, vertical alignment, per-cell
+  styling, and nested measured content.
+- Automatic tables of contents, named destinations, outlines, bookmarks,
+  internal and external links, page-aware references, and figure/table
+  numbering.
+- First, last, odd, and even page templates, section-aware page counters,
+  headers, footers, footnotes, endnotes, attachments, and annotations.
+
+### Images and native graphics
+
+- JPEG and PNG images with deduplication, alpha soft masks, EXIF orientation,
+  contain/cover fitting, clipping, alignment, and focal positioning.
+- Native vector paths, shapes, charts, QR codes, barcodes, and XML-parsed SVG
+  content with groups, transforms, `viewBox`, clipping, and inherited styles.
+
+### Production readiness
+
+- Structured document validation, deterministic serialization, corrupted-input
+  coverage, conformance checks, compatibility hooks, and a documented
+  large-document performance benchmark.
+- Public API policy, migration guide, expanded HexDocs, release examples, and
+  165 automated tests with warning-free compilation.
+- Pure Elixir installation with no browser, rendering service, or manual native
+  build process.
+
+### Compatibility contract
+
+- Public modules documented in `API.md` follow Semantic Versioning for the 1.x
+  series. Breaking public API changes are reserved for a future major release.
+- Complex-script shaping, bidirectional layout, and glyph-level fallback are
+  outside the 1.0 contract while PaperForge waits for `harfbuzz_ex` to expose
+  numeric glyph IDs without requiring a private native integration.
+- Language-dictionary hyphenation and PDF/A output profiles remain outside the
+  1.0 feature set and are not advertised as supported.
+
 ## [0.6.0] - 2026-07-29
 
 ### Added
@@ -768,8 +819,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Uses native PDF coordinates with the origin at the bottom-left corner
 - Isolates graphic operations using the PDF `q` and `Q` operators
 
-[0.5.0]: https://github.com/Manuel1471/paper_forge/compare/v0.4.0...v0.5.0
+[1.0.0]: https://github.com/Manuel1471/paper_forge/compare/v0.6.0...v1.0.0
 [0.6.0]: https://github.com/Manuel1471/paper_forge/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/Manuel1471/paper_forge/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Manuel1471/paper_forge/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Manuel1471/paper_forge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.2.0

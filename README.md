@@ -7,8 +7,8 @@ vector graphics, metadata, and image XObjects directly in Elixir.
 No browser, wkhtmltopdf, Chromium, ImageMagick, Ghostscript, or external
 rendering service is required.
 
-PaperForge is currently pre-1.0. The `0.6.x` API is usable, but some details may
-still change while layout and image support mature.
+PaperForge 1.0 provides a stable public API for pure-Elixir PDF authoring.
+Documented public modules follow Semantic Versioning throughout the 1.x series.
 
 ## Why PaperForge?
 
@@ -99,7 +99,7 @@ Add PaperForge to your dependencies:
 ```elixir
 def deps do
   [
-    {:paper_forge, "~> 0.6.0"}
+    {:paper_forge, "~> 1.0"}
   ]
 end
 ```
@@ -117,7 +117,7 @@ def deps do
   [
     {:paper_forge,
      github: "Manuel1471/paper_forge",
-     tag: "v0.6.0"}
+     tag: "v1.0.0"}
   ]
 end
 ```
@@ -1054,19 +1054,18 @@ Run the TrueType and Unicode benchmark script:
 mix run benchmarks/truetype.exs
 ```
 
-## Current Limitations
+## Scope Boundaries
 
 - The unified layout engine is the preferred rendering path for new
   applications, while page-level APIs remain available for compatibility.
-- Complex-script shaping, advanced bidirectional reordering, and glyph-level
-  font fallback are not implemented. Correct Arabic, Indic, and similar
-  scripts require numeric shaped glyph IDs. Integration is waiting for
-  `harfbuzz_ex` to expose those IDs; PaperForge does not fake this behavior.
-- Widow and orphan control uses minimum line counts; full typographic
-  justification, language dictionaries, and discretionary hyphenation remain
-  future work.
-- PDF/A validation requires VeraPDF in CI. Standard PDF generation remains
-  independent of external executables.
+- PaperForge 1.0 targets standard PDF authoring and Unicode text supported by
+  embedded TrueType fonts. Complex-script shaping and bidirectional layout are
+  outside the 1.0 compatibility contract.
+- Widow and orphan control uses configurable minimum line counts. Optional
+  hyphenation deterministically breaks overlong words rather than consulting
+  language dictionaries.
+- PaperForge emits standard PDF 1.4 through 1.7 files. PDF/A output profiles
+  are outside the 1.0 compatibility contract.
 
 ## Performance Envelope
 
@@ -1076,7 +1075,7 @@ in about 62 ms, produced a 617 KB PDF, and increased total BEAM memory by about
 67 MB. Treat these values as a reproducible baseline, not fixed assertions.
 
 See [`API.md`](API.md) for the public compatibility policy and
-[`MIGRATING.md`](MIGRATING.md) for the developing 1.0 upgrade contract.
+[`MIGRATING.md`](MIGRATING.md) for the 0.6-to-1.0 upgrade guide.
 
 ## Production Hardening
 
@@ -1090,23 +1089,14 @@ See [`API.md`](API.md) for the public compatibility policy and
 - Internal conformance tests verify PDF headers, xref offsets, and EOF markers.
 - The compatibility test uses `pdfinfo` when it is available.
 
-See [`MIGRATING.md`](MIGRATING.md) for the developing 1.0 compatibility
-contract.
+See [`MIGRATING.md`](MIGRATING.md) for the stable 1.0 compatibility contract.
 
-## Roadmap
+## Future Enhancements
 
-### 0.6.x - Document Authoring
+These ideas are not required by, or promised as part of, the stable 1.0 API.
+They describe possible directions for later minor and major releases.
 
-- Rich text and inline styles
-- Physical TrueType subsetting and full-run font fallback
-- Automatic tables of contents
-- Styled tables with explicit columns and alternating rows
-- Reusable document components and style registration
-- Template inheritance
-- Grid and multi-column layouts
-- Widow/orphan controls, optional hyphenation, SVG vector fragments, and charts
-
-### Remaining 1.0 Gate
+### International Typography
 
 - Connect complex-script shaping, bidirectional paragraph layout, and
   glyph-level font fallback after `harfbuzz_ex` exposes numeric glyph IDs.
@@ -1117,7 +1107,16 @@ contract.
 - Establish PDF/A output profiles. VeraPDF remains an optional external
   validator and is not required to install or run PaperForge.
 
-### 1.x - Production And Distributed Generation
+### Declarative Authoring
+
+- Introduce a versioned `.paperforge` template format backed by a safe,
+  declarative document model.
+- Support validated variables, loops, conditions, reusable components, and
+  resource references without evaluating arbitrary Elixir code.
+- Use the same format as the interchange contract for a future visual document
+  designer.
+
+### Production And Distributed Generation
 
 - Streaming output
 - Compiled templates
@@ -1128,7 +1127,7 @@ contract.
 - Fault-tolerant job integration
 - High-volume benchmarks
 
-### 2.x - HTML And CSS
+### HTML And CSS
 
 - HTML parsing
 - CSS cascade and computed styles
@@ -1138,11 +1137,9 @@ contract.
 
 ## Project Status
 
-PaperForge is pre-1.0 and suitable for experimentation, prototypes, internal
-tools, and early production evaluation.
-
-The unified layout API is usable, but public API details may still change before
-version `1.0.0`.
+PaperForge 1.0 is the first stable release and is suitable for production PDF
+authoring within the documented scope. Public APIs listed in [`API.md`](API.md)
+follow Semantic Versioning throughout the 1.x series.
 
 ## Contributing
 
