@@ -8,6 +8,7 @@ defmodule PaperForge.TextMetrics do
   alias PaperForge.Fonts.Builtin
   alias PaperForge.Fonts.Metrics
   alias PaperForge.Fonts.TrueType
+  alias PaperForge.PerformanceCache
 
   @default_font :helvetica
   @default_size 12
@@ -70,14 +71,16 @@ defmodule PaperForge.TextMetrics do
     validate_font!(font)
     validate_size!(size)
 
-    text
-    |> String.to_charlist()
-    |> Enum.reduce(0, fn codepoint, total ->
-      total + glyph_width(font, codepoint)
-    end)
-    |> then(fn width_in_font_units ->
-      width_in_font_units * size / 1000
-    end)
+    if byte_size(text) <= 16 do
+      measured_width(text, font, size)
+    else
+      PerformanceCache.fetch(
+        :text_width,
+        {font_cache_id(font), size, text},
+        fn -> measured_width(text, font, size) end,
+        512
+      )
+    end
   end
 
   @doc """
@@ -176,6 +179,19 @@ defmodule PaperForge.TextMetrics do
 
   defp glyph_width(font, codepoint) do
     Metrics.width(font, codepoint)
+  end
+
+  defp font_cache_id(%PaperForge.Font{metrics_id: metrics_id}), do: metrics_id
+  defp font_cache_id(font), do: {:builtin, font}
+
+  defp measure_utf8(<<>>, _font, total), do: total
+
+  defp measure_utf8(<<codepoint::utf8, rest::binary>>, font, total) do
+    measure_utf8(rest, font, total + glyph_width(font, codepoint))
+  end
+
+  defp measured_width(text, font, size) do
+    measure_utf8(text, font, 0) * size / 1000
   end
 
   defp validate_size!(size)

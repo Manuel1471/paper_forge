@@ -5,6 +5,62 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-07-30
+
+### Added
+
+- Added `PaperForge.Concurrent` for bounded, backpressured rendering through
+  caller-owned or temporary `Task.Supervisor` processes.
+- Added per-job timeout, cancellation, exception isolation, stable job IDs,
+  completion callbacks, and duration/reductions/garbage-collection metrics.
+- Added concurrent load coverage for hundreds of real PDF renders and a
+  configurable 1,000-render production benchmark.
+- Added per-job memory and reductions limits, configurable retry policies,
+  attempt counts, and peak-memory metrics for concurrent rendering.
+- Added atomic incremental file output that serializes PDF objects directly to
+  a temporary file before renaming the completed artifact.
+- Added a production scaling guide covering staged rendering, optional Oban
+  integration, distributed nodes, failure recovery, large documents, resource
+  budgets, deployment sizing, and load benchmarks.
+- Added Telemetry events for render start, stop, and exception plus per-attempt
+  batch jobs and completed collected batches.
+- Added render and batch measurements for duration, bytes, memory, reductions,
+  garbage collections, attempts, status, pages, and concurrency metadata.
+- Added the lightweight official `telemetry` dependency for integration with
+  Prometheus, OpenTelemetry, Grafana, and application-specific handlers.
+- Added bounded process-local caches for repeated text measurements and
+  Flate-compressed PDF streams.
+- Added stable metric identities for built-in and embedded TrueType fonts.
+- Added cache behavior, isolation, determinism, and performance regression
+  tests.
+- Added reproducible small, medium, and large render profiles reporting layout,
+  cold/warm serialization, memory, output size, pages, and cache reuse.
+
+### Changed
+
+- Changed object serialization to use linear reverse accumulation instead of
+  repeatedly nesting the growing object section.
+- Changed documents without page-aware tables of contents or references to use
+  one pagination pass while retaining bounded convergence for navigation-aware
+  documents.
+- Changed pagination state to prepend pages internally and update the current
+  page in constant time, removing repeated full-list traversal as documents
+  grow.
+- Changed table row, row-group, and cell accumulation to use reverse
+  accumulation instead of repeated list concatenation.
+- Reduced repeated glyph-width traversal for identical text, font, and size
+  combinations and removed intermediate character-list allocation from UTF-8
+  measurement.
+- Bypassed cache bookkeeping for short text whose direct measurement is cheaper
+  than a process-cache lookup.
+- Reused compressed stream binaries when immutable documents are serialized
+  repeatedly in the same render process.
+- Isolated bounded cache namespaces so metric churn cannot evict reusable
+  compressed streams; concurrent renders still share no mutable cache state.
+- Expanded render profiles with configurable warmups and sample counts plus
+  median, p95, range, peak process memory, reductions, and garbage-collection
+  measurements under the selected Mix environment.
+
 ## [1.0.0] - 2026-07-29
 
 PaperForge 1.0 is the first stable release of the pure-Elixir PDF authoring
@@ -819,6 +875,7 @@ establishes the public API and Semantic Versioning contract for 1.x.
 - Uses native PDF coordinates with the origin at the bottom-left corner
 - Isolates graphic operations using the PDF `q` and `Q` operators
 
+[1.1.0]: https://github.com/Manuel1471/paper_forge/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Manuel1471/paper_forge/compare/v0.6.0...v1.0.0
 [0.6.0]: https://github.com/Manuel1471/paper_forge/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Manuel1471/paper_forge/compare/v0.4.0...v0.5.0

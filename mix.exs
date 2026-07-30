@@ -1,7 +1,7 @@
 defmodule PaperForge.MixProject do
   use Mix.Project
 
-  @version "1.0.0"
+  @version "1.1.0"
   @source_url "https://github.com/Manuel1471/paper_forge"
 
   def project do
@@ -28,6 +28,7 @@ defmodule PaperForge.MixProject do
   defp deps do
     [
       {:qiroex, "~> 1.0"},
+      {:telemetry, "~> 1.3"},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false}
     ]
   end
@@ -53,6 +54,7 @@ defmodule PaperForge.MixProject do
         "CHANGELOG.md",
         "API.md",
         "MIGRATING.md",
+        "PRODUCTION.md",
         "LICENSE"
       ]
     ]
@@ -69,6 +71,7 @@ defmodule PaperForge.MixProject do
         "CHANGELOG.md",
         "API.md",
         "MIGRATING.md",
+        "PRODUCTION.md",
         "LICENSE"
       ]
     ]

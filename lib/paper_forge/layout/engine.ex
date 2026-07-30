@@ -275,6 +275,23 @@ defmodule PaperForge.Layout.Engine do
   end
 
   defp paginate_resolved(source_blocks, page_options, document, options) do
+    if navigation_sensitive?(source_blocks) do
+      paginate_until_navigation_stabilizes(source_blocks, page_options, document, options)
+    else
+      {source_blocks, paginate(source_blocks, page_options, document, options)}
+    end
+  end
+
+  defp navigation_sensitive?(blocks) do
+    Enum.any?(blocks, &(&1.type in [:table_of_contents, :reference]))
+  end
+
+  defp paginate_until_navigation_stabilizes(
+         source_blocks,
+         page_options,
+         document,
+         options
+       ) do
     Enum.reduce_while(1..4, {%{}, nil, nil}, fn _pass, {page_map, _blocks, _pages} ->
       blocks = materialize_navigation(source_blocks, page_map)
       pages = paginate(blocks, page_options, document, options)
@@ -457,6 +474,7 @@ defmodule PaperForge.Layout.Engine do
     blocks
     |> Enum.reduce(initial, &place_block/2)
     |> Map.fetch!(:pages)
+    |> Enum.reverse()
     |> Enum.reject(&(&1.placements == []))
   end
 
@@ -725,12 +743,10 @@ defmodule PaperForge.Layout.Engine do
   end
 
   defp add_reserved_fragment(state, fragment, new_bottom) do
-    pages =
-      List.update_at(state.pages, -1, fn page ->
-        %{page | placements: page.placements ++ [placement(fragment, state)]}
-      end)
+    [page | remaining_pages] = state.pages
+    page = %{page | placements: page.placements ++ [placement(fragment, state)]}
 
-    %{state | pages: pages, bottom_y: new_bottom}
+    %{state | pages: [page | remaining_pages], bottom_y: new_bottom}
   end
 
   defp place_table_rows([], _header, _repeat_header, _block, state, _part, _first), do: state
@@ -799,7 +815,7 @@ defmodule PaperForge.Layout.Engine do
     take_table_row_groups(rows, available, [])
   end
 
-  defp take_table_row_groups([], _available, taken), do: {taken, []}
+  defp take_table_row_groups([], _available, taken), do: {Enum.reverse(taken), []}
 
   defp take_table_row_groups([row | _rest] = rows, available, taken) do
     group_size = max(Map.get(row, :span_rows, 1), 1)
@@ -810,10 +826,10 @@ defmodule PaperForge.Layout.Engine do
       take_table_row_groups(
         Enum.drop(rows, group_size),
         available - group_height,
-        taken ++ group
+        Enum.reverse(group, taken)
       )
     else
-      {taken, rows}
+      {Enum.reverse(taken), rows}
     end
   end
 
@@ -920,10 +936,11 @@ defmodule PaperForge.Layout.Engine do
             spans
           end
 
-        {measured ++ [measured_cell], column + colspan, spans}
+        {[measured_cell | measured], column + colspan, spans}
       end)
 
     _next_column = next_column
+    wrapped = Enum.reverse(wrapped)
 
     active_spans =
       active_spans
@@ -1058,18 +1075,12 @@ defmodule PaperForge.Layout.Engine do
   end
 
   defp add_fragment(state, fragment) do
-    pages =
-      List.update_at(
-        state.pages,
-        -1,
-        fn page ->
-          %{page | placements: page.placements ++ [placement(fragment, state)]}
-        end
-      )
+    [page | remaining_pages] = state.pages
+    page = %{page | placements: page.placements ++ [placement(fragment, state)]}
 
     %{
       state
-      | pages: pages,
+      | pages: [page | remaining_pages],
         cursor_y: state.cursor_y + fragment.height
     }
   end
@@ -1079,9 +1090,10 @@ defmodule PaperForge.Layout.Engine do
 
     %{
       state
-      | pages:
-          pages ++
-            [%{options: state.page_options, render_options: state.render_options, placements: []}],
+      | pages: [
+          %{options: state.page_options, render_options: state.render_options, placements: []}
+          | pages
+        ],
         page_number: state.page_number + 1,
         page: new_page,
         cursor_y: Page.content_top(new_page),
@@ -1090,7 +1102,7 @@ defmodule PaperForge.Layout.Engine do
   end
 
   defp available_height(state), do: max(state.bottom_y - state.cursor_y, 0)
-  defp current_page_has_content?(state), do: List.last(state.pages).placements != []
+  defp current_page_has_content?(state), do: hd(state.pages).placements != []
 
   defp placement(fragment, state) do
     fragment
@@ -1151,10 +1163,12 @@ defmodule PaperForge.Layout.Engine do
 
       page = Page.new(new_page_options)
 
-      pages =
-        List.update_at(state.pages, -1, fn page_spec ->
-          %{page_spec | options: new_page_options, render_options: new_render_options}
-        end)
+      [page_spec | remaining_pages] = state.pages
+
+      pages = [
+        %{page_spec | options: new_page_options, render_options: new_render_options}
+        | remaining_pages
+      ]
 
       %{
         state

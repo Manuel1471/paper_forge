@@ -214,4 +214,23 @@ defmodule PaperForge.WriterTest do
       0xD9
     >>
   end
+
+  test "incremental file writing matches binary serialization" do
+    document =
+      PaperForge.new()
+      |> PaperForge.add_page(fn page ->
+        Page.text(page, "Incremental output", x: 72, y: 750, size: 18)
+      end)
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "paper_forge_incremental_#{System.unique_integer([:positive])}.pdf"
+      )
+
+    on_exit(fn -> File.rm(path) end)
+
+    assert :ok = PaperForge.write(document, path)
+    assert File.read!(path) == PaperForge.to_binary(document)
+  end
 end

@@ -75,6 +75,93 @@ defmodule PaperForge.Writer do
     |> IO.iodata_to_binary()
   end
 
+  @doc """
+  Writes a document incrementally and atomically to a filesystem path.
+
+  PDF objects are serialized one at a time to a temporary file in the target
+  directory. The completed file is renamed into place only after the xref and
+  trailer have been written successfully.
+  """
+  @spec write_to_file(Document.t(), Path.t()) :: :ok | {:error, File.posix() | term()}
+  def write_to_file(%Document{} = document, path) when is_binary(path) do
+    Validation.validate!(document)
+    temporary_path = temporary_path(path)
+
+    try do
+      do_write_to_file(document, path, temporary_path)
+    rescue
+      exception ->
+        File.rm(temporary_path)
+        reraise exception, __STACKTRACE__
+    end
+  end
+
+  defp do_write_to_file(document, path, temporary_path) do
+    result =
+      case File.open(temporary_path, [:write, :binary]) do
+        {:ok, io} ->
+          try do
+            write_document(io, document)
+          after
+            File.close(io)
+          end
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+
+    case result do
+      :ok ->
+        case File.rename(temporary_path, path) do
+          :ok -> :ok
+          {:error, reason} -> cleanup_error(temporary_path, reason)
+        end
+
+      {:error, reason} ->
+        cleanup_error(temporary_path, reason)
+    end
+  end
+
+  defp write_document(io, document) do
+    header = pdf_header(document)
+    objects = Document.objects(document)
+
+    with :ok <- IO.binwrite(io, header),
+         {:ok, offsets, next_offset} <-
+           write_objects(io, objects, byte_size(header)),
+         maximum_object_id = maximum_object_id(objects),
+         :ok <- IO.binwrite(io, encode_cross_reference(maximum_object_id, offsets)),
+         :ok <-
+           IO.binwrite(
+             io,
+             encode_trailer(document, maximum_object_id + 1, next_offset)
+           ) do
+      :ok
+    end
+  end
+
+  defp write_objects(io, objects, initial_offset) do
+    {offsets, next_offset} =
+      Enum.reduce(objects, {%{}, initial_offset}, fn object, {offsets, current_offset} ->
+        encoded_object = encode_object(object)
+        object_size = IO.iodata_length(encoded_object)
+        :ok = IO.binwrite(io, encoded_object)
+
+        {Map.put(offsets, object.id, current_offset), current_offset + object_size}
+      end)
+
+    {:ok, offsets, next_offset}
+  end
+
+  defp temporary_path(path) do
+    path <> ".paperforge-" <> Integer.to_string(System.unique_integer([:positive]))
+  end
+
+  defp cleanup_error(path, reason) do
+    File.rm(path)
+    {:error, reason}
+  end
+
   defp pdf_header(%Document{} = document) do
     IO.iodata_to_binary([
       "%PDF-",
@@ -117,16 +204,12 @@ defmodule PaperForge.Writer do
           current_offset +
             byte_size(encoded_object)
 
-        {
-          [
-            encoded_objects,
-            encoded_object
-          ],
-          updated_offsets,
-          updated_offset
-        }
+        {[encoded_object | encoded_objects], updated_offsets, updated_offset}
       end
     )
+    |> then(fn {encoded_objects, offsets, next_offset} ->
+      {Enum.reverse(encoded_objects), offsets, next_offset}
+    end)
   end
 
   defp encode_object(%Object{} = object) do
