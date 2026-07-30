@@ -1,7 +1,7 @@
 defmodule PaperForge.MixProject do
   use Mix.Project
 
-  @version "0.6.0"
+  @version "1.0.0"
   @source_url "https://github.com/Manuel1471/paper_forge"
 
   def project do

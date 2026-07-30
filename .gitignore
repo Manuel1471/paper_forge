@@ -10,3 +10,5 @@ erl_crash.dump
 .elixir_ls/
 
 .idea/
+
+paper_forge-*.tar

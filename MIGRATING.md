@@ -1,9 +1,9 @@
 # Migrating PaperForge
 
-## Preparing for 1.0
+## Migrating from 0.6 to 1.0
 
-PaperForge remains version `0.6.0` while the 1.0 compatibility contract is
-validated. Applications can prepare by following these rules:
+PaperForge 1.0 establishes the public compatibility contract described in
+`API.md`. Applications upgrading from `0.6.x` should follow these rules:
 
 - Prefer `PaperForge.Flow` and `PaperForge.layout/3` for new documents.
 - Treat `PaperForge.Page` as the stable low-level drawing API.
