@@ -7,8 +7,9 @@ vector graphics, metadata, and image XObjects directly in Elixir.
 No browser, wkhtmltopdf, Chromium, ImageMagick, Ghostscript, or external
 rendering service is required.
 
-PaperForge 1.2 provides a stable public API for pure-Elixir PDF authoring,
-versioned declarative templates, reusable design systems, bounded concurrent
+PaperForge 1.3 provides a stable public API for pure-Elixir PDF authoring,
+versioned declarative templates, reusable design systems, AES-256 document
+security, PAdES digital signatures, tamper-evident protection, tagged PDF output, bounded concurrent
 rendering, production telemetry, and reproducible performance tooling.
 Documented public modules follow Semantic Versioning throughout the 1.x series.
 
@@ -17,8 +18,11 @@ Documented public modules follow Semantic Versioning throughout the 1.x series.
 | Goal | Start with |
 | --- | --- |
 | Install and render a first PDF | [Installation](#installation) and [Quick Start](#quick-start) |
+| Use PaperForge in a Phoenix application | [Phoenix Quick Start](#phoenix-quick-start) and [`PHOENIX.md`](PHOENIX.md) |
 | Build reports, invoices, or contracts | [Document Authoring](#document-authoring) |
 | Build PDFs from reusable data templates | [Declarative Documents](#declarative-documents) |
+| Encrypt, sign, or protect documents | [Security And Protection](#security-and-protection) |
+| Prepare accessible or archival PDFs | [Compliance And Accessibility](#compliance-and-accessibility) |
 | Draw at exact coordinates | [Low-level Page API](#low-level-page-api) |
 | Configure fonts and Unicode | [Fonts And Unicode Text](#fonts-and-unicode-text) |
 | Add JPEG, PNG, or fitted images | [Images](#images) |
@@ -56,6 +60,8 @@ Documented public modules follow Semantic Versioning throughout the 1.x series.
 | Images | JPEG and PNG, alpha soft masks, EXIF orientation, deduplication, `:contain`/`:cover`, focal points, alignment, and numbered captions |
 | Graphics | Lines, rectangles, circles, charts, QR codes, barcodes, and an XML-parsed SVG vector subset |
 | PDF features | Metadata, URI links, annotations, highlights, attachments, footnotes, endnotes, compression, and PDF 1.4 through 1.7 headers |
+| Security | AES-256 passwords and permissions, provider-backed PAdES signatures, watermarks, fingerprints, identifiers, and link/attachment policies |
+| Accessibility and archive preparation | Tagged PDF structure, logical page reading order, language, alternate text metadata, XMP, PDF/UA-1 preparation, ICC output intents, and PDF/A-2b/3b preparation |
 | Production | Structured validation, deterministic output, incremental file writing, bounded concurrency, retries, resource limits, cancellation, and Telemetry |
 | Declarative authoring | Versioned `.paperforge` templates, typed variables, conditions, loops, components, Layout IR compilation, themes, tokens, and shared design libraries |
 
@@ -67,6 +73,10 @@ Documented public modules follow Semantic Versioning throughout the 1.x series.
 | Exact coordinates, labels, or custom graphics | `PaperForge.Page` |
 | Return a PDF binary for HTTP or object storage | `PaperForge.to_binary/1` |
 | Write a large PDF with lower serialization overhead | `PaperForge.write/2` or `write!/2` |
+| Write an encrypted PDF | `PaperForge.write/3` with `security:` options |
+| Sign a PDF with a certificate | `PaperForge.Signature.sign/2` or `sign_file/3` |
+| Add watermarks and resource policy | `PaperForge.protect/2` |
+| Prepare and validate PDF/A or PDF/UA structure | `PaperForge.comply/2` and `PaperForge.Compliance.validate/2` |
 | Render a finite batch and collect all results | `PaperForge.Concurrent.run/3` |
 | Consume a backpressured production queue lazily | `PaperForge.Concurrent.stream/4` |
 | Start a cancellable asynchronous render | `PaperForge.Concurrent.start_job/4` |
@@ -80,7 +90,7 @@ Add PaperForge to your dependencies:
 ```elixir
 def deps do
   [
-    {:paper_forge, "~> 1.2"}
+    {:paper_forge, "~> 1.3"}
   ]
 end
 ```
@@ -98,7 +108,7 @@ def deps do
   [
     {:paper_forge,
      github: "Manuel1471/paper_forge",
-     tag: "v1.2.0"}
+     tag: "v1.3.0"}
   ]
 end
 ```
@@ -156,9 +166,39 @@ IO.inspect(report.pages, label: "Pages")
 PaperForge.write!(document, "report.pdf")
 ```
 
+## Phoenix Quick Start
+
+PaperForge runs inside a Phoenix application like any other Elixir library. It
+does not require a browser process, command-line renderer, native executable,
+or separate document service.
+
+Add `{:paper_forge, "~> 1.3"}` to the Phoenix application's dependencies, run
+`mix deps.get`, and return the generated binary from a controller:
+
+```elixir
+def download(conn, %{"id" => id}) do
+  document = MyApp.Documents.build_report(id)
+  pdf = PaperForge.to_binary(document)
+
+  conn
+  |> put_resp_content_type("application/pdf")
+  |> put_resp_header("content-disposition", ~s(attachment; filename="report-#{id}.pdf"))
+  |> send_resp(:ok, pdf)
+end
+```
+
+Use direct binary responses for small and medium documents. For large reports
+or burst traffic, render through a bounded `Task.Supervisor` or an optional
+Oban queue, write to temporary storage, upload the completed artifact, and let
+Phoenix serve or redirect to the stored file.
+
+The complete guide covers routes, controllers, `.paperforge` templates,
+LiveView downloads, supervision, Oban, security, Telemetry, testing, and
+production limits in [`PHOENIX.md`](PHOENIX.md).
+
 ## Declarative Documents
 
-PaperForge 1.2 separates document design from application code. A versioned
+PaperForge 1.3 separates document design from application code. A versioned
 `.paperforge` JSON file defines variables, conditions, loops, reusable
 components, styles, themes, and shared layouts. The safe compiler validates
 input data and produces `PaperForge.Flow` Layout IR without evaluating Elixir
@@ -206,6 +246,20 @@ with {:ok, template} <- PaperForge.Declarative.load("invoice.paperforge"),
      :ok <- PaperForge.write(document, "invoice.pdf") do
   IO.inspect(report.pages, label: "Pages")
 end
+```
+
+Declarative templates may also define security policy, protection, and
+compliance. Signature metadata may be declared too. Passwords, private keys,
+and certificates are deliberately excluded from compiled templates and
+must be supplied only when writing:
+
+```elixir
+PaperForge.Declarative.write(template, data, "contract.pdf",
+  security: [
+    user_password: "reader-secret",
+    owner_password: System.fetch_env!("PDF_OWNER_PASSWORD")
+  ]
+)
 ```
 
 `PaperForge.DesignSystem` provides immutable tokens, named styles, visual
@@ -258,6 +312,119 @@ process-local cache for templates that do not use registered Elixir components.
 See [`DECLARATIVE.md`](DECLARATIVE.md) for the complete format, validation
 contract, supported blocks, trust boundary, and design-system API.
 
+## Security And Protection
+
+PaperForge emits a PDF Standard Security Handler using AES-256, revision 6.
+Passwords, salts, initialization vectors, and derived keys exist only during
+serialization; they are never stored in `PaperForge.Document` or a compiled
+`.paperforge` template.
+
+```elixir
+PaperForge.write!(document, "contract.pdf",
+  security: [
+    user_password: "reader-secret",
+    owner_password: System.fetch_env!("PDF_OWNER_PASSWORD"),
+    permissions: [
+      print: :high_resolution,
+      copy: false,
+      modify: false,
+      extract: false
+    ]
+  ]
+)
+```
+
+`PaperForge.protect/2` is independent from encryption. It can add a watermark,
+a deterministic document identifier and SHA-256 content fingerprint, then
+enforce allowed URI schemes/hosts and attachment count, size, and MIME rules
+before output:
+
+```elixir
+document =
+  PaperForge.protect(document,
+    watermark: [text: "CONFIDENTIAL", opacity: 0.12, angle: 35],
+    policy: [
+      allowed_uri_schemes: ["https", "mailto"],
+      allow_attachments: true,
+      max_attachment_bytes: 5_000_000,
+      allowed_attachment_mimes: ["application/pdf", "text/csv"]
+    ]
+  )
+
+:ok = PaperForge.Protection.verify_fingerprint(document)
+```
+
+Passwords should come from a secret manager or environment at the final write
+boundary. Do not place passwords in source-controlled `.paperforge` or JSON
+data files.
+
+### Digital Signatures
+
+`PaperForge.Signature` adds an incremental PAdES signature without rebuilding
+the original PDF revision. The default provider uses PKCS#8 PEM keys and X.509
+certificate chains through Elixir/OTP only: it requires no executable, NIF,
+native compilation, or extra system installation.
+
+```elixir
+{:ok, signed_pdf} =
+  PaperForge.Signature.sign(pdf,
+    certificate:
+      {:pkcs8,
+       key_path: "secrets/signing-key.pem",
+       cert_path: "secrets/signing-chain.pem",
+       password: System.get_env("PDF_KEY_PASSWORD")},
+    reason: "Contract approval",
+    location: "Monterrey, Mexico",
+    contact_info: "legal@example.com",
+    tsa_url: "https://tsa.example.com"
+  )
+```
+
+PKCS#12/PFX is an explicit compatibility source and uses the locally installed
+`openssl` command only when that source is selected:
+
+```elixir
+certificate: {:pkcs12, "certificate.p12", password: System.fetch_env!("CERT_PASSWORD")}
+```
+
+Applications can select another implementation per call with `provider:` or
+globally with `config :paper_forge, :signature_provider, MyProvider`. This is
+the extension point for HSM, cloud KMS, visible-signature, and multi-signature
+providers. The built-in provider currently advertises invisible incremental
+signing and timestamps; requests for visible or multiple signatures return an
+explicit `{:unsupported_capability, capability}` error instead of silently
+degrading the document.
+
+## Compliance And Accessibility
+
+`PaperForge.comply/2` prepares document structure for PDF/UA-1 and PDF/A-2b or
+PDF/A-3b. PDF/UA preparation adds tagged structure, page-level logical reading
+order, language, title display behavior, and XMP identification. Image XObjects
+can receive alternate text with `PaperForge.Compliance.alternate_text/3`.
+
+PDF/A preparation requires an application-supplied RGB, Gray, or CMYK ICC
+profile. PaperForge validates the ICC header, embeds it as an output intent,
+adds XMP profile identification, and rejects encryption in a PDF/A policy.
+
+```elixir
+document =
+  PaperForge.comply(document,
+    profiles: [:pdf_a_3b, :pdf_ua_1],
+    language: "en-MX",
+    icc_profile: "priv/color/sRGB.icc"
+  )
+
+{:ok, report} =
+  PaperForge.Compliance.validate(document,
+    profiles: [:pdf_a_3b, :pdf_ua_1]
+  )
+```
+
+The built-in report validates structures emitted by PaperForge. Archive and
+accessibility certification should additionally run VeraPDF and manual assistive
+technology checks against the final document. PDF/A and encryption are mutually
+exclusive.
+
 ## Document Authoring
 
 The authoring API builds structured documents on top of `PaperForge.Flow`.
@@ -296,16 +463,15 @@ Available authoring blocks include `rich_text/3`, `table_of_contents/2`,
 `reference/3`, `component/4`, `grid/4`, and `columns/4`. Tables accept explicit
 `:column_widths`, `:header_fill_color`, `:header_color`, and
 `:stripe_fill_color` options. See
-[`paper_forge_0_6_authoring.exs`](examples/paper_forge_0_6_authoring.exs) and
-[`linkedin_document_showcase.exs`](examples/linkedin_document_showcase.exs) for
-complete documents.
+[`paper_forge_1_3_showcase.exs`](examples/paper_forge_1_3_showcase.exs) for a
+complete production-style document.
 
 Images support `fit: :fill | :contain | :cover`, horizontal and vertical
 alignment, and `focal_point: {x, y}`. Numbered images and tables create stable
 destinations for page-aware references.
 
 The complete release example is
-[`paper_forge_0_6_complete.exs`](examples/paper_forge_0_6_complete.exs). It
+[`paper_forge_1_3_showcase.exs`](examples/paper_forge_1_3_showcase.exs). It
 combines navigation, advanced tables, footnotes, endnotes, charts, SVG, QR,
 barcode, attachments, components, and custom report panels in one PDF.
 
@@ -1080,32 +1246,19 @@ xref offsets point to the start of their corresponding indirect objects.
 
 ## Examples
 
-Examples write their generated files under `tmp/`. Start with the smallest
-example that matches the feature being evaluated:
+Examples write generated files under `tmp/`. Two maintained showcases cover
+the code-first and no-code authoring paths:
 
 | Example | Demonstrates |
 | --- | --- |
-| `examples/hello.exs` | Minimal document creation and file output |
-| `examples/two_pages.exs` | Multiple pages and basic page composition |
-| `examples/graphics.exs` | Low-level vector drawing |
-| `examples/png.exs` | PNG embedding and transparency |
-| `examples/multilingual_layout.exs` | Embedded TrueType fonts and Unicode text |
-| `examples/paper_forge_0_6_authoring.exs` | Styles, components, templates, grids, and columns |
-| `examples/paper_forge_0_6_complete.exs` | Navigation, tables, notes, vectors, attachments, and annotations |
-| `examples/linkedin_document_showcase.exs` | A polished, production-style report |
-| `examples/declarative_annual_report.exs` | A 1.2 report driven by a reusable `.paperforge` template and application data |
-| `examples/components/` | Reusable `.paperforge` components composed without Elixir code |
-| `examples/complete_showcase.exs` | Broad page-level and engine feature coverage |
+| `examples/paper_forge_1_3_showcase.exs` | Five-page editorial report using the complete Elixir API, tagged PDF, protection policy, and optional AES-256 output |
+| `examples/paper_forge_1_3_showcase.paperforge` | Self-contained no-code report with variables, inline components, themes, chart, table, navigation, QR, signing metadata, security policy, and PDF/UA preparation |
 
 Run an example from the project root:
 
 ```bash
-mix run examples/linkedin_document_showcase.exs
+mix run examples/paper_forge_1_3_showcase.exs
 ```
-
-The versioned `paper_forge_0_4_showcase.exs` and
-`paper_forge_0_5_showcase.exs` files remain available as historical migration
-references.
 
 ## Development
 
@@ -1453,7 +1606,16 @@ They describe possible directions for later minor and major releases.
 - Add authenticated template repositories, visual component catalogs, and
   preview workflows on top of the declarative compiler.
 - Add persisted and distributed template caches for multi-node applications;
-  version 1.2 intentionally uses a bounded process-local cache.
+  version 1.3 intentionally uses a bounded process-local cache.
+
+A separate visual authoring product is planned for teams that prefer arranging
+documents visually or want to shorten template-development time. It will
+generate the same portable `.paperforge` format, so using it will remain
+optional and its output will continue to work with the open library. The
+current direction is a modest annual license tied to supported product
+versions, rather than an expensive per-document service. Pricing and release
+details are not part of the PaperForge library contract and will be documented
+only when the product is ready.
 
 ### Distributed Generation
 
@@ -1475,7 +1637,7 @@ They describe possible directions for later minor and major releases.
 
 ## Project Status
 
-PaperForge 1.2 is suitable for production PDF authoring within the documented
+PaperForge 1.3 is suitable for production PDF authoring within the documented
 scope. Public APIs listed in [`API.md`](API.md) follow Semantic Versioning
 throughout the 1.x series. Runtime installation remains pure Elixir and does
 not require native compilation or external rendering services.

@@ -307,16 +307,11 @@ authors cannot execute arbitrary functions from a `.paperforge` file.
 
 ## Included Example
 
-Review these files in the project:
-
-- `examples/declarative_annual_report.paperforge`
-- `examples/components/metrics_section.paperforge`
-- `examples/components/metric_line.paperforge`
-- `examples/declarative_annual_report.exs`
-
-The report imports a metrics section, and that section imports a metric line.
-It is a complete example of components built from other components without
-writing code for the design.
+Review `examples/paper_forge_1_3_showcase.paperforge`. It is a self-contained
+report with default data, reusable inline components, themes, chart, table,
+navigation, QR output, security policy, and accessible tagged-PDF preparation.
+`examples/paper_forge_1_3_showcase.exs` shows the same report domain with full
+coordinate-level drawing control.
 
 For every available option and detailed security information, read
 `DECLARATIVE.md`.

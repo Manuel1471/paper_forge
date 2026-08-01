@@ -35,9 +35,9 @@ defmodule PaperForge.Declarative do
     header_fill_color height hyphenate id keep_together level line_height link marker
     margins numbered odd_footer odd_header orientation ordered padding page_break_after
     page_break_before pdf_version prefix repeat_header
-    row_split size spacer stroke_color stripe_fill_color style suffix template title
+    row_split row_height cell_line_height size space_after space_before spacer stroke_color stripe_fill_color style suffix template title
     type valign width widow_lines orphan_lines x y first_footer first_header last_footer
-    last_header
+    last_header text
   )a
   @enum_values ~w(
     left center right justify top middle bottom contain cover fill ordered unordered
@@ -147,7 +147,14 @@ defmodule PaperForge.Declarative do
              system.tokens,
              variables
            ),
-         metadata: interpolate(Map.get(definition, "metadata", %{}), variables)
+         metadata: interpolate(Map.get(definition, "metadata", %{}), variables),
+         security: compile_security(interpolate(Map.get(definition, "security", %{}), variables)),
+         signature:
+           compile_signature(interpolate(Map.get(definition, "signature", %{}), variables)),
+         protection:
+           compile_protection(interpolate(Map.get(definition, "protection", %{}), variables)),
+         compliance:
+           compile_compliance(interpolate(Map.get(definition, "compliance", %{}), variables))
        }}
     else
       {:error, %Error{} = issue} -> {:error, [issue]}
@@ -253,19 +260,47 @@ defmodule PaperForge.Declarative do
   def render(source, data \\ %{}, options \\ []) do
     compiler = if Keyword.get(options, :cache, false), do: &compile_cached/3, else: &compile/3
 
-    with {:ok, compiled} <- compiler.(source, data, options) do
-      document =
-        compiled.document_options
-        |> PaperForge.new()
-        |> register_styles(compiled.styles)
-        |> register_templates(compiled.page_templates)
-        |> register_metadata(compiled.metadata)
-
-      {document, report} =
-        PaperForge.layout(document, fn _flow -> compiled.flow end, compiled.layout_options)
-
-      {:ok, document, report}
+    with {:ok, compiled} <- compiler.(source, data, options),
+         {:ok, document, report} <- render_compiled(compiled) do
+      {:ok, document, Map.put(report, :template_hash, compiled.template_hash)}
     end
+  end
+
+  @doc "Renders and writes a declarative document, keeping passwords in write-time options only."
+  @spec write(source(), map() | keyword(), Path.t(), keyword()) ::
+          {:ok, map()} | {:error, [Error.t()] | File.posix()}
+  def write(source, data, path, options \\ []) when is_binary(path) do
+    compile_options = Keyword.drop(options, [:security, :signature])
+    compiler = if Keyword.get(options, :cache, false), do: &compile_cached/3, else: &compile/3
+
+    with {:ok, compiled} <- compiler.(source, data, compile_options),
+         {:ok, document, report} <- render_compiled(compiled),
+         security <- merge_security(compiled.security, Keyword.get(options, :security, [])),
+         signature <- merge_signature(compiled.signature, Keyword.get(options, :signature, [])),
+         :ok <- write_document(document, path, security, signature) do
+      {:ok, Map.put(report, :template_hash, compiled.template_hash)}
+    end
+  end
+
+  defp render_compiled(compiled) do
+    document =
+      compiled.document_options
+      |> PaperForge.new()
+      |> register_styles(compiled.styles)
+      |> register_templates(compiled.page_templates)
+      |> register_metadata(compiled.metadata)
+
+    {document, report} =
+      PaperForge.layout(document, fn _flow -> compiled.flow end, compiled.layout_options)
+
+    document =
+      document
+      |> maybe_comply(compiled.compliance)
+      |> maybe_protect(compiled.protection)
+
+    {:ok, document, report}
+  rescue
+    exception -> {:error, [error(:render_error, "$", Exception.message(exception), exception)]}
   end
 
   defp design_system(template, options) do
@@ -822,6 +857,196 @@ defmodule PaperForge.Declarative do
         document,
         Enum.map(metadata, fn {key, value} -> {safe_name(key), value} end)
       )
+
+  defp compile_security(options) when is_map(options) do
+    allowed = ~w(algorithm encrypt_metadata permissions)
+    ensure_known_keys!(options, allowed, "security")
+
+    permissions =
+      options
+      |> Map.get("permissions", %{})
+      |> keyword_map(~w(print copy modify extract), "security.permissions")
+      |> Enum.map(fn
+        {:print, value} when value in ["none", "low_resolution", "high_resolution"] ->
+          {:print, safe_name(value)}
+
+        pair ->
+          pair
+      end)
+
+    []
+    |> maybe_put(:algorithm, enum_atom(options["algorithm"], ~w(aes_256), "security.algorithm"))
+    |> maybe_put(:encrypt_metadata, options["encrypt_metadata"])
+    |> maybe_put(:permissions, permissions, permissions != [])
+  end
+
+  defp compile_security(_), do: raise(ArgumentError, "security must be an object")
+
+  defp compile_signature(options) when is_map(options) do
+    allowed = ~w(algorithm reason location contact_info timestamp tsa_url visible multiple)
+    ensure_known_keys!(options, allowed, "signature")
+
+    []
+    |> maybe_put(:alg, signature_algorithm(options["algorithm"]))
+    |> maybe_put(:reason, options["reason"])
+    |> maybe_put(:location, options["location"])
+    |> maybe_put(:contact_info, options["contact_info"])
+    |> maybe_put(:tsa_url, options["tsa_url"])
+    |> maybe_put(:timestamp, options["timestamp"])
+    |> maybe_put(:visible, options["visible"])
+    |> maybe_put(:multiple, options["multiple"])
+  end
+
+  defp compile_signature(_), do: raise(ArgumentError, "signature must be an object")
+
+  defp signature_algorithm(nil), do: nil
+  defp signature_algorithm("ps256"), do: :PS256
+  defp signature_algorithm("rs256"), do: :RS256
+
+  defp signature_algorithm(value),
+    do: raise(ArgumentError, "unsupported signature.algorithm value: #{inspect(value)}")
+
+  defp compile_protection(options) when is_map(options) do
+    allowed = ~w(identifier modified_at watermark policy)
+    ensure_known_keys!(options, allowed, "protection")
+
+    watermark =
+      case options["watermark"] do
+        nil ->
+          nil
+
+        text when is_binary(text) ->
+          text
+
+        map when is_map(map) ->
+          ensure_known_keys!(map, ~w(text opacity size color angle), "protection.watermark")
+
+          map
+          |> keyword_map(~w(text opacity size color angle), "protection.watermark")
+          |> Enum.map(fn
+            {:color, "#" <> _ = color} -> {:color, parse_color_tuple(color)}
+            pair -> pair
+          end)
+
+        _ ->
+          raise ArgumentError, "protection.watermark must be text or an object"
+      end
+
+    policy =
+      case options["policy"] do
+        nil ->
+          []
+
+        map when is_map(map) ->
+          keyword_map(
+            map,
+            ~w(allowed_uri_schemes allowed_hosts allow_attachments max_attachments max_attachment_bytes allowed_attachment_mimes),
+            "protection.policy"
+          )
+
+        _ ->
+          raise ArgumentError, "protection.policy must be an object"
+      end
+
+    []
+    |> maybe_put(:identifier, options["identifier"])
+    |> maybe_put(:modified_at, options["modified_at"])
+    |> maybe_put(:watermark, watermark)
+    |> maybe_put(:policy, policy, policy != [])
+  end
+
+  defp compile_protection(_), do: raise(ArgumentError, "protection must be an object")
+
+  defp compile_compliance(options) when is_map(options) do
+    allowed = ~w(profiles language title icc_profile output_condition)
+    ensure_known_keys!(options, allowed, "compliance")
+
+    profiles =
+      Enum.map(Map.get(options, "profiles", []), fn profile ->
+        enum_atom(profile, ~w(pdf_a_2b pdf_a_3b pdf_ua_1), "compliance.profiles")
+      end)
+
+    []
+    |> maybe_put(:profiles, profiles, profiles != [])
+    |> maybe_put(:language, options["language"])
+    |> maybe_put(:title, options["title"])
+    |> maybe_put(:icc_profile, options["icc_profile"])
+    |> maybe_put(:output_condition, options["output_condition"])
+  end
+
+  defp compile_compliance(_), do: raise(ArgumentError, "compliance must be an object")
+
+  defp maybe_comply(document, []), do: document
+  defp maybe_comply(document, options), do: PaperForge.comply(document, options)
+  defp maybe_protect(document, []), do: document
+  defp maybe_protect(document, options), do: PaperForge.protect(document, options)
+
+  defp merge_security([], []), do: []
+  defp merge_security(policy, secrets) when is_list(secrets), do: Keyword.merge(policy, secrets)
+
+  defp merge_security(_policy, other),
+    do:
+      raise(
+        ArgumentError,
+        "security write options must be a keyword list, got: #{inspect(other)}"
+      )
+
+  defp merge_signature([], []), do: []
+  defp merge_signature(policy, runtime) when is_list(runtime), do: Keyword.merge(policy, runtime)
+
+  defp merge_signature(_policy, other),
+    do:
+      raise(
+        ArgumentError,
+        "signature write options must be a keyword list, got: #{inspect(other)}"
+      )
+
+  defp write_document(document, path, security, []) do
+    PaperForge.write(document, path, security_options(security))
+  end
+
+  defp write_document(document, path, security, signature) do
+    with pdf <- PaperForge.to_binary(document, security_options(security)),
+         {:ok, signed} <- PaperForge.Signature.sign(pdf, signature) do
+      File.write(path, signed)
+    end
+  end
+
+  defp security_options([]), do: []
+  defp security_options(security), do: [security: security]
+
+  defp keyword_map(map, allowed, path) when is_map(map) do
+    ensure_known_keys!(map, allowed, path)
+    Enum.map(map, fn {key, value} -> {safe_name(key), value} end)
+  end
+
+  defp ensure_known_keys!(map, allowed, path) do
+    case Map.keys(map) -- allowed do
+      [] -> :ok
+      unknown -> raise ArgumentError, "unknown #{path} properties: #{Enum.join(unknown, ", ")}"
+    end
+  end
+
+  defp enum_atom(nil, _allowed, _path), do: nil
+
+  defp enum_atom(value, allowed, path) do
+    if value in allowed,
+      do: safe_name(value),
+      else: raise(ArgumentError, "unsupported #{path} value: #{inspect(value)}")
+  end
+
+  defp maybe_put(options, _key, nil), do: options
+  defp maybe_put(options, key, value), do: Keyword.put(options, key, value)
+  defp maybe_put(options, key, value, true), do: Keyword.put(options, key, value)
+  defp maybe_put(options, _key, _value, false), do: options
+
+  defp parse_color_tuple("#" <> <<r::binary-size(2), g::binary-size(2), b::binary-size(2)>>) do
+    {String.to_integer(r, 16) / 255, String.to_integer(g, 16) / 255,
+     String.to_integer(b, 16) / 255}
+  end
+
+  defp parse_color_tuple(value),
+    do: raise(ArgumentError, "watermark color must be #RRGGBB, got: #{inspect(value)}")
 
   defp rich_runs(runs) when is_list(runs) do
     Enum.map(runs, fn

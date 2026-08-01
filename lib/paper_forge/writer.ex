@@ -14,6 +14,8 @@ defmodule PaperForge.Writer do
 
   alias PaperForge.Document
   alias PaperForge.Object
+  alias PaperForge.Reference
+  alias PaperForge.Security
   alias PaperForge.Serializer
   alias PaperForge.Validation
 
@@ -30,15 +32,14 @@ defmodule PaperForge.Writer do
         binary
       )
   """
-  @spec to_binary(Document.t()) :: binary()
-  def to_binary(%Document{} = document) do
+  @spec to_binary(Document.t(), keyword()) :: binary()
+  def to_binary(%Document{} = document, options \\ []) do
     Validation.validate!(document)
 
     header =
       pdf_header(document)
 
-    objects =
-      Document.objects(document)
+    {objects, security} = prepare_objects(Document.objects(document), options)
 
     {
       object_section,
@@ -47,7 +48,8 @@ defmodule PaperForge.Writer do
     } =
       encode_objects(
         objects,
-        byte_size(header)
+        byte_size(header),
+        security
       )
 
     maximum_object_id =
@@ -63,7 +65,8 @@ defmodule PaperForge.Writer do
       encode_trailer(
         document,
         maximum_object_id + 1,
-        next_offset
+        next_offset,
+        security
       )
 
     [
@@ -82,13 +85,13 @@ defmodule PaperForge.Writer do
   directory. The completed file is renamed into place only after the xref and
   trailer have been written successfully.
   """
-  @spec write_to_file(Document.t(), Path.t()) :: :ok | {:error, File.posix() | term()}
-  def write_to_file(%Document{} = document, path) when is_binary(path) do
+  @spec write_to_file(Document.t(), Path.t(), keyword()) :: :ok | {:error, File.posix() | term()}
+  def write_to_file(%Document{} = document, path, options \\ []) when is_binary(path) do
     Validation.validate!(document)
     temporary_path = temporary_path(path)
 
     try do
-      do_write_to_file(document, path, temporary_path)
+      do_write_to_file(document, path, temporary_path, options)
     rescue
       exception ->
         File.rm(temporary_path)
@@ -96,12 +99,12 @@ defmodule PaperForge.Writer do
     end
   end
 
-  defp do_write_to_file(document, path, temporary_path) do
+  defp do_write_to_file(document, path, temporary_path, options) do
     result =
       case File.open(temporary_path, [:write, :binary]) do
         {:ok, io} ->
           try do
-            write_document(io, document)
+            write_document(io, document, options)
           after
             File.close(io)
           end
@@ -122,28 +125,28 @@ defmodule PaperForge.Writer do
     end
   end
 
-  defp write_document(io, document) do
+  defp write_document(io, document, options) do
     header = pdf_header(document)
-    objects = Document.objects(document)
+    {objects, security} = prepare_objects(Document.objects(document), options)
 
     with :ok <- IO.binwrite(io, header),
          {:ok, offsets, next_offset} <-
-           write_objects(io, objects, byte_size(header)),
+           write_objects(io, objects, byte_size(header), security),
          maximum_object_id = maximum_object_id(objects),
          :ok <- IO.binwrite(io, encode_cross_reference(maximum_object_id, offsets)),
          :ok <-
            IO.binwrite(
              io,
-             encode_trailer(document, maximum_object_id + 1, next_offset)
+             encode_trailer(document, maximum_object_id + 1, next_offset, security)
            ) do
       :ok
     end
   end
 
-  defp write_objects(io, objects, initial_offset) do
+  defp write_objects(io, objects, initial_offset, security) do
     {offsets, next_offset} =
       Enum.reduce(objects, {%{}, initial_offset}, fn object, {offsets, current_offset} ->
-        encoded_object = encode_object(object)
+        encoded_object = encode_object(object, security)
         object_size = IO.iodata_length(encoded_object)
         :ok = IO.binwrite(io, encoded_object)
 
@@ -173,7 +176,8 @@ defmodule PaperForge.Writer do
 
   defp encode_objects(
          objects,
-         initial_offset
+         initial_offset,
+         security
        ) do
     Enum.reduce(
       objects,
@@ -190,7 +194,7 @@ defmodule PaperForge.Writer do
          } ->
         encoded_object =
           object
-          |> encode_object()
+          |> encode_object(security)
           |> IO.iodata_to_binary()
 
         updated_offsets =
@@ -212,13 +216,18 @@ defmodule PaperForge.Writer do
     end)
   end
 
-  defp encode_object(%Object{} = object) do
+  defp encode_object(%Object{} = object, security) do
+    value =
+      if security && object.id != security.object_id,
+        do: Security.encrypt_object(object.value, security),
+        else: object.value
+
     [
       Integer.to_string(object.id),
       " ",
       Integer.to_string(object.generation),
       " obj\n",
-      Serializer.encode(object.value),
+      Serializer.encode(value),
       "\nendobj\n"
     ]
   end
@@ -281,7 +290,8 @@ defmodule PaperForge.Writer do
   defp encode_trailer(
          %Document{} = document,
          size,
-         cross_reference_offset
+         cross_reference_offset,
+         security
        ) do
     trailer_dictionary =
       %{
@@ -289,6 +299,7 @@ defmodule PaperForge.Writer do
         "Root" => document.root_reference
       }
       |> maybe_put_info(document.info_reference)
+      |> maybe_put_security(security)
 
     [
       "trailer\n",
@@ -317,6 +328,34 @@ defmodule PaperForge.Writer do
       "Info",
       info_reference
     )
+  end
+
+  defp maybe_put_security(dictionary, nil), do: dictionary
+
+  defp maybe_put_security(dictionary, security) do
+    dictionary
+    |> Map.put("Encrypt", Reference.new(security.object_id))
+    |> Map.put("ID", [{:hex_string, security.file_id}, {:hex_string, security.file_id}])
+  end
+
+  defp prepare_objects(objects, options) do
+    case Keyword.get(options, :security) do
+      nil ->
+        {objects, nil}
+
+      security_options when is_list(security_options) ->
+        case Security.prepare(objects, security_options) do
+          {:ok, security, encryption_object} ->
+            {Enum.sort_by(objects ++ [encryption_object], & &1.id), security}
+
+          {:error, reason} ->
+            raise ArgumentError, "invalid PDF security options: #{inspect(reason)}"
+        end
+
+      other ->
+        raise ArgumentError,
+              "security options must be a keyword list, received: #{inspect(other)}"
+    end
   end
 
   defp maximum_object_id([]) do

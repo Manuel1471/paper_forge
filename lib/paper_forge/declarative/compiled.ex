@@ -10,7 +10,11 @@ defmodule PaperForge.Declarative.Compiled do
             layout_options: [],
             styles: %{},
             page_templates: %{},
-            metadata: %{}
+            metadata: %{},
+            security: [],
+            signature: [],
+            protection: [],
+            compliance: []
 
   @type t :: %__MODULE__{
           flow: Flow.t(),
@@ -20,6 +24,10 @@ defmodule PaperForge.Declarative.Compiled do
           layout_options: keyword(),
           styles: %{optional(atom()) => keyword()},
           page_templates: %{optional(atom()) => keyword()},
-          metadata: map()
+          metadata: map(),
+          security: keyword(),
+          signature: keyword(),
+          protection: keyword(),
+          compliance: keyword()
         }
 end

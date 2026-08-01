@@ -1,6 +1,6 @@
 # Declarative Documents
 
-PaperForge 1.2 compiles versioned `.paperforge` JSON templates into the same
+PaperForge 1.3 compiles versioned `.paperforge` JSON templates into the same
 `PaperForge.Flow` Layout IR used by the Elixir authoring API. Templates contain
 data only: the compiler does not evaluate Elixir expressions or arbitrary
 functions.
@@ -206,9 +206,9 @@ Load and use it from a document:
 
 Component files may list their own `components`, so a section can be assembled
 from cards, labels, tables, and charts stored in other files. Loading is rooted,
-cycle-checked, deterministic, and independent of Elixir source. See
-`examples/components/metrics_section.paperforge`, which composes
-`metric_line.paperforge`.
+cycle-checked, deterministic, and independent of Elixir source. The release
+showcase keeps its composed components inline so one file demonstrates the
+complete format.
 
 ### Optional Trusted Components
 
@@ -320,6 +320,79 @@ stable `template_id`. `compile_cached/3` uses a bounded process-local cache;
 templates with registered Elixir components bypass it so closures and runtime
 state are never cached accidentally.
 
+## Security, Protection, And Compliance
+
+Templates may declare output policy without embedding credentials:
+
+```json
+{
+  "security": {
+    "algorithm": "aes_256",
+    "permissions": {
+      "print": "high_resolution",
+      "copy": false,
+      "modify": false,
+      "extract": false
+    }
+  },
+  "signature": {
+    "algorithm": "ps256",
+    "reason": "Contract approval",
+    "location": "Monterrey, Mexico",
+    "contact_info": "legal@example.com"
+  },
+  "protection": {
+    "watermark": {
+      "text": "CONFIDENTIAL",
+      "opacity": 0.12,
+      "color": "#64748B",
+      "angle": 35
+    },
+    "policy": {
+      "allowed_uri_schemes": ["https", "mailto"],
+      "allowed_hosts": ["documents.example.com"],
+      "allow_attachments": true,
+      "max_attachments": 5,
+      "max_attachment_bytes": 5000000,
+      "allowed_attachment_mimes": ["application/pdf", "text/csv"]
+    }
+  },
+  "compliance": {
+    "profiles": ["pdf_ua_1"],
+    "language": "en-US",
+    "title": "Accessible contract"
+  }
+}
+```
+
+`security` and `signature` are compiled as policy only. User/owner passwords,
+private keys, certificates, and key passwords must be passed to
+`PaperForge.Declarative.write/4` at the final output boundary:
+
+```elixir
+PaperForge.Declarative.write(template, data, "contract.pdf",
+  security: [
+    user_password: "reader-secret",
+    owner_password: System.fetch_env!("PDF_OWNER_PASSWORD")
+  ],
+  signature: [
+    certificate:
+      {:pkcs8,
+       key_path: "secrets/signing-key.pem",
+       cert_path: "secrets/signing-chain.pem",
+       password: System.get_env("PDF_KEY_PASSWORD")}
+  ]
+)
+```
+
+The default PKCS#8 provider runs entirely in Elixir/OTP. Selecting
+`{:pkcs12, path, options}` is optional and invokes OpenSSL at runtime. A custom
+`provider:` can integrate HSM or cloud signing without changing the template.
+This prevents a compiled template, cache entry, source file, or ordinary data
+map from retaining secrets. PDF/A profiles require `icc_profile` and cannot
+be combined with encryption. Use `PaperForge.Compliance.validate/2` and an
+external validator such as VeraPDF for release certification.
+
 ## Trust Boundary
 
 The JSON parser and variable engine are safe for untrusted input data. Template
@@ -330,14 +403,14 @@ application job isolation.
 
 ## Complete Example
 
-Run the bundled reusable report:
+Render the self-contained declarative report with the CLI or application API:
 
 ```bash
-mix run examples/declarative_annual_report.exs
+mix paper_forge.validate examples/paper_forge_1_3_showcase.paperforge
 ```
 
-The fully declarative report lives in
-`examples/declarative_annual_report.paperforge`. The larger
-`examples/paper_forge_0_6_complete.paperforge` demonstrates declarative schema
-and orchestration of an application-registered, trusted visual component; its
-Elixir renderer contains the low-level custom drawing implementation.
+The template at `examples/paper_forge_1_3_showcase.paperforge` contains default
+data, inline reusable components, themes, navigation, a chart, a table, QR
+output, security policy, protection policy, and tagged-PDF preparation. The
+companion `examples/paper_forge_1_3_showcase.exs` demonstrates the same report
+domain with full low-level visual control.

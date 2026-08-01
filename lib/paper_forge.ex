@@ -450,12 +450,28 @@ defmodule PaperForge do
     Document.attach(document, filename, data, options)
   end
 
+  @doc "Applies watermarks, tamper-evident metadata, and resource policies."
+  @spec protect(Document.t(), keyword()) :: Document.t()
+  def protect(%Document{} = document, options \\ []) do
+    PaperForge.Protection.apply(document, options)
+  end
+
+  @doc "Returns the stable SHA-256 fingerprint of a document."
+  @spec fingerprint(Document.t()) :: binary()
+  def fingerprint(%Document{} = document), do: PaperForge.Protection.fingerprint(document)
+
+  @doc "Applies structural PDF/A and PDF/UA conformance profiles."
+  @spec comply(Document.t(), keyword()) :: Document.t()
+  def comply(%Document{} = document, options) do
+    PaperForge.Compliance.apply(document, options)
+  end
+
   @doc """
   Serializes a document into a complete PDF binary.
   """
-  @spec to_binary(Document.t()) :: binary()
-  def to_binary(%Document{} = document) do
-    Telemetry.render(document, :binary, fn -> Writer.to_binary(document) end)
+  @spec to_binary(Document.t(), keyword()) :: binary()
+  def to_binary(%Document{} = document, options \\ []) do
+    Telemetry.render(document, :binary, fn -> Writer.to_binary(document, options) end)
   end
 
   @doc "Validates document structure and returns a deterministic validation report."
@@ -469,28 +485,33 @@ defmodule PaperForge do
   @doc """
   Writes a document to a file.
   """
-  @spec write(Document.t(), Path.t()) ::
+  @spec write(Document.t(), Path.t(), keyword()) ::
           :ok | {:error, File.posix()}
   def write(
         %Document{} = document,
-        path
+        path,
+        options \\ []
       ) do
     path = validate_path!(path)
-    Telemetry.render(document, {:file, path}, fn -> Writer.write_to_file(document, path) end)
+
+    Telemetry.render(document, {:file, path}, fn ->
+      Writer.write_to_file(document, path, options)
+    end)
   end
 
   @doc """
   Writes a document to a file and raises when writing fails.
   """
-  @spec write!(Document.t(), Path.t()) :: :ok
+  @spec write!(Document.t(), Path.t(), keyword()) :: :ok
   def write!(
         %Document{} = document,
-        path
+        path,
+        options \\ []
       ) do
     path = validate_path!(path)
 
     Telemetry.render(document, {:file, path}, fn ->
-      case Writer.write_to_file(document, path) do
+      case Writer.write_to_file(document, path, options) do
         :ok -> :ok
         {:error, reason} -> raise File.Error, reason: reason, action: "write file", path: path
       end

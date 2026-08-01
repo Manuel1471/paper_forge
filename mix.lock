@@ -7,5 +7,7 @@
   "makeup_erlang": {:hex, :makeup_erlang, "1.1.0", "835f7e60792e08824cda445639555d7bf1bbbddb1b60b306e33cb6f6db24dc74", [:mix], [{:makeup, "~> 1.0", [hex: :makeup, repo: "hexpm", optional: false]}], "hexpm", "1cd6780fb1dd1a03979abaed0fe82712b0625118fd5257d3ebbf73f960c73c3c"},
   "nimble_parsec": {:hex, :nimble_parsec, "1.4.2", "8efba0122db06df95bfaa78f791344a89352ba04baedd3849593bfce4d0dc1c6", [:mix], [], "hexpm", "4b21398942dda052b403bbe1da991ccd03a053668d147d53fb8c4e0efe09c973"},
   "qiroex": {:hex, :qiroex, "1.0.0", "3ff1640c3d34d525ff6077d33fcabd90f459a01f155a9c39be10a2278c18ce1f", [:mix], [], "hexpm", "ac837623acd0d0ff7c9c460fcea7d2beb668762152ffe6c328ddb36f545230e9"},
+  "sign_core": {:hex, :sign_core, "0.1.4", "e57d0239d01722c543b0a856741cb28e46773c86d033ed07d57ab58c10b41b55", [:mix], [{:jason, "~> 1.4", [hex: :jason, repo: "hexpm", optional: false]}, {:telemetry, "~> 1.3", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "08c38c28e19cbd59c63835b566ac69b71f0a6b53a66647511db1ba748cd6bd21"},
+  "soft_signer": {:hex, :soft_signer, "0.1.0", "aaff58d0dc747c5f5111ff703e986badde1d2640409a25c50719cc6c129b1117", [:mix], [{:sign_core, "~> 0.1", [hex: :sign_core, repo: "hexpm", optional: false]}], "hexpm", "b881500d59af67a0ca7efab7bc5b5c29392f0137e6cdaa414a03a9f90c47ef35"},
   "telemetry": {:hex, :telemetry, "1.4.2", "a0cb522801dffb1c49fe6e30561badffc7b6d0e180db1300df759faa22062855", [:rebar3], [], "hexpm", "928f6495066506077862c0d1646609eed891a4326bee3126ba54b60af61febb1"},
 }

@@ -136,4 +136,76 @@ defmodule PaperForge.DeclarativeTest do
                %{}
              )
   end
+
+  test "compiles and renders security, protection, and accessibility policies" do
+    source = %{
+      "version" => "1",
+      "variables" => %{"label" => %{"type" => "string", "required" => true}},
+      "document" => %{"compress" => false},
+      "metadata" => %{"title" => "{{label}}", "author" => "PaperForge"},
+      "security" => %{
+        "algorithm" => "aes_256",
+        "permissions" => %{"print" => "high_resolution", "copy" => false}
+      },
+      "signature" => %{
+        "algorithm" => "ps256",
+        "reason" => "Executive approval",
+        "location" => "Monterrey, Mexico"
+      },
+      "protection" => %{
+        "identifier" => "urn:paperforge:declarative-test",
+        "watermark" => %{"text" => "REVIEW", "opacity" => 0.1, "color" => "#64748B"},
+        "policy" => %{"allowed_uri_schemes" => ["https"], "allow_attachments" => false}
+      },
+      "compliance" => %{"profiles" => ["pdf_ua_1"], "language" => "en-US"},
+      "layout_options" => %{"size" => [300, 300], "margins" => 30},
+      "blocks" => [%{"type" => "paragraph", "text" => "{{label}}"}]
+    }
+
+    assert {:ok, %Compiled{} = compiled} = Declarative.compile(source, %{label: "Secure report"})
+    assert compiled.security[:algorithm] == :aes_256
+    assert compiled.signature[:alg] == :PS256
+    assert compiled.signature[:reason] == "Executive approval"
+    refute inspect(compiled) =~ "reader-secret"
+
+    assert {:ok, document, report} = Declarative.render(source, %{label: "Secure report"})
+    assert report.pages == 1
+
+    pdf = PaperForge.to_binary(document)
+    assert pdf =~ "/StructTreeRoot"
+    assert pdf =~ "(REVIEW) Tj"
+    assert pdf =~ "urn:paperforge:declarative-test"
+
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "paper_forge_declarative_secure_#{System.unique_integer()}.pdf"
+      )
+
+    assert {:ok, %{pages: 1}} =
+             Declarative.write(source, %{label: "Secure report"}, path,
+               security: [user_password: "reader-secret", owner_password: "owner-secret"],
+               signature: [
+                 certificate:
+                   {:pkcs8,
+                    key_path: Path.expand("../fixtures/signing_key.pem", __DIR__),
+                    cert_path: Path.expand("../fixtures/signing_cert.pem", __DIR__)}
+               ]
+             )
+
+    encrypted = File.read!(path)
+    assert encrypted =~ "/CFM /AESV3"
+    assert encrypted =~ "/ByteRange"
+    refute encrypted =~ "Secure report"
+  end
+
+  test "rejects unknown declarative protection properties" do
+    source = %{"version" => "1", "protection" => %{"magic" => true}, "blocks" => []}
+
+    assert {:error,
+            [%{code: :unknown_policy_field, path: "$.protection.magic", message: message}]} =
+             Declarative.compile(source)
+
+    assert message =~ "unknown property"
+  end
 end

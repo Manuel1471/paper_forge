@@ -22,6 +22,12 @@ by the `1.x` compatibility contract:
 - `PaperForge.Declarative.Error`
 - `PaperForge.Declarative.Registry`
 - `PaperForge.DesignSystem`
+- `PaperForge.Security`
+- `PaperForge.Protection`
+- `PaperForge.Compliance`
+- `PaperForge.Signature`
+- `PaperForge.Signature.Provider`
+- `PaperForge.Signature.Providers.SignCore`
 - Public exception modules
 
 Modules whose `@moduledoc` is `false` are implementation details. Their names,
@@ -47,7 +53,9 @@ record that change in the changelog.
 
 ## Optional external validation
 
-PaperForge does not shell out while generating PDFs. Development and CI may run
+PaperForge does not shell out while generating PDFs or while signing with the
+default PKCS#8 provider. The optional PKCS#12/PFX loader uses `openssl` only
+when explicitly selected. Development and CI may run
 `pdfinfo`, `qpdf --check`, and VeraPDF when those tools are installed.
 
 ## Production execution

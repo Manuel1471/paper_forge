@@ -1,5 +1,27 @@
 # Migrating PaperForge
 
+## Migrating from 1.2 to 1.3
+
+PaperForge 1.3 is backward compatible with the documented 1.2 public API.
+Existing Elixir and `.paperforge` documents continue to render without adding
+security, signature, protection, or compliance policies.
+
+Applications may adopt the new output features independently:
+
+1. Pass AES passwords only in final `to_binary/2`, `write/3`, or `write!/3`
+   options; do not store credentials in a document or template.
+2. Use the default PKCS#8 signature provider for an Elixir/OTP-only runtime, or
+   configure `PaperForge.Signature.Provider` for an HSM or signing service.
+3. Add declarative `security`, `signature`, `protection`, and `compliance`
+   policies while keeping credentials in `PaperForge.Declarative.write/4`.
+4. Supply and validate an ICC profile before enabling PDF/A preparation.
+5. Follow `PHOENIX.md` when rendering inside HTTP requests or bounded
+   background jobs.
+
+The default runtime still requires no native compilation or external
+executable. OpenSSL is invoked only when an application explicitly selects the
+optional PKCS#12/PFX certificate source.
+
 ## Migrating from 1.1 to 1.2
 
 PaperForge 1.2 is backward compatible with the documented 1.1 public API. No

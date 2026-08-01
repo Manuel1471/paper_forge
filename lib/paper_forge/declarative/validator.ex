@@ -7,6 +7,7 @@ defmodule PaperForge.Declarative.Validator do
   @root_fields MapSet.new(~w(
     version id variables document metadata layout_options page_templates design_system
     theme layout blocks imports includes libraries components kind name props defaults slots
+    security signature protection compliance
     variants __source__ __root__ __locations__
   ))
   @variable_fields MapSet.new(~w(
@@ -19,6 +20,17 @@ defmodule PaperForge.Declarative.Validator do
                 )
   @types ~w(any string number integer boolean list map)
   @formats ~w(url color file)
+  @security_fields MapSet.new(~w(algorithm encrypt_metadata permissions))
+  @permission_fields MapSet.new(~w(print copy modify extract))
+  @signature_fields MapSet.new(
+                      ~w(algorithm reason location contact_info timestamp tsa_url visible multiple)
+                    )
+  @protection_fields MapSet.new(~w(identifier modified_at watermark policy))
+  @watermark_fields MapSet.new(~w(text opacity size color angle))
+  @policy_fields MapSet.new(
+                   ~w(allowed_uri_schemes allowed_hosts allow_attachments max_attachments max_attachment_bytes allowed_attachment_mimes)
+                 )
+  @compliance_fields MapSet.new(~w(profiles language title icc_profile output_condition))
 
   @spec validate(map(), map(), keyword()) :: {:ok, map()} | {:error, [Error.t()]}
   def validate(template, data, options \\ []) do
@@ -27,6 +39,7 @@ defmodule PaperForge.Declarative.Validator do
     errors =
       unknown_keys(template, @root_fields, "$", :unknown_root_field) ++
         component_file_errors(template) ++
+        policy_errors(template) ++
         variable_definition_errors(Map.get(template, "variables", %{})) ++
         block_errors(Map.get(template, "blocks", []), "$.blocks")
 
@@ -83,6 +96,50 @@ defmodule PaperForge.Declarative.Validator do
       end
     end)
   end
+
+  defp policy_errors(template) do
+    security = Map.get(template, "security", %{})
+    signature = Map.get(template, "signature", %{})
+    protection = Map.get(template, "protection", %{})
+    compliance = Map.get(template, "compliance", %{})
+
+    object_errors(security, @security_fields, "$.security", :invalid_security) ++
+      object_errors(
+        nested_object(security, "permissions"),
+        @permission_fields,
+        "$.security.permissions",
+        :invalid_permissions
+      ) ++
+      object_errors(signature, @signature_fields, "$.signature", :invalid_signature) ++
+      object_errors(protection, @protection_fields, "$.protection", :invalid_protection) ++
+      object_errors(
+        nested_object(protection, "policy"),
+        @policy_fields,
+        "$.protection.policy",
+        :invalid_policy
+      ) ++
+      watermark_errors(nested_value(protection, "watermark")) ++
+      object_errors(compliance, @compliance_fields, "$.compliance", :invalid_compliance)
+  end
+
+  defp object_errors(value, fields, path, _code) when is_map(value),
+    do: unknown_keys(value, fields, path, :unknown_policy_field)
+
+  defp object_errors(_value, _fields, path, code), do: [error(code, path, "must be an object")]
+
+  defp watermark_errors(nil), do: []
+  defp watermark_errors(value) when is_binary(value), do: []
+
+  defp watermark_errors(value) when is_map(value),
+    do: unknown_keys(value, @watermark_fields, "$.protection.watermark", :unknown_policy_field)
+
+  defp watermark_errors(_value),
+    do: [error(:invalid_watermark, "$.protection.watermark", "must be text or an object")]
+
+  defp nested_object(value, key) when is_map(value), do: Map.get(value, key, %{})
+  defp nested_object(_value, _key), do: %{}
+  defp nested_value(value, key) when is_map(value), do: Map.get(value, key)
+  defp nested_value(_value, _key), do: nil
 
   defp constraint_errors(value, definition, path, registry) do
     []
