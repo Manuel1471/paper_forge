@@ -6,6 +6,8 @@ defmodule PaperForge.Compression do
   corresponds to zlib-compatible DEFLATE compression.
   """
 
+  alias PaperForge.PerformanceCache
+
   @doc """
   Compresses binary or iodata using zlib.
 
@@ -18,9 +20,9 @@ defmodule PaperForge.Compression do
   """
   @spec flate(iodata()) :: binary()
   def flate(data) do
-    data
-    |> IO.iodata_to_binary()
-    |> :zlib.compress()
+    binary = IO.iodata_to_binary(data)
+
+    PerformanceCache.fetch(:flate, binary, fn -> :zlib.compress(binary) end, 512)
   end
 
   @doc """

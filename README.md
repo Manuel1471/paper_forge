@@ -7,90 +7,69 @@ vector graphics, metadata, and image XObjects directly in Elixir.
 No browser, wkhtmltopdf, Chromium, ImageMagick, Ghostscript, or external
 rendering service is required.
 
-PaperForge 1.0 provides a stable public API for pure-Elixir PDF authoring.
-Documented public modules follow Semantic Versioning throughout the 1.x series.
+PaperForge 1.1 provides a stable public API for pure-Elixir PDF authoring,
+bounded concurrent rendering, production telemetry, and reproducible
+performance tooling. Documented public modules follow Semantic Versioning
+throughout the 1.x series.
+
+## Start Here
+
+| Goal | Start with |
+| --- | --- |
+| Install and render a first PDF | [Installation](#installation) and [Quick Start](#quick-start) |
+| Build reports, invoices, or contracts | [Document Authoring](#document-authoring) |
+| Draw at exact coordinates | [Low-level Page API](#low-level-page-api) |
+| Configure fonts and Unicode | [Fonts And Unicode Text](#fonts-and-unicode-text) |
+| Add JPEG, PNG, or fitted images | [Images](#images) |
+| Generate many PDFs safely | [Concurrent Rendering](#concurrent-rendering) |
+| Instrument production renders | [Telemetry](#telemetry) |
+| Reproduce performance measurements | [Performance Envelope](#performance-envelope) |
+| Review stable public modules | [`API.md`](API.md) |
+| Upgrade an existing application | [`MIGRATING.md`](MIGRATING.md) |
+| Deploy and size production workloads | [`PRODUCTION.md`](PRODUCTION.md) |
 
 ## Why PaperForge?
 
-- Generate PDFs without leaving Elixir or the BEAM.
-- Avoid Chromium, Node.js, Python, native executables, and external rendering
-  services.
-- Build structured documents with automatic pagination.
-- Render visible Unicode text with embedded TrueType fonts.
-- Create reports, invoices, statements, contracts, and other business PDFs.
-- Work with immutable Elixir data structures and process-safe APIs.
+- **Pure Elixir runtime.** No browser, native executable, service, or
+  installation-time compilation is required.
+- **Business-document layout.** Build reports, invoices, statements, and
+  contracts with automatic pagination, templates, tables, navigation, and
+  reusable components.
+- **PDF-native output.** Text, links, outlines, attachments, annotations,
+  vectors, images, fonts, and metadata are emitted as PDF structures.
+- **Predictable production behavior.** Rendering is deterministic, concurrent
+  work is bounded, failures are isolated, and Telemetry events expose runtime
+  cost.
+- **Two levels of control.** Use `PaperForge.Flow` for structured documents or
+  `PaperForge.Page` for exact coordinates and custom graphics.
 
-## Highlights
+## Capability Overview
 
-### Document Layout
-
-- Unified block-based layout through `PaperForge.Flow`.
-- Deterministic pagination with page-break and keep-together controls.
-- Two-pass rendering with `PageContext` and total page counts.
-- Named page templates with page size, orientation, margins, headers, and
-  footers.
-- Sections with metadata, template switching, destinations, and bookmarks.
-- Multipage tables with wrapped cells, content-aware row heights, repeated
-  headers, and configurable row splitting.
-- Automatic heading destinations and outline bookmarks.
-- Structured layout reports and debug reports.
-- Rich text runs, document styles, reusable components, and automatic tables
-  of contents with linked page numbers.
-- Template inheritance, grid layouts, and multi-column document sections.
-- Widow/orphan controls, optional hyphenation, and per-block measurement diagnostics.
-- Native bar charts and XML-parsed SVG vectors with paths, Bézier curves,
-  polygons, groups, transforms, `viewBox`, clipping, and cascading styles.
-- Vector QR codes and Interleaved 2 of 5 barcodes.
-- Embedded document attachments, text-note annotations, highlights,
-  bottom-of-page footnotes, and automatic endnotes.
-- Page-aware internal cross-references and positioned custom drawing blocks.
-
-### PDF Engine
-
-- Pure Elixir PDF generation
-- Multi-page documents
-- PDF 1.4, 1.5, 1.6, and 1.7 headers
-- Flate compression enabled by default
-- A3, A4, A5, Letter, Legal, and custom page sizes
-- Portrait and landscape orientation
-- Bottom-left and top-left coordinate systems
-- Uniform and side-specific page margins
-- Text drawing with color, alignment, and width-aware positioning
-- Multiline text boxes with wrapping, explicit line breaks, line height, height
-  limits, justification, and `:clip | :ellipsis | :continue | :error` overflow
-- The 14 standard PDF Type 1 fonts
-- Embedded TrueType fonts loaded from paths or binaries
-- TrueType font-program deduplication by binary hash
-- Physical TrueType subsetting with composite glyph dependency resolution,
-  checksum recalculation, and `glyf`/`loca`/`hmtx`/`maxp` reconstruction
-- TrueType PDF width and `/ToUnicode` subsetting for used glyphs
-- Font-family registration with regular, bold, italic, and bold italic variants
-- Document-level default font selection
-- Visible Unicode text through Type 0 / CIDFontType2 fonts
-- Identity-H encoding and `/ToUnicode` maps for embedded fonts
-- Real TrueType metrics for width, wrapping, and alignment
-- Internal links, named destinations, outlines, and bookmarks
-- URI link annotations
-- Lines, rectangles, circles, fill, stroke, and line widths
-- RGB and grayscale colors
-- JPEG image XObjects with RGB, grayscale, and CMYK support
-- JPEG EXIF orientation and aspect-aware `:contain`/`:cover` fitting
-- PNG image XObjects for non-interlaced 8-bit grayscale, RGB,
-  grayscale-alpha, and RGBA images
-- PNG transparency through PDF soft masks (`/SMask`)
-- Image deduplication by SHA-256 hash
-- Unicode-aware document metadata using Latin-1 or UTF-16BE as needed
-- Traditional PDF xref table generation
-
-## Which API Should I Use?
-
-| Use case | Recommended API |
+| Area | Included capabilities |
 | --- | --- |
-| Reports, invoices, statements, contracts | `PaperForge.Flow` |
-| Automatic pagination | `PaperForge.layout/3` |
-| Manual graphics and precise coordinates | `PaperForge.Page` |
-| Existing applications using older flow APIs | `add_flow/4`, `add_table/4` |
-| Debugging layout | `PaperForge.debug/2` |
+| Layout | Unified flow, automatic pagination, keep controls, widow/orphan control, grids, columns, reusable components, and diagnostics |
+| Templates | Named and inherited templates, sections, margins, headers, footers, page variants, and total page counts |
+| Tables | Wrapped cells, measured row heights, repeated headers, row policies, multipage splitting, `colspan`, `rowspan`, borders, and vertical alignment |
+| Typography | Standard PDF fonts, embedded TrueType, physical subsetting, real metrics, font families, Unicode maps, rich text, alignment, justification, and deterministic hyphenation |
+| Navigation | Linked tables of contents, internal links, named destinations, page-aware references, outlines, and bookmarks |
+| Images | JPEG and PNG, alpha soft masks, EXIF orientation, deduplication, `:contain`/`:cover`, focal points, alignment, and numbered captions |
+| Graphics | Lines, rectangles, circles, charts, QR codes, barcodes, and an XML-parsed SVG vector subset |
+| PDF features | Metadata, URI links, annotations, highlights, attachments, footnotes, endnotes, compression, and PDF 1.4 through 1.7 headers |
+| Production | Structured validation, deterministic output, incremental file writing, bounded concurrency, retries, resource limits, cancellation, and Telemetry |
+
+## Choose An API
+
+| Use case | API |
+| --- | --- |
+| Reports, invoices, statements, and contracts | Build blocks with `PaperForge.Flow`, then call `PaperForge.layout/3` |
+| Exact coordinates, labels, or custom graphics | `PaperForge.Page` |
+| Return a PDF binary for HTTP or object storage | `PaperForge.to_binary/1` |
+| Write a large PDF with lower serialization overhead | `PaperForge.write/2` or `write!/2` |
+| Render a finite batch and collect all results | `PaperForge.Concurrent.run/3` |
+| Consume a backpressured production queue lazily | `PaperForge.Concurrent.stream/4` |
+| Start a cancellable asynchronous render | `PaperForge.Concurrent.start_job/4` |
+| Inspect layout decisions and overflow | `PaperForge.debug/2` |
+| Maintain an application built on legacy helpers | `add_flow/4` and `add_table/4` |
 
 ## Installation
 
@@ -99,7 +78,7 @@ Add PaperForge to your dependencies:
 ```elixir
 def deps do
   [
-    {:paper_forge, "~> 1.0"}
+    {:paper_forge, "~> 1.1"}
   ]
 end
 ```
@@ -117,7 +96,7 @@ def deps do
   [
     {:paper_forge,
      github: "Manuel1471/paper_forge",
-     tag: "v1.0.0"}
+     tag: "v1.1.0"}
   ]
 end
 ```
@@ -177,9 +156,10 @@ PaperForge.write!(document, "report.pdf")
 
 ## Document Authoring
 
-`0.6.0` adds a higher-level authoring layer on top of `PaperForge.Flow`.
-Register shared styles, reusable components, and inherited page templates once;
-then compose documents from declarative blocks.
+The authoring API builds structured documents on top of `PaperForge.Flow`.
+Register shared styles, reusable components, and inherited page templates once,
+then compose documents from measured blocks instead of calculating page
+coordinates manually.
 
 ```elixir
 alias PaperForge.Flow
@@ -996,24 +976,30 @@ xref offsets point to the start of their corresponding indirect objects.
 
 ## Examples
 
-Run the included examples:
+Examples write their generated files under `tmp/`. Start with the smallest
+example that matches the feature being evaluated:
+
+| Example | Demonstrates |
+| --- | --- |
+| `examples/hello.exs` | Minimal document creation and file output |
+| `examples/two_pages.exs` | Multiple pages and basic page composition |
+| `examples/graphics.exs` | Low-level vector drawing |
+| `examples/png.exs` | PNG embedding and transparency |
+| `examples/multilingual_layout.exs` | Embedded TrueType fonts and Unicode text |
+| `examples/paper_forge_0_6_authoring.exs` | Styles, components, templates, grids, and columns |
+| `examples/paper_forge_0_6_complete.exs` | Navigation, tables, notes, vectors, attachments, and annotations |
+| `examples/linkedin_document_showcase.exs` | A polished, production-style report |
+| `examples/complete_showcase.exs` | Broad page-level and engine feature coverage |
+
+Run an example from the project root:
 
 ```bash
-mix run examples/hello.exs
-mix run examples/graphics.exs
-mix run examples/two_pages.exs
-mix run examples/new_features.exs
-mix run examples/png.exs
-mix run examples/multilingual_layout.exs
-mix run examples/complete_showcase.exs
-mix run examples/paper_forge_0_4_showcase.exs
-mix run examples/paper_forge_0_5_showcase.exs
-mix run examples/paper_forge_0_6_authoring.exs
 mix run examples/linkedin_document_showcase.exs
-mix run examples/paper_forge_0_6_complete.exs
 ```
 
-Generated files are written under `tmp/`.
+The versioned `paper_forge_0_4_showcase.exs` and
+`paper_forge_0_5_showcase.exs` files remain available as historical migration
+references.
 
 ## Development
 
@@ -1058,42 +1044,289 @@ mix run benchmarks/truetype.exs
 
 - The unified layout engine is the preferred rendering path for new
   applications, while page-level APIs remain available for compatibility.
-- PaperForge 1.0 targets standard PDF authoring and Unicode text supported by
+- PaperForge 1.x targets standard PDF authoring and Unicode text supported by
   embedded TrueType fonts. Complex-script shaping and bidirectional layout are
-  outside the 1.0 compatibility contract.
+  outside the current compatibility contract.
 - Widow and orphan control uses configurable minimum line counts. Optional
   hyphenation deterministically breaks overlong words rather than consulting
   language dictionaries.
 - PaperForge emits standard PDF 1.4 through 1.7 files. PDF/A output profiles
-  are outside the 1.0 compatibility contract.
+  are outside the current compatibility contract.
 
 ## Performance Envelope
 
-`mix run benchmarks/document_scale.exs` measures a 5,000-row report. On the
-reference development machine it generated 179 pages in about 805 ms, serialized
-in about 62 ms, produced a 617 KB PDF, and increased total BEAM memory by about
-67 MB. Treat these values as a reproducible baseline, not fixed assertions.
+PaperForge 1.1 adds bounded process-local caches for repeated text metrics and
+Flate-compressed streams. Font metrics use stable font identities, and the PDF
+writer accumulates serialized objects linearly before producing the final
+binary. Documents without page-aware contents or references paginate once;
+navigation-aware documents retain bounded multi-pass convergence. Caches
+require no server process, remain isolated between render processes, and
+cannot grow without a fixed limit.
+
+### Latency benchmarks
+
+Latency profiles answer: **How long does one document take to generate?**
+
+They render increasingly large table-based reports with 25, 500, and 5,000
+rows. These are the appropriate figures for estimating the latency and memory
+cost of an individual business document.
+
+Run reproducible small, medium, and large profiles in the production
+environment:
+
+```bash
+MIX_ENV=prod SAMPLES=10 WARMUPS=2 mix run benchmarks/render_profiles.exs
+```
+
+Use `PROFILE=small`, `PROFILE=medium`, or `PROFILE=large` to isolate one scale.
+For release measurements, increase `SAMPLES` to `30`. Each sample runs in a
+fresh process after explicit garbage collection.
+
+The benchmark reports median, p95, minimum, and maximum values for layout,
+cold serialization, warm serialization, total time, peak process memory,
+reductions, garbage collections, and reclaimed words. It also records the
+Elixir version, OTP release, scheduler count, Mix environment, PDF size, page
+count, and cache hits.
+`benchmarks/document_scale.exs` remains available for comparison with the
+original 5,000-row baseline. Results are reference measurements rather than
+fixed guarantees across machines.
+
+The following measurements compare the unchanged 1.0.0 commit with 1.1.0 using
+the same runner, 2 warmups, 10 samples, Elixir 1.20.2, OTP 29, 10 schedulers,
+and `MIX_ENV=prod`:
+
+| Profile | 1.0 median | 1.1 median | Change | 1.0 p95 | 1.1 p95 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 25 rows | 2.28 ms | 1.83 ms | -19.7% | 2.44 ms | 1.95 ms |
+| 500 rows | 43.71 ms | 39.95 ms | -8.6% | 44.93 ms | 40.54 ms |
+| 5,000 rows | 830.91 ms | 766.95 ms | -7.7% | 836.93 ms | 801.19 ms |
+
+For the 5,000-row profile, median layout fell from 756.72 ms to 717.66 ms,
+reductions from 67.1 million to 56.8 million, and garbage collections from 196
+to 177. Peak process memory remained effectively flat near 81.0 MB. The
+generated document remained byte-for-byte identical at 179 pages and 616,018
+bytes.
+
+## Concurrent Rendering
+
+PaperForge can render independent documents concurrently with bounded demand,
+per-document isolation, timeouts, cancellation, and runtime metrics. Phoenix
+applications should own the task supervisor:
+
+```elixir
+children = [
+  {Task.Supervisor, name: MyApp.PDFSupervisor}
+]
+```
+
+Consume a lazy, backpressured stream without loading every result in advance:
+
+```elixir
+MyApp.PDFSupervisor
+|> PaperForge.Concurrent.stream(invoices, &InvoicePDF.render/1,
+  max_concurrency: System.schedulers_online(),
+  timeout: 30_000,
+  ordered: false,
+  job_id: fn invoice, _index -> invoice.id end
+)
+|> Stream.each(fn
+  %{status: :ok, value: pdf, id: id} ->
+    Storage.put_pdf(id, pdf)
+
+  %{status: status, error: error, id: id} ->
+    Logger.error("PDF #{id} failed with #{status}: #{inspect(error)}")
+end)
+|> Stream.run()
+```
+
+`PaperForge.Concurrent.run/3` collects a finite batch and creates a temporary
+supervisor when the caller does not provide one. `start_job/4` returns a task
+handle that can be passed to `cancel/2`. Every result reports duration,
+reductions, and process-local garbage collections.
+
+The concurrency limit bounds active jobs and provides backpressure through the
+lazy input stream. Errors and timeouts affect only their originating document.
+Font, image, text-metric, and compression state remains immutable or
+process-local, avoiding shared mutable cache locks between renders.
+
+Common production options:
+
+| Option | Purpose |
+| --- | --- |
+| `:max_concurrency` | Maximum active render processes; size this against scheduler and memory limits |
+| `:timeout` | Maximum time allowed for one render attempt |
+| `:ordered` | Preserve input order when `true`; emit completed work sooner when `false` |
+| `:job_id` | Function used to attach an application identifier to each result and event |
+| `:max_memory_bytes` | Fail a job that exceeds its configured process-memory budget |
+| `:max_reductions` | Fail a job that exceeds its configured BEAM reduction budget |
+| `:max_attempts` | Total attempts allowed for retryable failures |
+| `:retry_delay` | Delay between attempts |
+| `:retry_on` | Failure categories eligible for retry |
+
+Successful and failed jobs return a `PaperForge.Concurrent.Result` with
+`:status`, `:id`, `:index`, `:attempts`, `:duration_us`, `:reductions`,
+`:garbage_collections`, `:peak_memory_bytes`, and either `:value` or `:error`.
+Possible statuses are `:ok`, `:error`, `:timeout`, and `:resource_limit`.
+
+### Scalability benchmarks
+
+Scalability profiles answer: **How does the runtime behave as concurrent demand
+increases?**
+
+The bundled concurrency benchmark deliberately generates minimal, single-page
+PDFs. It measures scheduling overhead, backpressure, task isolation, and the
+effect of worker limits. Its throughput must not be interpreted as the expected
+throughput for invoices, image-heavy reports, embedded fonts, or large tables.
+
+Run the 1,000-document minimal-workload benchmark:
+
+```bash
+MIX_ENV=prod JOBS=1000 CONCURRENCY=1,10,20 \
+  mix run benchmarks/concurrent_renders.exs
+```
+
+**Minimal single-page workload only:**
+
+| Workers | Batch time | Throughput | Failures |
+| ---: | ---: | ---: | ---: |
+| 1 | 40.82 ms | 24,500 renders/s | 0 |
+| 10 | 15.11 ms | 66,190 renders/s | 0 |
+| 20 | 15.16 ms | 65,972 renders/s | 0 |
+
+These numbers describe concurrency infrastructure overhead. They are not
+document-generation capacity claims for real invoices or reports.
+
+Representative table-report workloads on the same Elixir 1.20.2, OTP 29,
+10-scheduler development machine:
+
+**Medium workload: 100 documents, 500 rows and 18 pages each**
+
+| Workers | Batch | Throughput | Job median | Job p95 | Job memory p95 | BEAM peak | Failures |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 4,390 ms | 22.78/s | 40.16 ms | 49.28 ms | 10.32 MB | 95 MB | 0 |
+| 5 | 1,074 ms | 93.12/s | 52.63 ms | 61.04 ms | 10.35 MB | 176 MB | 0 |
+| 10 | 836 ms | 119.69/s | 80.16 ms | 98.62 ms | 10.35 MB | 252 MB | 0 |
+
+**Large workload: 20 documents, 5,000 rows and 179 pages each**
+
+| Workers | Batch | Throughput | Job median | Job p95 | Job memory p95 | BEAM peak | Failures |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 17,320 ms | 1.15/s | 824.13 ms | 962.40 ms | 102.22 MB | 308 MB | 0 |
+| 5 | 5,151 ms | 3.88/s | 1,246.59 ms | 1,409.22 ms | 102.47 MB | 1,095 MB | 0 |
+| 10 | 4,167 ms | 4.80/s | 2,060.99 ms | 2,152.38 ms | 102.72 MB | 1,860 MB | 0 |
+
+Reproduce these workloads:
+
+```bash
+MIX_ENV=prod WORKLOAD=medium JOBS=100 CONCURRENCY=1,5,10 \
+  mix run benchmarks/concurrent_renders.exs
+
+MIX_ENV=prod WORKLOAD=large JOBS=20 CONCURRENCY=1,5,10 \
+  mix run benchmarks/concurrent_renders.exs
+```
+
+Higher concurrency improves batch throughput but increases per-document
+latency and total VM memory. For the measured large workload, moving from one
+to ten workers improves throughput by about 4.2x while increasing peak BEAM
+memory from roughly 308 MB to 1.86 GB. Choose the worker limit according to the
+application's latency target, memory budget, queue depth, and schedulers.
+
+Production workloads can additionally set `max_memory_bytes`,
+`max_reductions`, `max_attempts`, `retry_delay`, and `retry_on`. File-oriented
+jobs should prefer `PaperForge.write/2`, which now serializes objects
+incrementally to a temporary file and atomically renames the finished PDF.
+
+See [`PRODUCTION.md`](PRODUCTION.md) for staged rendering, optional Oban
+integration, distributed-node strategies, failure recovery, very large
+documents, and deployment sizing.
+
+## Telemetry
+
+PaperForge emits stable Telemetry events for standalone rendering and
+concurrent production workloads:
+
+| Event | Emitted |
+| --- | --- |
+| `[:paperforge, :render, :start]` | Before binary or incremental file output |
+| `[:paperforge, :render, :stop]` | After a successful or returned-error render |
+| `[:paperforge, :render, :exception]` | Before an exception, throw, or exit is reraised |
+| `[:paperforge, :batch, :job]` | After every concurrent attempt |
+| `[:paperforge, :batch, :complete]` | After `Concurrent.run/3` collects a full batch |
+
+Measurements include `duration`, `bytes`, `memory`, `reductions`, and `gc`.
+Batch completion also includes `jobs`. Metadata includes `pages`, `output`,
+`status`, `id`, `index`, `attempt`, status counts, ordering, and the configured
+concurrency limit where applicable.
+
+`duration` follows Telemetry convention and uses native time units. Convert it
+for display with:
+
+```elixir
+System.convert_time_unit(duration, :native, :millisecond)
+```
+
+Example metrics definitions:
+
+```elixir
+import Telemetry.Metrics
+
+[
+  distribution("paperforge.render.stop.duration",
+    event_name: [:paperforge, :render, :stop],
+    measurement: :duration,
+    unit: {:native, :millisecond},
+    tags: [:status, :output]
+  ),
+  counter("paperforge.render.exception.count",
+    event_name: [:paperforge, :render, :exception]
+  ),
+  distribution("paperforge.batch.job.duration",
+    event_name: [:paperforge, :batch, :job],
+    measurement: :duration,
+    unit: {:native, :millisecond},
+    tags: [:status, :attempt]
+  ),
+  sum("paperforge.batch.complete.jobs",
+    event_name: [:paperforge, :batch, :complete],
+    measurement: :jobs
+  )
+]
+```
+
+PaperForge emits standard Telemetry data and does not require a particular
+reporter. Applications can connect these definitions to Prometheus,
+OpenTelemetry, StatsD, or their existing observability stack.
+
+For production capacity planning, replace the renderer in
+`benchmarks/concurrent_renders.exs` with a representative application document
+and keep the same `JOBS` and `CONCURRENCY` matrix. Report both categories:
+
+- **Document latency:** median and p95 for representative small, medium, and
+  large documents.
+- **Concurrent scalability:** elapsed batch time, throughput, per-job median
+  and p95, failures, and timeouts at each worker limit.
 
 See [`API.md`](API.md) for the public compatibility policy and
 [`MIGRATING.md`](MIGRATING.md) for the 0.6-to-1.0 upgrade guide.
 
 ## Production Hardening
 
-- `PaperForge.validate/1` returns structured validation reports and issue codes.
-- `PaperForge.validate!/1` raises `PaperForge.ValidationError` on corrupt
-  document graphs.
-- Serialization validates required objects, indirect references, page-tree
-  counts, object identity, and PDF versions.
-- Identical immutable documents produce byte-for-byte identical output.
-- Corrupted-image fuzz tests exercise deterministic error handling.
-- Internal conformance tests verify PDF headers, xref offsets, and EOF markers.
-- The compatibility test uses `pdfinfo` when it is available.
+| Concern | PaperForge behavior |
+| --- | --- |
+| Validation | `PaperForge.validate/1` returns structured reports and issue codes; `validate!/1` raises `PaperForge.ValidationError` |
+| Object integrity | Serialization checks required objects, indirect references, page-tree counts, object identity, and PDF versions |
+| Reproducibility | Identical immutable documents produce byte-for-byte identical output |
+| Corrupt input | Image fuzz tests exercise deterministic failures instead of silent output corruption |
+| PDF structure | Conformance tests verify headers, xref offsets, trailers, references, and EOF markers |
+| Reader compatibility | The compatibility test invokes `pdfinfo` when it is installed |
+| File safety | `write/2` serializes to a temporary file and atomically renames successful output |
+| Runtime isolation | Concurrent failures, timeouts, retries, and resource-limit violations remain scoped to their originating job |
 
 See [`MIGRATING.md`](MIGRATING.md) for the stable 1.0 compatibility contract.
 
 ## Future Enhancements
 
-These ideas are not required by, or promised as part of, the stable 1.0 API.
+These ideas are not required by, or promised as part of, the stable 1.x API.
 They describe possible directions for later minor and major releases.
 
 ### International Typography
@@ -1116,16 +1349,14 @@ They describe possible directions for later minor and major releases.
 - Use the same format as the interchange contract for a future visual document
   designer.
 
-### Production And Distributed Generation
+### Distributed Generation
 
-- Streaming output
-- Compiled templates
-- Shared local caches
-- Batch generation
-- Telemetry
-- Cancellation and timeouts
-- Fault-tolerant job integration
-- High-volume benchmarks
+- Optional adapters for durable job systems beyond the documented Oban
+  integration pattern.
+- Cross-node admission control and cluster-wide resource budgets.
+- Resumable generation for documents that exceed a single job's memory or
+  execution window.
+- Compiled declarative templates after a safe `.paperforge` format exists.
 
 ### HTML And CSS
 
@@ -1137,9 +1368,10 @@ They describe possible directions for later minor and major releases.
 
 ## Project Status
 
-PaperForge 1.0 is the first stable release and is suitable for production PDF
-authoring within the documented scope. Public APIs listed in [`API.md`](API.md)
-follow Semantic Versioning throughout the 1.x series.
+PaperForge 1.1 is suitable for production PDF authoring within the documented
+scope. Public APIs listed in [`API.md`](API.md) follow Semantic Versioning
+throughout the 1.x series. Runtime installation remains pure Elixir and does
+not require native compilation or external rendering services.
 
 ## Contributing
 

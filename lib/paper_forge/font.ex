@@ -20,7 +20,8 @@ defmodule PaperForge.Font do
     :number_of_glyphs,
     :cid_font_reference,
     :to_unicode_reference,
-    :used_glyphs
+    :used_glyphs,
+    :metrics_id
   ]
 
   defstruct [
@@ -38,7 +39,8 @@ defmodule PaperForge.Font do
     :number_of_glyphs,
     :cid_font_reference,
     :to_unicode_reference,
-    :used_glyphs
+    :used_glyphs,
+    :metrics_id
   ]
 
   @type family ::
@@ -79,7 +81,8 @@ defmodule PaperForge.Font do
           number_of_glyphs: non_neg_integer() | nil,
           cid_font_reference: Reference.t() | nil,
           to_unicode_reference: Reference.t() | nil,
-          used_glyphs: MapSet.t(non_neg_integer()) | nil
+          used_glyphs: MapSet.t(non_neg_integer()) | nil,
+          metrics_id: term()
         }
 
   @doc """
@@ -109,7 +112,8 @@ defmodule PaperForge.Font do
       number_of_glyphs: nil,
       cid_font_reference: nil,
       to_unicode_reference: nil,
-      used_glyphs: nil
+      used_glyphs: nil,
+      metrics_id: {:builtin, Map.fetch!(definition, :key)}
     }
   end
 
@@ -143,7 +147,17 @@ defmodule PaperForge.Font do
       number_of_glyphs: Map.fetch!(font, :number_of_glyphs),
       cid_font_reference: Keyword.get(options, :cid_font_reference),
       to_unicode_reference: Keyword.get(options, :to_unicode_reference),
-      used_glyphs: Keyword.get(options, :used_glyphs, MapSet.new())
+      used_glyphs: Keyword.get(options, :used_glyphs, MapSet.new()),
+      metrics_id:
+        {:truetype, key,
+         :crypto.hash(
+           :sha256,
+           :erlang.term_to_binary({
+             Map.fetch!(font, :unicode_to_gid),
+             Map.fetch!(font, :widths),
+             Map.fetch!(font, :units_per_em)
+           })
+         )}
     }
   end
 

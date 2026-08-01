@@ -14,6 +14,9 @@ by the `1.x` compatibility contract:
 - `PaperForge.Document`
 - `PaperForge.Image`
 - `PaperForge.Metadata`
+- `PaperForge.Concurrent`
+- `PaperForge.Concurrent.Result`
+- `PaperForge.Telemetry`
 - Public exception modules
 
 Modules whose `@moduledoc` is `false` are implementation details. Their names,
@@ -41,3 +44,11 @@ record that change in the changelog.
 
 PaperForge does not shell out while generating PDFs. Development and CI may run
 `pdfinfo`, `qpdf --check`, and VeraPDF when those tools are installed.
+
+## Production execution
+
+`PaperForge.Concurrent` provides bounded in-process execution. Durable queues,
+distributed retries, storage, and scheduling remain application concerns so
+PaperForge does not require Oban or another job system. See
+[`PRODUCTION.md`](PRODUCTION.md) for supported integration patterns, resource
+budgets, incremental file output, and deployment sizing.

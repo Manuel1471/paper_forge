@@ -51,6 +51,7 @@ defmodule PaperForge do
   alias PaperForge.Metadata
   alias PaperForge.Page
   alias PaperForge.PageTemplateError
+  alias PaperForge.Telemetry
   alias PaperForge.TextWrapper
   alias PaperForge.Writer
   alias PaperForge.Validation
@@ -454,7 +455,7 @@ defmodule PaperForge do
   """
   @spec to_binary(Document.t()) :: binary()
   def to_binary(%Document{} = document) do
-    Writer.to_binary(document)
+    Telemetry.render(document, :binary, fn -> Writer.to_binary(document) end)
   end
 
   @doc "Validates document structure and returns a deterministic validation report."
@@ -475,7 +476,7 @@ defmodule PaperForge do
         path
       ) do
     path = validate_path!(path)
-    File.write(path, to_binary(document))
+    Telemetry.render(document, {:file, path}, fn -> Writer.write_to_file(document, path) end)
   end
 
   @doc """
@@ -487,7 +488,13 @@ defmodule PaperForge do
         path
       ) do
     path = validate_path!(path)
-    File.write!(path, to_binary(document))
+
+    Telemetry.render(document, {:file, path}, fn ->
+      case Writer.write_to_file(document, path) do
+        :ok -> :ok
+        {:error, reason} -> raise File.Error, reason: reason, action: "write file", path: path
+      end
+    end)
   end
 
   defp resolve_template_options(options, document) do
