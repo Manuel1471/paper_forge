@@ -1,0 +1,111 @@
+{
+  "version": "1",
+  "variables": {
+    "company": {"type": "string", "required": true},
+    "period": {"type": "string", "required": true},
+    "summary": {"type": "string", "required": true},
+    "metrics": {"type": "list", "required": true},
+    "program_rows": {"type": "list", "required": true},
+    "show_outlook": {"type": "boolean", "default": true},
+    "outlook": {"type": "string", "default": ""}
+  },
+  "components": ["components/metrics_section.paperforge"],
+  "theme": "growth",
+  "layout": "annual_report",
+  "metadata": {
+    "title": "{{company}} - {{period}} impact report",
+    "author": "{{company}}"
+  },
+  "design_system": {
+    "tokens": {
+      "colors": {
+        "ink": "#17324d",
+        "jade": "#078c7d",
+        "coral": "#f06a5b",
+        "sun": "#f4bd3f",
+        "mist": "#edf7f5"
+      },
+      "type": {"body": 10, "title": 25}
+    },
+    "styles": {
+      "title": {"size": "$type.title", "color": "$colors.ink", "line_height": 30},
+      "section": {"size": 18, "color": "$colors.ink", "line_height": 23},
+      "body": {"size": "$type.body", "color": "$colors.ink", "line_height": 15},
+      "metric": {"size": 12, "color": "$colors.jade", "line_height": 17}
+    },
+    "layouts": {
+      "annual_report": {
+        "document": {"compress": true, "pdf_version": "1.7"},
+        "page_templates": {
+          "report": {
+            "size": "a4",
+            "margins": 54,
+            "header": "{{company}}  /  IMPACT & GROWTH",
+            "footer": "{{period}}  /  Page {page} of {total}"
+          }
+        },
+        "layout_options": {"template": "report"}
+      }
+    },
+    "themes": {
+      "base": {
+        "tokens": {"colors": {"jade": "#137f73"}}
+      },
+      "growth": {
+        "extends": "base",
+        "tokens": {"colors": {"jade": "#078c7d", "coral": "#ee6557"}}
+      }
+    }
+  },
+  "blocks": [
+    {"type": "heading", "text": "{{company}}", "options": {"style": "title", "destination": "cover"}},
+    {"type": "paragraph", "text": "{{period}} - A declarative impact and growth report", "options": {"style": "body"}},
+    {"type": "spacer", "content": 12},
+    {"type": "separator", "options": {"color": "$colors.sun"}},
+    {"type": "spacer", "content": 12},
+    {"type": "paragraph", "text": "{{summary}}", "options": {"style": "body"}},
+    {"type": "spacer", "content": 12},
+    {
+      "component": "metrics_section",
+      "props": {
+        "title": "Performance at a glance",
+        "metrics": "{{metrics}}"
+      },
+      "slots": {
+        "after": [
+          {
+            "type": "paragraph",
+            "text": "Each indicator is supplied by report data and rendered by reusable .paperforge components.",
+            "options": {"style": "body"}
+          }
+        ]
+      }
+    },
+    {"type": "page_break"},
+    {"type": "table_of_contents", "options": {"title": "Inside this report"}},
+    {"type": "page_break"},
+    {"type": "heading", "text": "Operating portfolio", "options": {"style": "section", "destination": "portfolio"}},
+    {"type": "paragraph", "text": "The portfolio combines profitable scale with disciplined expansion. Each program is measured against revenue quality, retention and contribution margin.", "options": {"style": "body"}},
+    {
+      "type": "table",
+      "columns": ["Program", "Market", "Revenue", "Growth", "Strategic signal"],
+      "rows": "{{program_rows}}",
+      "options": {
+        "repeat_header": true,
+        "column_widths": [92, 72, 72, 62, 190],
+        "header_fill_color": "$colors.ink",
+        "header_color": "#ffffff",
+        "stripe_fill_color": "$colors.mist",
+        "row_split": "keep"
+      }
+    },
+    {
+      "if": "show_outlook",
+      "then": [
+        {"type": "heading", "text": "Outlook", "options": {"style": "section", "destination": "outlook"}},
+        {"type": "paragraph", "text": "{{outlook}}", "options": {"style": "body"}},
+        {"type": "qr_code", "content": "https://hex.pm/packages/paper_forge", "options": {"width": 72, "height": 72}}
+      ]
+    }
+  ]
+}

@@ -17,6 +17,11 @@ by the `1.x` compatibility contract:
 - `PaperForge.Concurrent`
 - `PaperForge.Concurrent.Result`
 - `PaperForge.Telemetry`
+- `PaperForge.Declarative`
+- `PaperForge.Declarative.Compiled`
+- `PaperForge.Declarative.Error`
+- `PaperForge.Declarative.Registry`
+- `PaperForge.DesignSystem`
 - Public exception modules
 
 Modules whose `@moduledoc` is `false` are implementation details. Their names,

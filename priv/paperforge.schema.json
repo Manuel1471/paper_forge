@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://paperforge.dev/schema/paperforge-v1.json",
+  "title": "PaperForge Declarative Document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+  "allOf": [
+    {
+      "if": {"properties": {"kind": {"const": "component"}}, "required": ["kind"]},
+      "then": {"required": ["name", "blocks"]}
+    }
+  ],
+  "properties": {
+    "version": {"const": "1"},
+    "id": {"type": "string", "minLength": 1},
+    "imports": {"$ref": "#/$defs/pathList"},
+    "includes": {"$ref": "#/$defs/pathList"},
+    "libraries": {"$ref": "#/$defs/pathList"},
+    "components": {"$ref": "#/$defs/pathList"},
+    "kind": {"enum": ["component"]},
+    "name": {"type": "string", "minLength": 1},
+    "props": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/valueSchema"}
+    },
+    "defaults": {"type": "object"},
+    "slots": {"$ref": "#/$defs/slotSchemas"},
+    "variants": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/componentVariant"}
+    },
+    "variables": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/valueSchema"}
+    },
+    "document": {"type": "object"},
+    "metadata": {"type": "object"},
+    "layout_options": {"type": "object"},
+    "page_templates": {"type": "object"},
+    "design_system": {"type": "object"},
+    "theme": {"type": "string"},
+    "layout": {"type": "string"},
+    "blocks": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/block"}
+    }
+  },
+  "$defs": {
+    "pathList": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "valueSchema": {
+      "oneOf": [
+        {"enum": ["any", "string", "number", "integer", "boolean", "list", "map"]},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {"enum": ["any", "string", "number", "integer", "boolean", "list", "map"]},
+            "required": {"type": "boolean"},
+            "default": {},
+            "min": {"type": "number"},
+            "max": {"type": "number"},
+            "min_length": {"type": "integer", "minimum": 0},
+            "max_length": {"type": "integer", "minimum": 0},
+            "pattern": {"type": "string"},
+            "enum": {"type": "array"},
+            "items": {"$ref": "#/$defs/valueSchema"},
+            "properties": {"type": "object", "additionalProperties": {"$ref": "#/$defs/valueSchema"}},
+            "required_properties": {"type": "array", "items": {"type": "string"}},
+            "additional_properties": {"type": "boolean"},
+            "format": {"enum": ["url", "color", "file"]}
+          }
+        }
+      ]
+    },
+    "slotSchemas": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {"required": {"type": "boolean"}}
+      }
+    },
+    "componentVariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaults": {"type": "object"},
+        "blocks": {"type": "array", "items": {"$ref": "#/$defs/block"}}
+      }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {"type": "string"},
+        "text": {},
+        "content": {},
+        "options": {"type": "object"},
+        "columns": {},
+        "rows": {},
+        "min_rows": {"type": "integer", "minimum": 0},
+        "max_rows": {"type": "integer", "minimum": 0},
+        "cells": {},
+        "count": {"type": "integer", "minimum": 1},
+        "paragraphs": {},
+        "if": {},
+        "then": {"type": "array", "items": {"$ref": "#/$defs/block"}},
+        "else": {"type": "array", "items": {"$ref": "#/$defs/block"}},
+        "for": {},
+        "blocks": {"type": "array", "items": {"$ref": "#/$defs/block"}},
+        "component": {"type": "string"},
+        "props": {"type": "object"},
+        "variant": {"type": "string"},
+        "slots": {"type": "object", "additionalProperties": {"type": "array", "items": {"$ref": "#/$defs/block"}}},
+        "slot": {"type": "string"}
+      },
+      "anyOf": [
+        {"required": ["type"]},
+        {"required": ["component"]},
+        {"required": ["slot"]},
+        {"required": ["if"]},
+        {"required": ["for"]}
+      ]
+    }
+  }
+}

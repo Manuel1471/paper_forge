@@ -2,6 +2,29 @@ alias PaperForge.{Color, Flow, Page}
 
 File.mkdir_p!("tmp")
 
+schema_path = Path.join(__DIR__, "paper_forge_0_6_complete.paperforge")
+data_path = System.get_env("PAPERFORGE_DATA", Path.join(__DIR__, "data/lumen_atlas.json"))
+
+{:ok, schema} = PaperForge.Declarative.load(schema_path)
+data = data_path |> File.read!() |> Jason.decode!()
+
+company = data["company"]
+year = data["year"]
+cover_title = data["cover_title"]
+review_label = data["review_label"]
+summary = data["summary"]
+headline = data["headline"]
+headline_revenue = data["headline_revenue"]
+headline_growth = data["headline_growth"]
+metrics = data["metrics"]
+chart = Enum.map(data["chart"], fn [label, value] -> {label, value} end)
+portfolio_revenue = data["portfolio_revenue"]
+portfolio_growth = data["portfolio_growth"]
+survey_url = data["survey_url"]
+survey_intro = data["survey_intro"]
+report_id = data["report_id"]
+attachment_name = data["attachment_name"]
+
 font_regular = "/System/Library/Fonts/Supplemental/Georgia.ttf"
 font_bold = "/System/Library/Fonts/Supplemental/Georgia Bold.ttf"
 font_italic = "/System/Library/Fonts/Supplemental/Georgia Italic.ttf"
@@ -20,64 +43,7 @@ paper = Color.rgb255(245, 248, 247)
 line = Color.rgb255(208, 220, 218)
 
 rows =
-  [
-    [
-      "Solar Loop",
-      "North",
-      "$54M",
-      "14.9%",
-      "Flagship network; density and retention ahead of plan."
-    ],
-    [
-      "Nightline",
-      "Central",
-      "$48M",
-      "13.5%",
-      "Late-hour demand unlocked a high-value commuter segment."
-    ],
-    [
-      "Harbor Grid",
-      "West",
-      "$45M",
-      "12.8%",
-      "Charging partnership reduced downtime across coastal routes."
-    ],
-    [
-      "Metro Bloom",
-      "International",
-      "$42M",
-      "12.1%",
-      "First cross-border program reached contribution break-even."
-    ],
-    [
-      "Common Route",
-      "North",
-      "$39M",
-      "11.4%",
-      "Employer plans lifted weekday utilization and predictable volume."
-    ],
-    [
-      "Pulse Pass",
-      "Central",
-      "$36M",
-      "10.7%",
-      "Subscription redesign improved retention without discount pressure."
-    ],
-    [
-      "Blue Mile",
-      "West",
-      "$33M",
-      "10.0%",
-      "Safety and lighting upgrades expanded evening ridership."
-    ],
-    [
-      "Open City",
-      "International",
-      "$30M",
-      "-1.8%",
-      "Launch costs and a slower permit cycle created a small, planned decline."
-    ]
-  ]
+  data["rows"]
   |> Enum.with_index()
   |> Enum.map(fn {[program, market, revenue, growth, signal], index} ->
     tint = if(rem(index, 2) == 0, do: paper, else: Color.white())
@@ -108,16 +74,16 @@ document =
   )
   |> PaperForge.default_font(:georgia_regular)
   |> PaperForge.metadata(
-    title: "Lumen Atlas 2026 Impact and Growth Review",
-    author: "Lumen Atlas",
+    title: "#{company} #{year} Impact and Growth Review",
+    author: company,
     subject: "PaperForge 1.0 complete LinkedIn showcase",
     keywords: ["PaperForge", "Elixir", "PDF", "annual report", "climate technology"]
   )
   |> PaperForge.attach(
-    "lumen_atlas_operating_data.csv",
-    "region,revenue,growth\nNorth,186,12.4\nCentral,148,10.8\nWest,132,14.1\nInternational,96,9.2\n",
+    attachment_name,
+    data["source_csv"],
     mime: "text/csv",
-    description: "Source data for the fictional Lumen Atlas impact review"
+    description: data["attachment_description"]
   )
   |> PaperForge.style(:body, size: 9.5, line_height: 14, color: ink)
   |> PaperForge.style(:section_title,
@@ -182,7 +148,7 @@ document =
         width: 0.5,
         color: line
       )
-      |> Page.text("LUMEN ATLAS  /  IMPACT & GROWTH 2026",
+      |> Page.text("#{String.upcase(company)}  /  IMPACT & GROWTH #{year}",
         x: context.content_left,
         y: context.content_bottom + 31,
         size: 7,
@@ -200,10 +166,7 @@ document =
   )
   |> PaperForge.page_template(:report, extends: :base)
 
-{document, report} =
-  PaperForge.layout(
-    document,
-    fn flow ->
+report_flow = fn flow ->
       flow
       |> Flow.custom(
         fn page, context ->
@@ -230,14 +193,14 @@ document =
             stroke: false,
             fill_color: violet
           )
-          |> Page.text("LUMEN ATLAS / 2026",
+          |> Page.text("#{String.upcase(company)} / #{year}",
             x: x + 26,
             y: y + 32,
             size: 8,
             weight: :bold,
             color: Color.rgb255(184, 226, 218)
           )
-          |> Page.paragraph("Growth with\npurpose.",
+          |> Page.paragraph(cover_title,
             x: x + 26,
             y: y + 72,
             width: 310,
@@ -246,7 +209,7 @@ document =
             weight: :bold,
             color: Color.white()
           )
-          |> Page.text("Impact & growth review",
+          |> Page.text(review_label,
             x: x + 26,
             y: y + 194,
             size: 11,
@@ -277,7 +240,7 @@ document =
             color: navy
           )
           |> Page.paragraph(
-            "Lumen Atlas operates shared electric rides across 28 cities. This fictional annual review follows how the network grew, where it invested, and what riders are asking the company to improve next.",
+            summary,
             x: x,
             y: y + 338,
             width: w * 0.66,
@@ -294,7 +257,7 @@ document =
             stroke: false,
             fill_color: Color.rgb255(255, 243, 213)
           )
-          |> Page.text("$562M",
+          |> Page.text(headline_revenue,
             x: x + w * 0.72 + 16,
             y: y + 346,
             size: 25,
@@ -307,7 +270,7 @@ document =
             size: 7,
             color: violet
           )
-          |> Page.text("+13.2% YOY",
+          |> Page.text(headline_growth,
             x: x + w * 0.72 + 16,
             y: y + 402,
             size: 10,
@@ -332,14 +295,14 @@ document =
             stroke: false,
             fill_color: teal
           )
-          |> Page.text("2026 IN ONE SENTENCE",
+          |> Page.text("#{year} IN ONE SENTENCE",
             x: x + 24,
             y: y + 480,
             size: 7,
             weight: :bold,
             color: teal
           )
-          |> Page.text("More movement. Less energy. Better cities.",
+          |> Page.text(headline,
             x: x + 24,
             y: y + 513,
             size: 17,
@@ -369,7 +332,7 @@ document =
             color: teal
           )
           |> Page.paragraph(
-            "28 cities connected through a cleaner, denser mobility network.",
+            data["scale_copy"],
             x: x + 40,
             y: y + 582,
             width: 112,
@@ -392,7 +355,7 @@ document =
             color: coral
           )
           |> Page.paragraph(
-            "A 4.8 app rating and stronger retention turned service into habit.",
+            data["trust_copy"],
             x: x + 214,
             y: y + 582,
             width: 112,
@@ -415,7 +378,7 @@ document =
             color: sky
           )
           |> Page.paragraph(
-            "The next milestone is a fully renewable network across every market.",
+            data["horizon_copy"],
             x: x + 388,
             y: y + 582,
             width: 111,
@@ -611,7 +574,7 @@ document =
             color: navy
           )
           |> Page.paragraph(
-            "Lumen Atlas expanded its shared electric-ride network while improving margin quality and cash conversion. More route density, cleaner charging and stronger rider retention produced healthier customer economics.",
+            data["performance_summary"],
             x: context.block_x,
             y: context.block_y + 70,
             width: context.block_width * 0.82,
@@ -634,11 +597,14 @@ document =
       )
       |> Flow.custom(
         fn page, context ->
-          cards = [
-            {teal, "$562M", "CLEAN REVENUE", "+13.2% year over year"},
-            {coral, "18.4%", "EBITDA MARGIN", "+190 basis points"},
-            {gold, "87%", "CASH CONVERSION", "+11 points"}
-          ]
+          accents = [teal, coral, gold]
+
+          cards =
+            metrics
+            |> Enum.zip(accents)
+            |> Enum.map(fn {%{"value" => value, "label" => label, "change" => change}, accent} ->
+              {accent, value, label, change}
+            end)
 
           card_width = (context.block_width - 24) / 3
 
@@ -692,14 +658,14 @@ document =
         space_after: 24
       )
       |> Flow.chart(
-        [{"Q1", 118}, {"Q2", 132}, {"Q3", 145}, {"Q4", 167}],
+        chart,
         height: 142,
         color: violet,
         space_after: 28
       )
       |> Flow.component(:callout, %{
         label: "OPERATING SIGNAL",
-        text: "Growth accelerated while leverage declined to 1.7x."
+        text: data["operating_signal"]
       })
       |> Flow.spacer(14)
       |> Flow.custom(
@@ -733,7 +699,7 @@ document =
             stroke: false,
             fill_color: teal
           )
-          |> Page.text("Density became an advantage",
+          |> Page.text(data["driver_left_title"],
             x: x + 28,
             y: y + 51,
             size: 11,
@@ -741,7 +707,7 @@ document =
             color: navy
           )
           |> Page.paragraph(
-            "Six new cities improved route density and shortened charging gaps. Better availability lifted repeat rides without requiring aggressive discounting.",
+            data["driver_left_copy"],
             x: x + 28,
             y: y + 70,
             width: column_width - 28,
@@ -757,7 +723,7 @@ document =
             stroke: false,
             fill_color: gold
           )
-          |> Page.text("Efficiency funded the next step",
+          |> Page.text(data["driver_right_title"],
             x: x + column_width + 44,
             y: y + 51,
             size: 11,
@@ -765,7 +731,7 @@ document =
             color: navy
           )
           |> Page.paragraph(
-            "Energy per ride fell 14% while renewable coverage reached 91%. Those gains created room to invest in reliability, safety and expansion.",
+            data["driver_right_copy"],
             x: x + column_width + 44,
             y: y + 70,
             width: column_width - 28,
@@ -829,7 +795,7 @@ document =
             color: navy
           )
           |> Page.paragraph(
-            "Eight mobility programs turned local insight into repeatable economics. Seven grew through stronger utilization and retention; Open City absorbed a modest launch-year decline while permits and charging capacity came online.",
+            data["portfolio_summary"],
             x: x,
             y: y + 70,
             width: w * 0.78,
@@ -860,7 +826,7 @@ document =
             weight: :bold,
             color: Color.white()
           )
-          |> Page.text("$327M",
+          |> Page.text(portfolio_revenue,
             x: x + 182,
             y: y + 146,
             size: 18,
@@ -874,7 +840,7 @@ document =
             weight: :bold,
             color: Color.white()
           )
-          |> Page.text("10.5%",
+          |> Page.text(portfolio_growth,
             x: x + 370,
             y: y + 146,
             size: 18,
@@ -894,7 +860,7 @@ document =
         destination: :portfolio
       )
       |> Flow.table(
-        ["Program", "Market", "2026 revenue", "Growth", "Strategic signal"],
+        ["Program", "Market", "#{year} revenue", "Growth", "Strategic signal"],
         rows,
         column_widths: [92, 70, 67, 58, 212],
         row_height: 40,
@@ -940,7 +906,7 @@ document =
             weight: :bold,
             color: violet
           )
-          |> Page.text("Seven programs grew; one launch market made a measured investment.",
+          |> Page.text(data["portfolio_read"],
             x: x + 20,
             y: y + 45,
             size: 10.5,
@@ -980,7 +946,7 @@ document =
       )
       |> Flow.footnote(
         2,
-        "The attached lumen_atlas_operating_data.csv file contains the summarized source values.",
+        "The attached #{attachment_name} file contains the summarized source values.",
         marker: false
       )
       |> Flow.page_break()
@@ -989,7 +955,6 @@ document =
           x = context.block_x
           y = context.block_y
           w = context.block_width
-          survey_url = "https://example.com/lumen-atlas/rider-survey"
           matrix = Qiroex.to_matrix!(survey_url, level: :m, quiet_zone: 4)
           qr_size = 118
           qr_x = x + w - 146
@@ -1038,7 +1003,7 @@ document =
               color: Color.white()
             )
             |> Page.paragraph(
-              "Lumen Atlas uses rider feedback to decide where its shared electric fleet should travel, charge and operate next.",
+              survey_intro,
               x: x + 24,
               y: y + 130,
               width: w - 190,
@@ -1102,7 +1067,7 @@ document =
               color: navy
             )
             |> Page.paragraph(
-              "A three-minute survey for Lumen Atlas riders about vehicle availability, safe late-night travel, fair pricing and the neighborhoods the electric network should connect next.",
+              "A three-minute survey for #{company} riders about vehicle availability, safe late-night travel, fair pricing and the neighborhoods the electric network should connect next.",
               x: x + 24,
               y: y + 312,
               width: 260,
@@ -1164,7 +1129,7 @@ document =
           cards = [
             {teal, "01", "Availability", "Were charged vehicles ready when riders needed them?"},
             {coral, "02", "Night safety", "Which stops, routes or hours need more confidence?"},
-            {sky, "03", "Network reach", "Which neighborhood should Lumen Atlas connect next?"}
+            {sky, "03", "Network reach", "Which neighborhood should #{company} connect next?"}
           ]
 
           page =
@@ -1210,7 +1175,7 @@ document =
               )
             end)
 
-          barcode = PaperForge.Barcode.interleaved_2_of_5("10002026")
+          barcode = PaperForge.Barcode.interleaved_2_of_5(report_id)
           total_units = Enum.reduce(barcode, 0, fn {_bar?, units}, total -> total + units end)
           barcode_width = 160
           unit = barcode_width / total_units
@@ -1236,7 +1201,7 @@ document =
             end)
 
           page
-          |> Page.text("REPORT ID  /  LA-AR-10002026",
+          |> Page.text("REPORT ID  /  #{report_id}",
             x: x,
             y: y + 628,
             size: 7,
@@ -1256,11 +1221,26 @@ document =
         height: 645,
         destination: :capabilities
       )
-    end,
-    template: :report
+end
+
+registry =
+  PaperForge.Declarative.Registry.new()
+  |> PaperForge.Declarative.Registry.component(
+    :complete_report,
+    fn _props, _slots -> report_flow.(Flow.new()) end,
+    props: %{
+      "company" => %{"type" => "string", "required" => true},
+      "year" => %{"type" => "string", "required" => true},
+      "headline_revenue" => %{"type" => "string", "required" => true}
+    }
   )
 
-output = "tmp/paper_forge_linkedin_1_0_showcase.pdf"
+{:ok, compiled} = PaperForge.Declarative.compile(schema, data, registry: registry)
+
+{document, report} =
+  PaperForge.layout(document, fn _flow -> compiled.flow end, template: :report)
+
+output = System.get_env("PAPERFORGE_OUTPUT", "tmp/paper_forge_linkedin_1_0_showcase.pdf")
 PaperForge.write!(document, output)
 
 IO.inspect(

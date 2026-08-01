@@ -1,5 +1,34 @@
 # Migrating PaperForge
 
+## Migrating from 1.1 to 1.2
+
+PaperForge 1.2 is backward compatible with the documented 1.1 public API. No
+existing Elixir-authored document must be converted to `.paperforge`.
+
+Applications can adopt declarative templates incrementally:
+
+1. Move one document's static structure into a version `"1"` JSON template.
+2. Declare the runtime input under `variables` and call
+   `PaperForge.Declarative.validate/2` at the application boundary.
+3. Move repeated style values into design tokens and named styles.
+4. Extract repeated block groups into declarative components.
+5. Supply an application-owned `PaperForge.DesignSystem` when several
+   templates share the same visual language.
+6. Register existing `Flow.custom/2` designs through
+   `PaperForge.Declarative.Registry` when a template must orchestrate trusted
+   Elixir components.
+
+Legacy declarative version `"0"` maps using `schema` and `content` can be
+upgraded with `PaperForge.Declarative.migrate/1`. Version `"1"` rejects unknown
+template properties, so remove misspelled or application-private keys before
+validation. Run `mix paper_forge.validate TEMPLATE DATA.json` in CI during the
+migration.
+
+`jason ~> 1.4` is now a runtime dependency and remains pure Elixir. PaperForge
+does not evaluate template content as Elixir code. Templates can reference
+files and links, so template files should still be controlled by the
+application even when their input data comes from users.
+
 ## Migrating from 0.6 to 1.0
 
 PaperForge 1.0 establishes the public compatibility contract described in

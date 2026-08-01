@@ -5,6 +5,62 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-08-01
+
+### Added
+
+- Added the versioned `.paperforge` JSON format for reusable document
+  templates that contain data only and never evaluate arbitrary Elixir code.
+- Added `PaperForge.Declarative.parse/1`, `load/1`, `validate/2`, `compile/3`,
+  and `render/3` for the complete declarative document lifecycle.
+- Added typed variables with required fields, defaults, nested interpolation,
+  and structured validation errors containing stable codes and JSON paths.
+- Added deep schemas with string and numeric constraints, list item schemas,
+  nested map requirements, URL/color/file formats, and optional rejection of
+  undeclared input fields.
+- Added declarative conditions, list loops, reusable components with props and
+  defaults, and bounded recursive expansion.
+- Added comparison, boolean, containment, and emptiness expressions.
+- Added component prop schemas, required props, named slots, variants, trusted
+  application component registration, and direct cycle detection.
+- Added standalone `kind: "component"` `.paperforge` files, declarative
+  component imports, nested component composition, required slot validation,
+  cross-file cycle detection, and CLI validation without application code.
+- Added rooted imports, includes, external design libraries, safe local resource
+  resolution, import-cycle detection, and configurable complexity limits.
+- Added source-aware errors, strict unknown-property checks, format migrations,
+  a bundled Draft 2020-12 JSON Schema, deterministic template identifiers and
+  hashes, and a bounded compiled-template cache.
+- Added exact source file, line, column, and JSON path reporting for semantic
+  template and input-data validation errors.
+- Added `mix paper_forge.validate` for CI validation without PDF generation.
+- Added compilation to `PaperForge.Flow` Layout IR so declarative templates use
+  the existing pagination, navigation, table, typography, image, and PDF engine.
+- Added `PaperForge.DesignSystem` with immutable tokens, reusable styles,
+  visual components, shared layouts, mergeable design libraries, and themes
+  with inheritance and cycle detection.
+- Added nested token references, hexadecimal color tokens, dynamic metadata,
+  reusable page templates, and application-supplied design systems.
+- Added a complete annual-report `.paperforge` template and a data-only Elixir
+  runner demonstrating validation, loops, conditions, components, themes,
+  tables, navigation, and QR output.
+- Added unit and integration coverage for malformed JSON, deep variable
+  schemas, expressions, trusted and declarative components, imports, resources,
+  limits, migrations, deterministic caching, CLI validation, and PDF rendering.
+- Added `DECLARATIVE.md` as the format, security, Design System, and integration
+  guide.
+- Added `PAPERFORGE_TEMPLATES.md`, a non-technical guide for creating documents,
+  reusable component libraries, loops, conditions, slots, variants, styles,
+  validation, and PDFs without writing Elixir.
+
+### Changed
+
+- Updated the package, HexDocs, public API policy, README, and examples for
+  PaperForge 1.2.0.
+- Expanded the README with practical guidance on when and how to use
+  `.paperforge` templates and linked the plain-language authoring guide.
+- Added the pure-Elixir `jason` dependency for standards-compliant JSON parsing.
+
 ## [1.1.0] - 2026-07-30
 
 ### Added
@@ -875,6 +931,7 @@ establishes the public API and Semantic Versioning contract for 1.x.
 - Uses native PDF coordinates with the origin at the bottom-left corner
 - Isolates graphic operations using the PDF `q` and `Q` operators
 
+[1.2.0]: https://github.com/Manuel1471/paper_forge/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Manuel1471/paper_forge/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Manuel1471/paper_forge/compare/v0.6.0...v1.0.0
 [0.6.0]: https://github.com/Manuel1471/paper_forge/compare/v0.5.0...v0.6.0
