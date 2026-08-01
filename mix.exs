@@ -1,7 +1,7 @@
 defmodule PaperForge.MixProject do
   use Mix.Project
 
-  @version "1.1.0"
+  @version "1.2.0"
   @source_url "https://github.com/Manuel1471/paper_forge"
 
   def project do
@@ -28,6 +28,7 @@ defmodule PaperForge.MixProject do
   defp deps do
     [
       {:qiroex, "~> 1.0"},
+      {:jason, "~> 1.4"},
       {:telemetry, "~> 1.3"},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false}
     ]
@@ -35,8 +36,9 @@ defmodule PaperForge.MixProject do
 
   defp description do
     """
-    A pure Elixir PDF document authoring engine with unified layout, reusable
-    components, TrueType fonts, Unicode text, images, navigation, and PDF output.
+    A pure Elixir PDF authoring engine with declarative templates, reusable
+    component libraries, design systems, unified layout, fonts, images,
+    navigation, and production output.
     """
   end
 
@@ -49,10 +51,14 @@ defmodule PaperForge.MixProject do
       },
       files: [
         "lib",
+        "priv",
+        "examples",
         "mix.exs",
         "README.md",
         "CHANGELOG.md",
         "API.md",
+        "DECLARATIVE.md",
+        "PAPERFORGE_TEMPLATES.md",
         "MIGRATING.md",
         "PRODUCTION.md",
         "LICENSE"
@@ -70,6 +76,8 @@ defmodule PaperForge.MixProject do
         "README.md",
         "CHANGELOG.md",
         "API.md",
+        "DECLARATIVE.md",
+        "PAPERFORGE_TEMPLATES.md",
         "MIGRATING.md",
         "PRODUCTION.md",
         "LICENSE"

@@ -7,10 +7,10 @@ vector graphics, metadata, and image XObjects directly in Elixir.
 No browser, wkhtmltopdf, Chromium, ImageMagick, Ghostscript, or external
 rendering service is required.
 
-PaperForge 1.1 provides a stable public API for pure-Elixir PDF authoring,
-bounded concurrent rendering, production telemetry, and reproducible
-performance tooling. Documented public modules follow Semantic Versioning
-throughout the 1.x series.
+PaperForge 1.2 provides a stable public API for pure-Elixir PDF authoring,
+versioned declarative templates, reusable design systems, bounded concurrent
+rendering, production telemetry, and reproducible performance tooling.
+Documented public modules follow Semantic Versioning throughout the 1.x series.
 
 ## Start Here
 
@@ -18,6 +18,7 @@ throughout the 1.x series.
 | --- | --- |
 | Install and render a first PDF | [Installation](#installation) and [Quick Start](#quick-start) |
 | Build reports, invoices, or contracts | [Document Authoring](#document-authoring) |
+| Build PDFs from reusable data templates | [Declarative Documents](#declarative-documents) |
 | Draw at exact coordinates | [Low-level Page API](#low-level-page-api) |
 | Configure fonts and Unicode | [Fonts And Unicode Text](#fonts-and-unicode-text) |
 | Add JPEG, PNG, or fitted images | [Images](#images) |
@@ -56,6 +57,7 @@ throughout the 1.x series.
 | Graphics | Lines, rectangles, circles, charts, QR codes, barcodes, and an XML-parsed SVG vector subset |
 | PDF features | Metadata, URI links, annotations, highlights, attachments, footnotes, endnotes, compression, and PDF 1.4 through 1.7 headers |
 | Production | Structured validation, deterministic output, incremental file writing, bounded concurrency, retries, resource limits, cancellation, and Telemetry |
+| Declarative authoring | Versioned `.paperforge` templates, typed variables, conditions, loops, components, Layout IR compilation, themes, tokens, and shared design libraries |
 
 ## Choose An API
 
@@ -78,7 +80,7 @@ Add PaperForge to your dependencies:
 ```elixir
 def deps do
   [
-    {:paper_forge, "~> 1.1"}
+    {:paper_forge, "~> 1.2"}
   ]
 end
 ```
@@ -96,7 +98,7 @@ def deps do
   [
     {:paper_forge,
      github: "Manuel1471/paper_forge",
-     tag: "v1.1.0"}
+     tag: "v1.2.0"}
   ]
 end
 ```
@@ -153,6 +155,108 @@ alias PaperForge.Flow
 IO.inspect(report.pages, label: "Pages")
 PaperForge.write!(document, "report.pdf")
 ```
+
+## Declarative Documents
+
+PaperForge 1.2 separates document design from application code. A versioned
+`.paperforge` JSON file defines variables, conditions, loops, reusable
+components, styles, themes, and shared layouts. The safe compiler validates
+input data and produces `PaperForge.Flow` Layout IR without evaluating Elixir
+source.
+
+### Why Use `.paperforge`?
+
+Use it when the document design should be editable independently from the
+application: invoices maintained by operations, reports reused across teams,
+or customer documents generated from changing data. A template describes the
+document, JSON supplies the changing information, and reusable component files
+keep repeated sections consistent. Most authors only need to understand the
+document they want to build, not Elixir or PDF internals.
+
+Start with one template, declare its variables, arrange blocks, and move any
+repeated section into `kind: "component"` files. Validate everything with
+`mix paper_forge.validate` before generating PDFs.
+
+For a complete plain-language walkthrough, read
+[`PAPERFORGE_TEMPLATES.md`](PAPERFORGE_TEMPLATES.md). The exhaustive format and
+security reference remains in [`DECLARATIVE.md`](DECLARATIVE.md).
+
+```json
+{
+  "version": "1",
+  "variables": {
+    "customer": {"type": "string", "required": true},
+    "items": {"type": "list", "required": true}
+  },
+  "blocks": [
+    {"type": "heading", "text": "Invoice for {{customer}}"},
+    {
+      "for": "item in items",
+      "blocks": [
+        {"type": "paragraph", "text": "{{item.name}} - {{item.total}}"}
+      ]
+    }
+  ]
+}
+```
+
+```elixir
+with {:ok, template} <- PaperForge.Declarative.load("invoice.paperforge"),
+     {:ok, document, report} <- PaperForge.Declarative.render(template, invoice_data),
+     :ok <- PaperForge.write(document, "invoice.pdf") do
+  IO.inspect(report.pages, label: "Pages")
+end
+```
+
+`PaperForge.DesignSystem` provides immutable tokens, named styles, visual
+components, shared layouts, mergeable libraries, and themes with inheritance.
+Inline design definitions can extend an application-owned design library and
+override selected values per template.
+
+Production templates may also import design libraries, include document
+fragments, invoke application-registered trusted components, validate nested
+data constraints, and use comparison and boolean expressions. Imports and
+local resources are confined to an explicit root; expansion, data, table, and
+file-size limits are configurable.
+
+Semantic validation errors identify the source file, exact line and column,
+JSON path, stable error code, and a human-readable explanation. When a separate
+data JSON file is used, errors point to that file instead of the template.
+
+Visual components do not require Elixir. Put each component in a readable
+`.paperforge` file and list it from the document:
+
+```json
+{
+  "version": "1",
+  "components": ["components/metrics_section.paperforge"],
+  "blocks": [
+    {
+      "component": "metrics_section",
+      "props": {"title": "Performance", "metrics": "{{metrics}}"}
+    }
+  ]
+}
+```
+
+Component files declare `kind: "component"`, a name, typed props, optional
+slots and variants, and ordinary blocks. They may import other component files,
+which makes complete design libraries possible without application code.
+
+Validate templates in CI without producing a PDF:
+
+```bash
+mix paper_forge.validate templates/report.paperforge data/report.json \
+  --root templates --reject-unknown-data
+```
+
+The packaged JSON Schema is available through
+`PaperForge.Declarative.schema_path/0`. Compiled templates expose a stable
+`template_id` and SHA-256 `template_hash`; `compile_cached/3` provides a bounded
+process-local cache for templates that do not use registered Elixir components.
+
+See [`DECLARATIVE.md`](DECLARATIVE.md) for the complete format, validation
+contract, supported blocks, trust boundary, and design-system API.
 
 ## Document Authoring
 
@@ -471,7 +575,7 @@ Then use the registered key in text operations:
 ```elixir
 Page.text(
   page,
-  "El pingüino comió camarón — ¿listo? — Привет — Ω",
+  "Unicode sample: café, piñata, Привет, Ω",
   x: 72,
   y: 720,
   font: :inter,
@@ -887,7 +991,7 @@ document =
 document =
   PaperForge.new()
   |> PaperForge.metadata(
-    title: "Reporte de Mexico",
+    title: "Mexico Report",
     author: "Manuel Garcia",
     subject: "Informacion \u65E5\u672C\u8A9E",
     keywords: ["report", "elixir", "pdf"],
@@ -989,6 +1093,8 @@ example that matches the feature being evaluated:
 | `examples/paper_forge_0_6_authoring.exs` | Styles, components, templates, grids, and columns |
 | `examples/paper_forge_0_6_complete.exs` | Navigation, tables, notes, vectors, attachments, and annotations |
 | `examples/linkedin_document_showcase.exs` | A polished, production-style report |
+| `examples/declarative_annual_report.exs` | A 1.2 report driven by a reusable `.paperforge` template and application data |
+| `examples/components/` | Reusable `.paperforge` components composed without Elixir code |
 | `examples/complete_showcase.exs` | Broad page-level and engine feature coverage |
 
 Run an example from the project root:
@@ -1340,14 +1446,14 @@ They describe possible directions for later minor and major releases.
 - Establish PDF/A output profiles. VeraPDF remains an optional external
   validator and is not required to install or run PaperForge.
 
-### Declarative Authoring
+### Visual Template Designer
 
-- Introduce a versioned `.paperforge` template format backed by a safe,
-  declarative document model.
-- Support validated variables, loops, conditions, reusable components, and
-  resource references without evaluating arbitrary Elixir code.
-- Use the same format as the interchange contract for a future visual document
-  designer.
+- Build a drag-and-drop editor that reads and writes the stable `.paperforge`
+  interchange format.
+- Add authenticated template repositories, visual component catalogs, and
+  preview workflows on top of the declarative compiler.
+- Add persisted and distributed template caches for multi-node applications;
+  version 1.2 intentionally uses a bounded process-local cache.
 
 ### Distributed Generation
 
@@ -1356,7 +1462,8 @@ They describe possible directions for later minor and major releases.
 - Cross-node admission control and cluster-wide resource budgets.
 - Resumable generation for documents that exceed a single job's memory or
   execution window.
-- Compiled declarative templates after a safe `.paperforge` format exists.
+- Persisted or distributed caches for reusable compiled Layout IR with explicit
+  format-version invalidation.
 
 ### HTML And CSS
 
@@ -1368,7 +1475,7 @@ They describe possible directions for later minor and major releases.
 
 ## Project Status
 
-PaperForge 1.1 is suitable for production PDF authoring within the documented
+PaperForge 1.2 is suitable for production PDF authoring within the documented
 scope. Public APIs listed in [`API.md`](API.md) follow Semantic Versioning
 throughout the 1.x series. Runtime installation remains pure Elixir and does
 not require native compilation or external rendering services.

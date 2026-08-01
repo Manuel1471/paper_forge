@@ -1,0 +1,28 @@
+{
+  "version": "1",
+  "kind": "component",
+  "name": "metric_line",
+  "props": {
+    "label": {"type": "string", "required": true, "max_length": 40},
+    "value": {"type": "string", "required": true, "max_length": 24},
+    "change": {"type": "string", "required": true, "max_length": 40}
+  },
+  "variants": {
+    "compact": {
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": "{{label}}  |  {{value}}  |  {{change}}",
+          "options": {"style": "metric", "gap": 2}
+        }
+      ]
+    }
+  },
+  "blocks": [
+    {
+      "type": "paragraph",
+      "text": "{{label}}  |  {{value}}  |  {{change}}",
+      "options": {"style": "metric", "gap": 4}
+    }
+  ]
+}
