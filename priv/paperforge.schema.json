@@ -36,6 +36,10 @@
     },
     "document": {"type": "object"},
     "metadata": {"type": "object"},
+    "security": {"$ref": "#/$defs/security"},
+    "signature": {"$ref": "#/$defs/signature"},
+    "protection": {"$ref": "#/$defs/protection"},
+    "compliance": {"$ref": "#/$defs/compliance"},
     "layout_options": {"type": "object"},
     "page_templates": {"type": "object"},
     "design_system": {"type": "object"},
@@ -47,6 +51,90 @@
     }
   },
   "$defs": {
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {"const": "aes_256"},
+        "encrypt_metadata": {"type": "boolean"},
+        "permissions": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "print": {"enum": ["none", "low_resolution", "high_resolution"]},
+            "copy": {"type": "boolean"},
+            "modify": {"type": "boolean"},
+            "extract": {"type": "boolean"}
+          }
+        }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {"enum": ["ps256", "rs256"]},
+        "reason": {"type": "string"},
+        "location": {"type": "string"},
+        "contact_info": {"type": "string"},
+        "timestamp": {"type": "boolean"},
+        "tsa_url": {"type": "string", "format": "uri"},
+        "visible": {"type": "boolean"},
+        "multiple": {"type": "boolean"}
+      }
+    },
+    "protection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "identifier": {"type": "string"},
+        "modified_at": {"type": "string"},
+        "watermark": {
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["text"],
+              "properties": {
+                "text": {"type": "string", "minLength": 1},
+                "opacity": {"type": "number", "minimum": 0, "maximum": 1},
+                "size": {"type": "number", "exclusiveMinimum": 0},
+                "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                "angle": {"type": "number"}
+              }
+            }
+          ]
+        },
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "allowed_uri_schemes": {"type": "array", "items": {"type": "string"}},
+            "allowed_hosts": {"type": "array", "items": {"type": "string"}},
+            "allow_attachments": {"type": "boolean"},
+            "max_attachments": {"type": "integer", "minimum": 0},
+            "max_attachment_bytes": {"type": "integer", "minimum": 0},
+            "allowed_attachment_mimes": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "profiles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["pdf_a_2b", "pdf_a_3b", "pdf_ua_1"]}
+        },
+        "language": {"type": "string", "minLength": 1},
+        "title": {"type": "string", "minLength": 1},
+        "icc_profile": {"type": "string", "minLength": 1},
+        "output_condition": {"type": "string", "minLength": 1}
+      }
+    },
     "pathList": {
       "type": "array",
       "maxItems": 32,

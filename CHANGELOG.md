@@ -5,6 +5,68 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-08-01
+
+### Added
+
+- Added `PaperForge.Signature` and a stable provider contract for incremental
+  PAdES signing, verification, capability discovery, and application-selected
+  HSM, KMS, or service integrations.
+- Added a default PKCS#8/X.509 signature provider implemented with Elixir/OTP
+  only, requiring no executable, NIF, native compilation, or system package.
+- Added signing reason, location, contact information, integrity verification,
+  and optional TSA timestamp support through the default provider.
+- Added explicit PKCS#12/PFX compatibility loading through optional runtime
+  OpenSSL use, without making OpenSSL a default or installation requirement.
+- Added declarative signature policies while keeping certificates, private
+  keys, and passwords exclusively in final write-time options.
+- Added real PKCS#8 signing tests and provider-contract tests, including clear
+  unsupported-capability errors for visible and multiple signatures in the
+  built-in provider.
+
+- Added AES-256 PDF encryption using the Standard Security Handler revision 6,
+  including separate user and owner passwords and permissions for printing,
+  copying, modification, and content extraction.
+- Added write-time security options to `PaperForge.to_binary/2`, `write/3`, and
+  `write!/3`; passwords and derived keys are never retained by a document.
+- Added `PaperForge.Protection` for per-page watermarks, stable SHA-256 content
+  fingerprints, deterministic identifiers, modification detection, and
+  pre-output resource-policy audits.
+- Added allow policies for URI schemes and hosts plus attachment enablement,
+  count, byte-size, and MIME restrictions.
+- Added `PaperForge.Compliance` with structural PDF/UA-1 preparation, tagged
+  document trees, logical page reading order, document language, alternate
+  image text metadata, and machine-readable validation reports.
+- Added PDF/A-2b and PDF/A-3b preparation with application-supplied ICC output
+  profiles, XMP profile metadata, output intents, and explicit rejection of
+  encryption under archival profiles.
+- Added declarative `security`, `protection`, and `compliance` policies and
+  `PaperForge.Declarative.write/4`; passwords remain write-time values rather
+  than template or compiled-IR state.
+- Added JSON Schema definitions and integration coverage for declarative
+  security permissions, protection policies, watermarks, and conformance
+  profiles.
+- Added direct AES interoperability checks through Poppler when available,
+  protection/fingerprint tests, tagged-PDF tests, ICC validation tests, and
+  combined declarative rendering tests.
+
+- Added `PHOENIX.md`, a start-to-production guide for controller downloads,
+  LiveView integration, declarative templates, bounded background rendering,
+  optional Oban jobs, security, Telemetry, tests, and deployment limits.
+
+### Changed
+
+- Updated the package, HexDocs, public API policy, README, and maintained
+  examples for PaperForge 1.3.0.
+- Added Phoenix to the README start paths and documented the planned optional
+  visual `.paperforge` editor without changing the open library workflow.
+- Reduced the examples directory to two maintained release showcases: one
+  full-control Elixir report and one no-code declarative report.
+- Updated both release showcases for PaperForge 1.3 security, signatures,
+  protection, tagged PDF structure, and polished declarative output.
+- Exposed table row height, cell line height, and block spacing options to the
+  declarative format for polished content-aware tables.
+
 ## [1.2.0] - 2026-08-01
 
 ### Added
@@ -931,6 +993,7 @@ establishes the public API and Semantic Versioning contract for 1.x.
 - Uses native PDF coordinates with the origin at the bottom-left corner
 - Isolates graphic operations using the PDF `q` and `Q` operators
 
+[1.3.0]: https://github.com/Manuel1471/paper_forge/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Manuel1471/paper_forge/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Manuel1471/paper_forge/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Manuel1471/paper_forge/compare/v0.6.0...v1.0.0

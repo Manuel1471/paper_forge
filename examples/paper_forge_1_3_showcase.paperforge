@@ -1,0 +1,220 @@
+{
+  "version": "1",
+  "variables": {
+    "company": {"type": "string", "required": true, "default": "Lumen Atlas"},
+    "period": {"type": "string", "required": true, "default": "FY 2027"},
+    "summary": {"type": "string", "required": true, "default": "Lumen Atlas expanded clean urban mobility while improving margin quality, customer retention, and energy efficiency across its operating network."},
+    "metrics": {
+      "type": "list",
+      "required": true,
+      "default": [
+        {"label": "Clean revenue", "value": "$562M", "change": "+13.2% YoY"},
+        {"label": "EBITDA margin", "value": "18.4%", "change": "+190 bps"},
+        {"label": "Cash conversion", "value": "87%", "change": "+11 points"}
+      ]
+    },
+    "program_rows": {
+      "type": "list",
+      "required": true,
+      "default": [
+        ["Solar Loop", "North", "$84M", "14.9%", "Density and retention remained ahead of plan."],
+        ["Nightline", "Central", "$71M", "13.5%", "Late-hour demand unlocked a high-value commuter segment."],
+        ["Harbor Grid", "West", "$66M", "12.8%", "Charging partnerships reduced coastal-route downtime."],
+        ["Metro Bloom", "International", "$59M", "12.0%", "The first cross-border program reached break-even."],
+        ["Common Route", "North", "$47M", "11.4%", "Employer plans lifted weekday utilization."],
+        ["Pulse Pass", "Central", "$39M", "-1.8%", "A measured pricing reset protects long-term retention."]
+      ]
+    },
+    "show_outlook": {"type": "boolean", "default": true},
+    "outlook": {"type": "string", "default": "Management expects high-single-digit organic growth, gradual margin expansion, and disciplined investment in charging capacity. The portfolio remains focused on useful scale, rider trust, and cleaner city movement."}
+  },
+  "id": "lumen-atlas-declarative-impact-report",
+  "security": {
+    "algorithm": "aes_256",
+    "permissions": {"print": "high_resolution", "copy": false, "modify": false, "extract": false}
+  },
+  "signature": {
+    "algorithm": "ps256",
+    "reason": "Lumen Atlas annual report approval",
+    "location": "Monterrey, Mexico",
+    "contact_info": "governance@lumen-atlas.example"
+  },
+  "protection": {
+    "identifier": "urn:paperforge:lumen-atlas:declarative:2027",
+    "policy": {
+      "allowed_uri_schemes": ["https", "mailto"],
+      "allow_attachments": false,
+      "max_attachment_bytes": 1000000
+    }
+  },
+  "compliance": {
+    "profiles": ["pdf_ua_1"],
+    "language": "en-US",
+    "title": "Lumen Atlas FY 2027 Impact Report"
+  },
+  "theme": "growth",
+  "layout": "annual_report",
+  "metadata": {
+    "title": "{{company}} - {{period}} impact report",
+    "author": "{{company}}"
+  },
+  "design_system": {
+    "components": {
+      "metric_line": {
+        "props": {
+          "label": {"type": "string", "required": true},
+          "value": {"type": "string", "required": true},
+          "change": {"type": "string", "required": true}
+        },
+        "blocks": [
+          {"type": "paragraph", "text": "{{value}}  /  {{label}}  /  {{change}}", "options": {"style": "metric", "gap": 4}}
+        ]
+      },
+      "metrics_section": {
+        "props": {
+          "title": {"type": "string", "required": true},
+          "metrics": {"type": "list", "required": true}
+        },
+        "slots": {"after": {"required": false}},
+        "blocks": [
+          {"type": "heading", "text": "{{title}}", "options": {"style": "section"}},
+          {
+            "for": "metric in metrics",
+            "blocks": [
+              {"component": "metric_line", "props": {"label": "{{metric.label}}", "value": "{{metric.value}}", "change": "{{metric.change}}"}}
+            ]
+          },
+          {"slot": "after"}
+        ]
+      }
+    },
+    "tokens": {
+      "colors": {
+        "ink": "#17324d",
+        "jade": "#078c7d",
+        "coral": "#f06a5b",
+        "sun": "#f4bd3f",
+        "violet": "#7156a8",
+        "mist": "#edf7f5"
+      },
+      "type": {"body": 10, "title": 25}
+    },
+    "styles": {
+      "title": {"size": "$type.title", "color": "$colors.ink", "line_height": 30},
+      "section": {"size": 18, "color": "$colors.ink", "line_height": 23},
+      "body": {"size": "$type.body", "color": "$colors.ink", "line_height": 15},
+      "metric": {"size": 12, "color": "$colors.jade", "line_height": 17}
+    },
+    "layouts": {
+      "annual_report": {
+        "document": {"compress": true, "pdf_version": "1.7"},
+        "page_templates": {
+          "report": {
+            "size": "a4",
+            "margins": 54,
+            "header": "{{company}}  /  IMPACT & GROWTH",
+            "footer": "{{period}}  /  Page {page} of {total}"
+          }
+        },
+        "layout_options": {"template": "report"}
+      }
+    },
+    "themes": {
+      "base": {
+        "tokens": {"colors": {"jade": "#137f73"}}
+      },
+      "growth": {
+        "extends": "base",
+        "tokens": {"colors": {"jade": "#078c7d", "coral": "#ee6557"}}
+      }
+    }
+  },
+  "blocks": [
+    {"type": "heading", "text": "{{company}}", "options": {"style": "title", "destination": "cover"}},
+    {"type": "paragraph", "text": "{{period}} - A declarative impact and growth report", "options": {"style": "body"}},
+    {"type": "spacer", "content": 12},
+    {"type": "separator", "options": {"color": "$colors.sun"}},
+    {"type": "spacer", "content": 12},
+    {"type": "paragraph", "text": "{{summary}}", "options": {"style": "body"}},
+    {"type": "spacer", "content": 12},
+    {
+      "component": "metrics_section",
+      "props": {
+        "title": "Performance at a glance",
+        "metrics": "{{metrics}}"
+      },
+      "slots": {
+        "after": [
+          {
+            "type": "paragraph",
+            "text": "Each indicator is supplied by report data and rendered by reusable .paperforge components.",
+            "options": {"style": "body"}
+          }
+        ]
+      }
+    },
+    {"type": "spacer", "content": 18},
+    {"type": "heading", "text": "Three priorities for durable growth", "options": {"style": "section"}},
+    {
+      "type": "columns",
+      "count": 3,
+      "paragraphs": [
+        "01 / DENSITY\nConnect routes where reliable demand and charging capacity reinforce each other.",
+        "02 / TRUST\nImprove safety, availability, and transparent pricing before accelerating reach.",
+        "03 / ENERGY\nUse renewable coverage and fleet efficiency to protect contribution margin."
+      ],
+      "options": {"style": "body", "column_gap": 18}
+    },
+    {"type": "spacer", "content": 16},
+    {"type": "chart", "content": [["Q1", 118], ["Q2", 132], ["Q3", 145], ["Q4", 167]], "options": {"height": 180, "color": "$colors.violet"}},
+    {"type": "page_break"},
+    {"type": "heading", "text": "Inside the report", "options": {"style": "title", "destination": "contents"}},
+    {"type": "paragraph", "text": "A concise route through performance, portfolio quality, and the decisions shaping Lumen Atlas after a year of disciplined expansion.", "options": {"style": "body"}},
+    {"type": "spacer", "content": 22},
+    {"type": "heading", "text": "01  /  Performance at a glance", "options": {"style": "section"}},
+    {"type": "paragraph", "text": "Revenue, margin, cash conversion, and quarterly momentum show how operating density translated into stronger economics.", "options": {"style": "body"}},
+    {"type": "reference", "content": "cover", "options": {"text": "Open performance overview  /  page {page}"}},
+    {"type": "spacer", "content": 18},
+    {"type": "heading", "text": "02  /  Operating portfolio", "options": {"style": "section"}},
+    {"type": "paragraph", "text": "Six programs reveal where demand, retention, charging partnerships, and launch investment produced the year's outcome.", "options": {"style": "body"}},
+    {"type": "reference", "content": "portfolio", "options": {"text": "Open operating portfolio  /  page {page}"}},
+    {"type": "spacer", "content": 18},
+    {"type": "heading", "text": "03  /  Outlook and rider voice", "options": {"style": "section"}},
+    {"type": "paragraph", "text": "The closing section turns the report into an action: scan the native QR code and help prioritize the next route, safety improvement, or charging location.", "options": {"style": "body"}},
+    {"type": "spacer", "content": 26},
+    {"type": "heading", "text": "What to look for", "options": {"style": "section"}},
+    {"type": "paragraph", "text": "01  Growth is broad-based rather than concentrated in one program.", "options": {"style": "body", "space_after": 5}},
+    {"type": "paragraph", "text": "02  The single decline is planned launch investment, not deteriorating demand.", "options": {"style": "body", "space_after": 5}},
+    {"type": "paragraph", "text": "03  Cash conversion creates room for charging and safety improvements.", "options": {"style": "body", "space_after": 5}},
+    {"type": "paragraph", "text": "04  Every section is generated from validated data and reusable design tokens.", "options": {"style": "body"}},
+    {"type": "page_break"},
+    {"type": "heading", "text": "Operating portfolio", "options": {"style": "section", "destination": "portfolio"}},
+    {"type": "paragraph", "text": "The portfolio combines profitable scale with disciplined expansion. Each program is measured against revenue quality, retention and contribution margin.", "options": {"style": "body"}},
+    {
+      "type": "table",
+      "columns": ["Program", "Market", "Revenue", "Growth", "Strategic signal"],
+      "rows": "{{program_rows}}",
+      "options": {
+        "repeat_header": true,
+        "column_widths": [92, 72, 72, 62, 190],
+        "row_height": 44,
+        "cell_line_height": 11,
+        "size": 8,
+        "padding": 7,
+        "space_after": 26,
+        "header_fill_color": "$colors.ink",
+        "header_color": "#ffffff",
+        "stripe_fill_color": "$colors.mist",
+        "row_split": "keep"
+      }
+    },
+    {
+      "if": "show_outlook",
+      "then": [
+        {"type": "heading", "text": "Outlook", "options": {"style": "section", "destination": "outlook"}},
+        {"type": "paragraph", "text": "{{outlook}}", "options": {"style": "body"}},
+        {"type": "qr_code", "content": "https://hex.pm/packages/paper_forge", "options": {"width": 72, "height": 72}}
+      ]
+    }
+  ]
+}

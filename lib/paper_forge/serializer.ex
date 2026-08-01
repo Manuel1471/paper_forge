@@ -19,6 +19,20 @@ defmodule PaperForge.Serializer do
   alias PaperForge.Reference
   alias PaperForge.Stream
 
+  @doc false
+  @spec prepare_stream(Stream.t()) :: {map(), binary()}
+  def prepare_stream(%Stream{} = stream) do
+    raw_data = Stream.raw_data(stream)
+    {encoded_data, filter_names} = apply_filters(raw_data, stream.filters)
+
+    dictionary =
+      stream.dictionary
+      |> Map.put("Length", byte_size(encoded_data))
+      |> put_stream_filters(filter_names)
+
+    {dictionary, encoded_data}
+  end
+
   @type pdf_name :: {:name, binary()}
   @type pdf_hex_string :: {:hex_string, binary()}
 
@@ -178,25 +192,7 @@ defmodule PaperForge.Serializer do
   end
 
   defp encode_stream(%Stream{} = stream) do
-    raw_data =
-      Stream.raw_data(stream)
-
-    {
-      encoded_data,
-      filter_names
-    } =
-      apply_filters(
-        raw_data,
-        stream.filters
-      )
-
-    dictionary =
-      stream.dictionary
-      |> Map.put(
-        "Length",
-        byte_size(encoded_data)
-      )
-      |> put_stream_filters(filter_names)
+    {dictionary, encoded_data} = prepare_stream(stream)
 
     [
       encode_dictionary(dictionary),
