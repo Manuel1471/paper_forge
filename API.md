@@ -28,6 +28,14 @@ by the `1.x` compatibility contract:
 - `PaperForge.Signature`
 - `PaperForge.Signature.Provider`
 - `PaperForge.Signature.Providers.SignCore`
+- `PaperForge.Import`
+- `PaperForge.Import.CSS`
+- `PaperForge.Import.HTML`
+- `PaperForge.Import.Markdown`
+- `PaperForge.Interoperability`
+- `PaperForge.Math`
+- `PaperForge.Scientific`
+- `PaperForge.AcroForm`
 - Public exception modules
 
 Modules whose `@moduledoc` is `false` are implementation details. Their names,

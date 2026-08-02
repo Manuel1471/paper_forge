@@ -82,4 +82,24 @@ defmodule PaperForge.PageTest do
     assert content =~ "(Hello) Tj"
     assert content =~ "ET"
   end
+
+  test "renders SVG text with inherited typographic presentation" do
+    page =
+      Page.new(origin: :top_left)
+      |> PaperForge.SVG.render(
+        "<svg viewBox='0 0 200 50'><g style='font-size: 18; font-weight: bold; fill: #0f766e'><text x='100' y='28' text-anchor='middle'>Vector label</text></g></svg>",
+        x: 20,
+        y: 20,
+        width: 200,
+        height: 50
+      )
+
+    assert Enum.any?(page.operations, fn
+             {:text, "Vector label", options} ->
+               options[:weight] == :bold and options[:size] > 0
+
+             _ ->
+               false
+           end)
+  end
 end

@@ -80,6 +80,54 @@ defmodule PaperForge.DocumentAuthoringTest do
     assert pdf =~ "Report contents"
   end
 
+  test "preserves multiline rich-text styles and inline links" do
+    {document, report} =
+      PaperForge.new(compress: false)
+      |> PaperForge.layout(
+        fn flow ->
+          Flow.rich_text(
+            flow,
+            [
+              {"Bold introduction that wraps ", [weight: :bold]},
+              {"linked continuation", [link: "https://example.com", style: :italic]}
+            ],
+            width: 72,
+            size: 10,
+            line_height: 13
+          )
+        end,
+        size: {160, 220},
+        margins: 24
+      )
+
+    assert Enum.any?(report.placements, &(&1.type == :rich_text))
+    pdf = PaperForge.to_binary(document)
+    assert pdf =~ "/Helvetica-Bold"
+    assert pdf =~ "/Helvetica-Oblique"
+    assert pdf =~ "/URI (https://example.com)"
+  end
+
+  test "renders paragraph backgrounds and grid typography options" do
+    {document, _report} =
+      PaperForge.new(compress: false)
+      |> PaperForge.layout(fn flow ->
+        flow
+        |> Flow.paragraph("Panel",
+          background_color: PaperForge.Color.rgb255(230, 240, 250),
+          padding: 8
+        )
+        |> Flow.grid(1, ["Important"],
+          weight: :bold,
+          color: PaperForge.Color.rgb255(10, 80, 60)
+        )
+      end)
+
+    pdf = PaperForge.to_binary(document)
+    assert pdf =~ "0.901961 0.941176 0.980392 rg"
+    assert pdf =~ "/Helvetica-Bold"
+    assert pdf =~ "0.039216 0.313725 0.235294 rg"
+  end
+
   test "renders chart and SVG vector flow blocks with measurement diagnostics" do
     {document, report} =
       PaperForge.new(compress: false)
@@ -104,6 +152,34 @@ defmodule PaperForge.DocumentAuthoringTest do
     assert Enum.any?(report.placements, &(&1.type == :barcode))
     assert length(report.measurements) == length(report.placements)
     assert PaperForge.to_binary(document) =~ " re"
+  end
+
+  test "renders configurable vector chart families" do
+    chart_types = [:bar, :line, :area, :scatter, :pie, :donut]
+
+    {document, report} =
+      PaperForge.new(compress: false)
+      |> PaperForge.layout(
+        fn flow ->
+          Enum.reduce(chart_types, flow, fn type, current ->
+            Flow.chart(current, [{"A", 12}, {"B", 18}, {"C", 9}],
+              chart_type: type,
+              height: 90,
+              show_values: true,
+              background_color: PaperForge.Color.rgb255(244, 247, 248),
+              label_color: PaperForge.Color.rgb255(16, 47, 66)
+            )
+          end)
+        end,
+        page_options: [size: {420, 720}, margins: 30]
+      )
+
+    assert Enum.count(report.placements, &(&1.type == :chart)) == length(chart_types)
+    pdf = PaperForge.to_binary(document)
+    assert pdf =~ " re"
+    assert pdf =~ " c"
+    assert pdf =~ "0.956863 0.968627 0.972549 rg"
+    assert pdf =~ "0.062745 0.184314 0.258824 rg"
   end
 
   test "renders SVG paths, transforms, viewBox, groups, clipping, and cascading styles" do
@@ -143,8 +219,8 @@ defmodule PaperForge.DocumentAuthoringTest do
 
     pdf = PaperForge.to_binary(document)
 
-    [_, bar_y, bar_height] =
-      Regex.run(~r/156 ([\d.]+) 114 ([\d.]+) re/, pdf)
+    [_, bar_y, bar_width, bar_height] =
+      Regex.run(~r/156 ([\d.]+) ([\d.]+) ([\d.]+) re/, pdf)
 
     [_, label_y] =
       Regex.run(~r/1 0 0 1 [\d.]+ ([\d.]+) Tm\n\(18\)/, pdf)
@@ -155,6 +231,8 @@ defmodule PaperForge.DocumentAuthoringTest do
     end
 
     assert parse_number.(label_y) > parse_number.(bar_y) + parse_number.(bar_height)
+    assert parse_number.(bar_width) < 114
+    assert pdf =~ "42 240 102"
   end
 
   test "selects first, odd, even, and last page template variants" do

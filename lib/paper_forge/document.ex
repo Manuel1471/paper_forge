@@ -340,7 +340,11 @@ defmodule PaperForge.Document do
         )
 
       :error ->
-        font_key
+        builtin_font_variant(
+          font_key,
+          Keyword.get(options, :weight, :regular),
+          Keyword.get(options, :style, :regular)
+        )
     end
   end
 
@@ -1541,6 +1545,32 @@ defmodule PaperForge.Document do
   defp font_variant(_weight, :italic), do: :italic
   defp font_variant(_weight, :oblique), do: :italic
   defp font_variant(_weight, _style), do: :regular
+
+  defp builtin_font_variant(:helvetica, :bold, style) when style in [:italic, :oblique],
+    do: :helvetica_bold_oblique
+
+  defp builtin_font_variant(:helvetica, :bold, _style), do: :helvetica_bold
+
+  defp builtin_font_variant(:helvetica, _weight, style) when style in [:italic, :oblique],
+    do: :helvetica_oblique
+
+  defp builtin_font_variant(:times_roman, :bold, style) when style in [:italic, :oblique],
+    do: :times_bold_italic
+
+  defp builtin_font_variant(:times_roman, :bold, _style), do: :times_bold
+
+  defp builtin_font_variant(:times_roman, _weight, style) when style in [:italic, :oblique],
+    do: :times_italic
+
+  defp builtin_font_variant(:courier, :bold, style) when style in [:italic, :oblique],
+    do: :courier_bold_oblique
+
+  defp builtin_font_variant(:courier, :bold, _style), do: :courier_bold
+
+  defp builtin_font_variant(:courier, _weight, style) when style in [:italic, :oblique],
+    do: :courier_oblique
+
+  defp builtin_font_variant(font_key, _weight, _style), do: font_key
 
   defp validate_jpeg_data!(jpeg_data) do
     cond do

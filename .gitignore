@@ -12,3 +12,5 @@ erl_crash.dump
 .idea/
 
 paper_forge-*.tar
+/tmp/
+/output/

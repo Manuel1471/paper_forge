@@ -38,6 +38,7 @@ defmodule PaperForge.Page do
           | {:bookmark, binary(), keyword()}
           | {:note, binary(), keyword()}
           | {:highlight, binary(), keyword()}
+          | {:annotation, atom(), keyword()}
 
   @type t :: %__MODULE__{
           width: number(),
@@ -269,6 +270,45 @@ defmodule PaperForge.Page do
   end
 
   @doc """
+  Adds a standard PDF annotation.
+
+  Supported types are `:underline`, `:strikeout`, `:stamp`, `:free_text`,
+  `:square`, `:circle`, `:ink`, and `:file_attachment`. Common options include
+  `:x`, `:y`, `:width`, `:height`, `:contents`, `:color`, `:author`,
+  `:subject`, and `:reply_to`.
+  """
+  @spec annotation(t(), atom(), keyword()) :: t()
+  def annotation(%__MODULE__{} = page, type, options)
+      when type in [
+             :underline,
+             :strikeout,
+             :stamp,
+             :free_text,
+             :square,
+             :circle,
+             :ink,
+             :file_attachment
+           ] and
+             is_list(options) do
+    add_operation(page, {:annotation, type, options})
+  end
+
+  @doc "Adds an underline annotation."
+  @spec underline(t(), binary(), keyword()) :: t()
+  def underline(%__MODULE__{} = page, contents, options),
+    do: annotation(page, :underline, Keyword.put(options, :contents, contents))
+
+  @doc "Adds a strikeout annotation."
+  @spec strikeout(t(), binary(), keyword()) :: t()
+  def strikeout(%__MODULE__{} = page, contents, options),
+    do: annotation(page, :strikeout, Keyword.put(options, :contents, contents))
+
+  @doc "Adds a named stamp annotation."
+  @spec stamp(t(), binary(), keyword()) :: t()
+  def stamp(%__MODULE__{} = page, contents, options),
+    do: annotation(page, :stamp, Keyword.put(options, :contents, contents))
+
+  @doc """
   Adds a basic table.
 
   Rows are lists of cell values. Table cells are drawn with rectangles
@@ -341,7 +381,7 @@ defmodule PaperForge.Page do
         text_height = line_count * line_height
 
         text_y =
-          case cell.valign do
+          case cell.valign || Keyword.get(options, :cell_valign, :top) do
             :middle -> row_y + max((cell_height - text_height) / 2, padding)
             :bottom -> row_y + max(cell_height - text_height - padding, padding)
             _top -> row_y + padding
@@ -399,7 +439,8 @@ defmodule PaperForge.Page do
   defp table_cell_fill(false, true, options),
     do: Keyword.get(options, :stripe_fill_color, PaperForge.Color.white())
 
-  defp table_cell_fill(false, false, _options), do: PaperForge.Color.white()
+  defp table_cell_fill(false, false, options),
+    do: Keyword.get(options, :body_fill_color, PaperForge.Color.white())
 
   defp normalize_page_table_cell(%{content: _content} = cell) do
     %{
@@ -422,7 +463,7 @@ defmodule PaperForge.Page do
       rowspan: 1,
       column: nil,
       align: nil,
-      valign: :top,
+      valign: nil,
       borders: :all,
       fill_color: nil,
       color: nil
@@ -694,6 +735,12 @@ defmodule PaperForge.Page do
 
         {current_document, annotations ++ [reference]}
 
+      {:annotation, type, options}, {current_document, annotations} ->
+        {current_document, reference} =
+          add_standard_annotation(page, current_document, type, options)
+
+        {current_document, annotations ++ [reference]}
+
       _operation, state ->
         state
     end)
@@ -800,6 +847,120 @@ defmodule PaperForge.Page do
       "C" => Keyword.get(options, :color, [1, 0.92, 0.23])
     }
   end
+
+  defp add_standard_annotation(page, document, :file_attachment, options) do
+    filename = Keyword.fetch!(options, :filename)
+    data = Keyword.fetch!(options, :data)
+
+    stream =
+      Stream.new(data,
+        dictionary: %{
+          "Type" => {:name, "EmbeddedFile"},
+          "Subtype" => Keyword.get(options, :mime, "application/octet-stream")
+        },
+        filters: [:flate]
+      )
+
+    {document, stream_reference} = Document.add_object(document, stream)
+
+    file_spec = %{
+      "Type" => {:name, "Filespec"},
+      "F" => filename,
+      "UF" => filename,
+      "Desc" => Keyword.get(options, :description, filename),
+      "EF" => %{"F" => stream_reference}
+    }
+
+    {document, file_reference} = Document.add_object(document, file_spec)
+
+    dictionary =
+      page
+      |> standard_annotation(:file_attachment, options)
+      |> Map.put("FS", file_reference)
+      |> Map.put("Name", {:name, Atom.to_string(Keyword.get(options, :icon, :PushPin))})
+
+    Document.add_object(document, dictionary)
+  end
+
+  defp add_standard_annotation(page, document, type, options),
+    do: Document.add_object(document, standard_annotation(page, type, options))
+
+  defp standard_annotation(page, type, options) do
+    {x, y, width, height} = annotation_box(page, options)
+
+    %{
+      "Type" => {:name, "Annot"},
+      "Subtype" => {:name, annotation_subtype(type)},
+      "Rect" => [x, y, x + width, y + height],
+      "Contents" => Keyword.get(options, :contents, ""),
+      "C" => Keyword.get(options, :color, [0.95, 0.45, 0.2]),
+      "F" => Keyword.get(options, :flags, 4)
+    }
+    |> maybe_annotation_value("T", Keyword.get(options, :author))
+    |> maybe_annotation_value("Subj", Keyword.get(options, :subject))
+    |> maybe_annotation_value("IRT", Keyword.get(options, :reply_to))
+    |> maybe_annotation_value("RT", reply_type(options))
+    |> add_annotation_geometry(type, x, y, width, height, options)
+  end
+
+  defp add_annotation_geometry(dictionary, type, x, y, width, height, _options)
+       when type in [:underline, :strikeout] do
+    Map.put(dictionary, "QuadPoints", [x, y + height, x + width, y + height, x, y, x + width, y])
+  end
+
+  defp add_annotation_geometry(dictionary, :stamp, _x, _y, _width, _height, options),
+    do:
+      Map.put(
+        dictionary,
+        "Name",
+        {:name, annotation_name(Keyword.get(options, :name, :Approved))}
+      )
+
+  defp add_annotation_geometry(dictionary, :free_text, _x, _y, _width, _height, options),
+    do: Map.put(dictionary, "DA", Keyword.get(options, :default_appearance, "/Helv 10 Tf 0 g"))
+
+  defp add_annotation_geometry(dictionary, type, _x, _y, _width, _height, options)
+       when type in [:square, :circle] do
+    dictionary
+    |> Map.put("BS", %{"W" => Keyword.get(options, :line_width, 1), "S" => {:name, "S"}})
+    |> maybe_annotation_value("IC", Keyword.get(options, :fill_color))
+  end
+
+  defp add_annotation_geometry(dictionary, :ink, x, y, _width, _height, options) do
+    strokes = Keyword.get(options, :points, [[{x, y}]])
+
+    ink_list =
+      Enum.map(strokes, fn
+        stroke when is_list(stroke) and stroke != [] and is_number(hd(stroke)) -> stroke
+        stroke -> Enum.flat_map(stroke, fn {px, py} -> [px, py] end)
+      end)
+
+    Map.put(dictionary, "InkList", ink_list)
+  end
+
+  defp add_annotation_geometry(dictionary, _type, _x, _y, _width, _height, _options),
+    do: dictionary
+
+  defp annotation_subtype(:underline), do: "Underline"
+  defp annotation_subtype(:strikeout), do: "StrikeOut"
+  defp annotation_subtype(:stamp), do: "Stamp"
+  defp annotation_subtype(:free_text), do: "FreeText"
+  defp annotation_subtype(:square), do: "Square"
+  defp annotation_subtype(:circle), do: "Circle"
+  defp annotation_subtype(:ink), do: "Ink"
+  defp annotation_subtype(:file_attachment), do: "FileAttachment"
+
+  defp annotation_name(value) when is_atom(value), do: Atom.to_string(value)
+  defp annotation_name(value) when is_binary(value), do: value
+
+  defp reply_type(options) do
+    if Keyword.has_key?(options, :reply_to),
+      do: {:name, Atom.to_string(Keyword.get(options, :reply_type, :R))},
+      else: nil
+  end
+
+  defp maybe_annotation_value(dictionary, _key, nil), do: dictionary
+  defp maybe_annotation_value(dictionary, key, value), do: Map.put(dictionary, key, value)
 
   defp annotation_box(page, options) do
     x = Keyword.fetch!(options, :x)

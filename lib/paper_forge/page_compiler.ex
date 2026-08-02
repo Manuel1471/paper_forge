@@ -299,6 +299,10 @@ defmodule PaperForge.PageCompiler do
     {document, [], resources}
   end
 
+  defp compile_operation(_page, document, resources, {:annotation, _type, _options}) do
+    {document, [], resources}
+  end
+
   defp compile_local_operation(page, {:text, text, options}, font_resources) do
     font_key =
       Keyword.get(options, :font, :helvetica)
@@ -379,6 +383,12 @@ defmodule PaperForge.PageCompiler do
   defp compile_local_operation(_page, {:bookmark, _title, _options}, _font_resources) do
     []
   end
+
+  defp compile_local_operation(_page, {type, _contents, _options}, _font_resources)
+       when type in [:note, :highlight],
+       do: []
+
+  defp compile_local_operation(_page, {:annotation, _type, _options}, _font_resources), do: []
 
   defp compile_line_operation(page, options) do
     origin =
