@@ -59,7 +59,10 @@ defmodule PaperForge.DeclarativeTest do
       })
       |> DesignSystem.layout(:report, %{
         "document" => %{"compress" => false},
-        "layout_options" => %{"size" => [300, 360], "margins" => 30},
+        "layout_options" => %{
+          "size" => [300, 360],
+          "margins" => %{"top" => 42, "right" => 30, "bottom" => 36, "left" => 30}
+        },
         "styles" => %{"ignored" => %{"size" => 8}}
       })
       |> DesignSystem.theme(:base, %{
@@ -96,6 +99,10 @@ defmodule PaperForge.DeclarativeTest do
 
     assert compiled.document_options[:compress] == false
     assert compiled.layout_options[:size] == {300, 360}
+
+    assert Enum.sort(compiled.layout_options[:margins]) ==
+             Enum.sort(top: 42, right: 30, bottom: 36, left: 30)
+
     assert compiled.styles[:title][:color] == PaperForge.Color.rgb255(7, 89, 133)
     assert compiled.styles[:metric][:size] == 9
   end
@@ -207,5 +214,119 @@ defmodule PaperForge.DeclarativeTest do
              Declarative.compile(source)
 
     assert message =~ "unknown property"
+  end
+
+  test "writes security credentials declared entirely in the template" do
+    source = %{
+      "version" => "1",
+      "security" => %{
+        "algorithm" => "aes_256",
+        "user_password" => "reader-secret",
+        "owner_password" => "owner-secret",
+        "permissions" => %{"copy" => false, "modify" => false}
+      },
+      "blocks" => [%{"type" => "paragraph", "text" => "Protected declarative PDF"}]
+    }
+
+    path = Path.join(System.tmp_dir!(), "paper_forge_embedded_security.pdf")
+    assert {:ok, %{pages: 1}} = Declarative.write(source, %{}, path)
+
+    pdf = File.read!(path)
+    assert pdf =~ "/CFM /AESV3"
+    refute pdf =~ "Protected declarative PDF"
+  end
+
+  test "renders declarative chart variants and palettes" do
+    source = %{
+      "version" => "1",
+      "document" => %{"compress" => false},
+      "blocks" => [
+        %{
+          "type" => "chart",
+          "content" => [["Coherent", 62], ["Damped", 23], ["Noise", 15]],
+          "options" => %{
+            "chart_type" => "donut",
+            "colors" => ["#0f8f83", "#e76554", "#e8ad35"],
+            "background_color" => "#edf7f7",
+            "label_color" => "#102f42",
+            "height" => 140,
+            "inner_radius" => 0.58
+          }
+        }
+      ]
+    }
+
+    assert {:ok, document, %{pages: 1}} = Declarative.render(source)
+    pdf = PaperForge.to_binary(document)
+    assert pdf =~ " c"
+    assert pdf =~ "0.058824 0.560784 0.513725 rg"
+    assert pdf =~ "0.929412 0.968627 0.968627 rg"
+    assert pdf =~ "0.062745 0.184314 0.258824 rg"
+  end
+
+  test "renders declarative rich text with bold inline runs" do
+    source = %{
+      "version" => "1",
+      "document" => %{"compress" => false},
+      "blocks" => [
+        %{
+          "type" => "rich_text",
+          "content" => [
+            %{"text" => "Finding. ", "options" => %{"weight" => "bold"}},
+            %{"text" => "Structured run. "},
+            "The measured response remained stable."
+          ]
+        }
+      ]
+    }
+
+    assert {:ok, document, %{pages: 1}} = Declarative.render(source)
+    assert PaperForge.to_binary(document) =~ "/BaseFont /Helvetica-Bold"
+  end
+
+  test "keeps paragraphs regular unless weight is explicitly bold" do
+    regular = %{
+      "version" => "1",
+      "document" => %{"compress" => false},
+      "blocks" => [%{"type" => "paragraph", "text" => "Regular research paragraph"}]
+    }
+
+    assert {:ok, regular_document, _report} = Declarative.render(regular)
+    regular_pdf = PaperForge.to_binary(regular_document)
+    assert regular_pdf =~ "/BaseFont /Helvetica"
+    refute regular_pdf =~ "/BaseFont /Helvetica-Bold"
+
+    bold = put_in(regular, ["blocks", Access.at(0), "options"], %{"weight" => "bold"})
+    assert {:ok, bold_document, _report} = Declarative.render(bold)
+    assert PaperForge.to_binary(bold_document) =~ "/BaseFont /Helvetica-Bold"
+  end
+
+  test "declarative columns preserve typography and column_gap" do
+    source = %{
+      "version" => "1",
+      "document" => %{"compress" => false},
+      "blocks" => [
+        %{
+          "type" => "columns",
+          "count" => 2,
+          "paragraphs" => ["First column", "Second column"],
+          "options" => %{
+            "column_gap" => 36,
+            "weight" => "bold",
+            "color" => "#176b87",
+            "align" => "right"
+          }
+        }
+      ]
+    }
+
+    assert {:ok, compiled} = Declarative.compile(source)
+    [block] = compiled.flow.blocks
+    assert block.options[:column_gap] == 36
+
+    assert {:ok, document, _report} = Declarative.render(source)
+    pdf = PaperForge.to_binary(document)
+    assert pdf =~ "/BaseFont /Helvetica-Bold"
+    assert pdf =~ "0.090196 0.419608 0.529412 rg"
   end
 end

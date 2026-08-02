@@ -298,19 +298,29 @@ mix paper_forge.validate documents/components/metric_line.paperforge \
 ## What May Still Need Technical Support?
 
 Most business documents can be built with `.paperforge` blocks and components.
-A design that draws shapes at very specific coordinates or performs an operation
-that does not yet have a declarative block may require a component registered by
-the application.
+A template can also import Markdown or the supported HTML subset, draw native
+formulas, number equations, add notes and references, create standard form
+fields, and place common review annotations. Form fields use a page number and
+four-number rectangle because PDF viewers need an exact interactive area.
+
+Combining existing PDF files remains an application operation. A template does
+not receive permission to open arbitrary PDFs from disk; the application can
+compose trusted documents with `PaperForge.Interoperability` before or after
+rendering the template.
+
+A design that performs a new operation without a declarative block may still
+use a component registered by the application.
 
 That code is optional and controlled by the application maintainer. Template
 authors cannot execute arbitrary functions from a `.paperforge` file.
 
 ## Included Example
 
-Review `examples/paper_forge_1_3_showcase.paperforge`. It is a self-contained
-report with default data, reusable inline components, themes, chart, table,
+Review `examples/paper_forge_1_4_showcase.paperforge`. It is a self-contained
+report with default data, reusable inline components, themes, imported markup,
+native equations, bibliography, AcroForms, annotations, chart, table,
 navigation, QR output, security policy, and accessible tagged-PDF preparation.
-`examples/paper_forge_1_3_showcase.exs` shows the same report domain with full
+`examples/paper_forge_1_4_showcase.exs` shows the same report domain with full
 coordinate-level drawing control.
 
 For every available option and detailed security information, read

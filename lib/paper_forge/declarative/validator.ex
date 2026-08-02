@@ -7,7 +7,7 @@ defmodule PaperForge.Declarative.Validator do
   @root_fields MapSet.new(~w(
     version id variables document metadata layout_options page_templates design_system
     theme layout blocks imports includes libraries components kind name props defaults slots
-    security signature protection compliance
+    security signature protection compliance forms
     variants __source__ __root__ __locations__
   ))
   @variable_fields MapSet.new(~w(
@@ -16,11 +16,17 @@ defmodule PaperForge.Declarative.Validator do
   ))
   @control_fields MapSet.new(~w(if then else for blocks component props slots variant slot))
   @block_fields MapSet.new(
-                  ~w(type text content options columns rows min_rows max_rows cells count paragraphs)
+                  ~w(type text content options columns rows min_rows max_rows cells count paragraphs ast annotation_type entries number)
                 )
+  @form_fields MapSet.new(
+                 ~w(type name page rect origin value default tooltip options choices calculation background_color border_color border_width border_radius check_color check_width)
+               )
+  @form_types ~w(text checkbox button radio list combo signature)
   @types ~w(any string number integer boolean list map)
   @formats ~w(url color file)
-  @security_fields MapSet.new(~w(algorithm encrypt_metadata permissions))
+  @security_fields MapSet.new(
+                     ~w(algorithm encrypt_metadata permissions user_password owner_password)
+                   )
   @permission_fields MapSet.new(~w(print copy modify extract))
   @signature_fields MapSet.new(
                       ~w(algorithm reason location contact_info timestamp tsa_url visible multiple)
@@ -41,7 +47,8 @@ defmodule PaperForge.Declarative.Validator do
         component_file_errors(template) ++
         policy_errors(template) ++
         variable_definition_errors(Map.get(template, "variables", %{})) ++
-        block_errors(Map.get(template, "blocks", []), "$.blocks")
+        block_errors(Map.get(template, "blocks", []), "$.blocks") ++
+        form_errors(Map.get(template, "forms", []), "$.forms")
 
     {values, data_errors} =
       validate_variables(Map.get(template, "variables", %{}), data, registry)
@@ -363,6 +370,110 @@ defmodule PaperForge.Declarative.Validator do
   end
 
   defp block_errors(_blocks, path), do: [error(:invalid_blocks, path, "blocks must be a list")]
+
+  defp form_errors(forms, path) when is_list(forms) do
+    forms
+    |> Enum.with_index()
+    |> Enum.flat_map(fn
+      {form, index} when is_map(form) ->
+        item_path = "#{path}[#{index}]"
+        type = form["type"]
+
+        unknown_keys(form, @form_fields, item_path, :unknown_form_field) ++
+          maybe(
+            [],
+            type not in @form_types,
+            :invalid_form_type,
+            "#{item_path}.type",
+            "unsupported form field type"
+          ) ++
+          maybe(
+            [],
+            not is_binary(form["name"]),
+            :invalid_form_name,
+            "#{item_path}.name",
+            "form name must be a string"
+          ) ++
+          maybe(
+            [],
+            type != "radio" and not (is_integer(form["page"]) and form["page"] > 0),
+            :invalid_form_page,
+            "#{item_path}.page",
+            "form page must be a positive integer"
+          ) ++
+          maybe(
+            [],
+            type != "radio" and not valid_rect?(form["rect"]),
+            :invalid_form_rect,
+            "#{item_path}.rect",
+            "form rect must contain four increasing numbers"
+          ) ++
+          maybe(
+            [],
+            type == "radio" and not valid_radio_choices?(form["choices"]),
+            :invalid_radio_choices,
+            "#{item_path}.choices",
+            "radio choices require page, rect, and value"
+          ) ++
+          maybe(
+            [],
+            Map.get(form, "origin", "bottom_left") not in ["bottom_left", "top_left"],
+            :invalid_form_origin,
+            "#{item_path}.origin",
+            "form origin must be bottom_left or top_left"
+          ) ++ form_appearance_errors(form, item_path)
+
+      {_form, index} ->
+        [error(:invalid_form, "#{path}[#{index}]", "form field must be an object")]
+    end)
+  end
+
+  defp form_errors(_forms, path), do: [error(:invalid_forms, path, "forms must be a list")]
+
+  defp form_appearance_errors(form, path) do
+    numeric_errors =
+      Enum.flat_map(~w(border_width border_radius check_width), fn key ->
+        value = form[key]
+
+        maybe(
+          [],
+          not is_nil(value) and not (is_number(value) and value >= 0),
+          :invalid_form_appearance,
+          "#{path}.#{key}",
+          "#{key} must be a non-negative number"
+        )
+      end)
+
+    color_errors =
+      Enum.flat_map(~w(background_color border_color check_color), fn key ->
+        value = form[key]
+
+        maybe(
+          [],
+          not is_nil(value) and not is_binary(value),
+          :invalid_form_appearance,
+          "#{path}.#{key}",
+          "#{key} must be a PDF color string"
+        )
+      end)
+
+    numeric_errors ++ color_errors
+  end
+
+  defp valid_rect?([x1, y1, x2, y2]),
+    do: Enum.all?([x1, y1, x2, y2], &is_number/1) and x2 > x1 and y2 > y1
+
+  defp valid_rect?(_rect), do: false
+
+  defp valid_radio_choices?(choices) when is_list(choices) and choices != [],
+    do:
+      Enum.all?(
+        choices,
+        &(is_map(&1) and is_integer(&1["page"]) and valid_rect?(&1["rect"]) and
+            not is_nil(&1["value"]))
+      )
+
+  defp valid_radio_choices?(_choices), do: false
 
   defp node_errors(node, path) when is_map(node) do
     allowed = MapSet.union(@control_fields, @block_fields)

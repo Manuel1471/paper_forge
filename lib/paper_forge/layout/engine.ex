@@ -576,12 +576,13 @@ defmodule PaperForge.Layout.Engine do
         marker =
           case Keyword.get(block.options, :type, :unordered) do
             :ordered -> "#{index}."
+            :none -> ""
             :unordered -> "•"
           end
 
         Block.new(
           :paragraph,
-          "#{marker} #{item}",
+          if(marker == "", do: to_string(item), else: "#{marker} #{item}"),
           Keyword.merge(block.options,
             id: "#{block.id}-item-#{index}",
             first_line_indent: Keyword.get(block.options, :marker_width, 24)
@@ -615,7 +616,7 @@ defmodule PaperForge.Layout.Engine do
     lines =
       TextWrapper.wrap(text,
         width: fragment_width(%{block: block}, state.page),
-        font: Keyword.get(block.options, :font, :helvetica),
+        font: metric_font_for_block(block),
         size: size,
         hyphenate: Keyword.get(block.options, :hyphenate, false)
       )
@@ -997,7 +998,7 @@ defmodule PaperForge.Layout.Engine do
       colspan: 1,
       rowspan: 1,
       align: nil,
-      valign: :top,
+      valign: nil,
       borders: :all,
       fill_color: nil,
       color: nil
@@ -1038,15 +1039,39 @@ defmodule PaperForge.Layout.Engine do
 
   defp place_text_lines(block, lines, state) do
     line_height = line_height(block)
+    padding = Keyword.get(block.options, :padding, 0)
     space_before = Keyword.get(block.options, :space_before, 0)
     space_after = Keyword.get(block.options, :space_after, default_space_after(block))
-    available_lines = max(floor(max(available_height(state) - space_before, 0) / line_height), 1)
+
+    required_height =
+      length(lines) * line_height + padding * 2 + space_before + space_after
+
+    full_page_height = state.bottom_y - Page.content_top(state.page)
+
+    state =
+      if Keyword.get(block.options, :keep_together, false) and
+           required_height > available_height(state) and required_height <= full_page_height and
+           current_page_has_content?(state) do
+        next_page(state)
+      else
+        state
+      end
+
+    available_lines =
+      max(
+        floor(
+          max(available_height(state) - space_before - space_after - padding * 2, 0) /
+            line_height
+        ),
+        1
+      )
+
     {visible, remaining} = Enum.split(lines, available_lines)
 
     {visible, remaining, state} =
       apply_widow_orphan_control(block, visible, remaining, lines, state)
 
-    height = length(visible) * line_height + space_before + space_after
+    height = length(visible) * line_height + padding * 2 + space_before + space_after
     ensure_fits_empty_page!(block, height, state)
 
     state =
@@ -1261,9 +1286,11 @@ defmodule PaperForge.Layout.Engine do
          %Block{type: :columns, content: %{count: count, paragraphs: paragraphs}} = block,
          state
        ) do
+    gap = Keyword.get(block.options, :column_gap, Keyword.get(block.options, :gap, 18))
+
     width =
       (fragment_width(%{block: block}, state.page) -
-         (count - 1) * Keyword.get(block.options, :gap, 18)) / count
+         (count - 1) * gap) / count
 
     line_height = line_height(block)
 
@@ -1271,7 +1298,7 @@ defmodule PaperForge.Layout.Engine do
     |> Enum.map(fn paragraph ->
       TextWrapper.wrap(paragraph,
         width: width,
-        font: Keyword.get(block.options, :font, :helvetica),
+        font: metric_font_for_block(block),
         size: default_size(block)
       )
       |> length()
@@ -1284,13 +1311,88 @@ defmodule PaperForge.Layout.Engine do
   end
 
   defp paragraph_lines(block, state) do
-    TextWrapper.wrap(
-      block_text(block),
-      width: Keyword.get(block.options, :width, Page.content_width(state.page)),
-      font: Keyword.get(block.options, :font, :helvetica),
-      size: Keyword.get(block.options, :size, default_size(block)),
-      hyphenate: Keyword.get(block.options, :hyphenate, false)
-    )
+    padding = Keyword.get(block.options, :padding, 0)
+    width = max(resolved_block_width(block, state.page) - padding * 2, 1)
+
+    if block.type == :rich_text do
+      rich_text_lines(block.content, block, width)
+    else
+      TextWrapper.wrap(
+        block_text(block),
+        width: width,
+        font: metric_font_for_block(block),
+        size: Keyword.get(block.options, :size, default_size(block)),
+        hyphenate: Keyword.get(block.options, :hyphenate, false)
+      )
+    end
+  end
+
+  defp rich_text_lines(runs, block, width) do
+    runs
+    |> Enum.flat_map(fn %{text: text, options: options} ->
+      ~r/\n|[^\S\n]+|[^\s]+/u
+      |> Regex.scan(text)
+      |> Enum.map(fn [token] -> %{text: token, options: options} end)
+    end)
+    |> Enum.reduce([[]], &append_rich_token(&2, &1, block, width))
+    |> Enum.reverse()
+    |> Enum.map(&Enum.reverse/1)
+  end
+
+  defp append_rich_token(lines, %{text: "\n"}, _block, _width), do: [[] | lines]
+
+  defp append_rich_token([[] | _rest] = lines, %{text: text}, _block, _width)
+       when text in [" ", "\t"],
+       do: lines
+
+  defp append_rich_token([line | rest] = lines, fragment, block, width) do
+    cond do
+      rich_line_width(Enum.reverse([fragment | line]), block) <= width ->
+        [append_rich_fragment(line, fragment) | rest]
+
+      fragment.text =~ ~r/^\s+$/u ->
+        [[] | lines]
+
+      line != [] ->
+        append_rich_token([[] | lines], fragment, block, width)
+
+      true ->
+        fragment.text
+        |> String.graphemes()
+        |> Enum.reduce(lines, fn grapheme, current ->
+          append_rich_token(current, %{fragment | text: grapheme}, block, width)
+        end)
+    end
+  end
+
+  defp append_rich_fragment([%{options: options, text: text} = last | rest], %{
+         options: options,
+         text: next
+       }),
+       do: [%{last | text: text <> next} | rest]
+
+  defp append_rich_fragment(line, fragment), do: [fragment | line]
+
+  defp rich_line_width(line, block) do
+    Enum.reduce(line, 0, fn %{text: text, options: options}, total ->
+      size = Keyword.get(options, :size, Keyword.get(block.options, :size, default_size(block)))
+      font = Keyword.get(options, :font, Keyword.get(block.options, :font, :helvetica))
+      weight = Keyword.get(options, :weight, Keyword.get(block.options, :weight, :regular))
+      style = Keyword.get(options, :style, Keyword.get(block.options, :style, :normal))
+
+      total +
+        PaperForge.TextMetrics.line_width(text,
+          font: builtin_metric_font(font, weight, style),
+          size: size
+        )
+    end)
+  end
+
+  defp resolved_block_width(block, page) do
+    case Keyword.get(block.options, :width, Page.content_width(page)) do
+      :content -> Page.content_width(page)
+      width -> width
+    end
   end
 
   defp apply_widow_orphan_control(block, visible, remaining, lines, state) do
@@ -1317,7 +1419,6 @@ defmodule PaperForge.Layout.Engine do
     end
   end
 
-  defp block_text(%Block{type: :rich_text, content: runs}), do: Enum.map_join(runs, "", & &1.text)
   defp block_text(%Block{content: content}), do: content
 
   defp line_height(block),
@@ -1523,10 +1624,32 @@ defmodule PaperForge.Layout.Engine do
     end)
   end
 
+  defp render_placement(
+         page,
+         %{type: :rich_text, block: block, y: y} = placement,
+         _context,
+         _document
+       ) do
+    padding = Keyword.get(block.options, :padding, 0)
+    decorated_height = length(placement.lines) * line_height(block) + padding * 2
+
+    page
+    |> render_text_background(block, placement, y, decorated_height)
+    |> render_rich_text_lines(
+      placement.lines,
+      placement.x + padding,
+      y + padding,
+      max(placement.width - padding * 2, 1),
+      block
+    )
+    |> maybe_render_block_link(block, placement, y)
+  end
+
   defp render_placement(page, %{type: type, block: block, y: y} = placement, _context, _document)
-       when type in [:paragraph, :heading, :rich_text] do
+       when type in [:paragraph, :heading] do
     text = Enum.join(placement.lines, "\n")
     level = Keyword.get(block.options, :level, 1)
+    default_weight = if(type == :heading and level <= 2, do: :bold, else: :regular)
     size = Keyword.get(block.options, :size, default_size(block))
 
     destination =
@@ -1547,35 +1670,26 @@ defmodule PaperForge.Layout.Engine do
         page
       end
 
+    padding = Keyword.get(block.options, :padding, 0)
+    decorated_height = length(placement.lines) * line_height(block) + padding * 2
+
+    page = render_text_background(page, block, placement, y, decorated_height)
+
     page =
-      if type == :rich_text and length(placement.lines) == 1 do
-        render_rich_text(page, block.content, y, block)
-      else
-        Page.text_box(page, text,
-          x: placement.x,
-          y: y,
-          width: placement.width,
-          font: Keyword.get(block.options, :font, :helvetica),
-          size: size,
-          line_height: line_height(block),
-          align: Keyword.get(block.options, :align, :left),
-          color: Keyword.get(block.options, :color, PaperForge.Color.black()),
-          weight: if(level <= 2, do: :bold, else: :regular)
-        )
-      end
+      Page.text_box(page, text,
+        x: placement.x + padding,
+        y: y + padding,
+        width: max(placement.width - padding * 2, 1),
+        font: Keyword.get(block.options, :font, :helvetica),
+        size: size,
+        line_height: line_height(block),
+        align: Keyword.get(block.options, :align, :left),
+        color: Keyword.get(block.options, :color, PaperForge.Color.black()),
+        weight: Keyword.get(block.options, :weight, default_weight),
+        style: Keyword.get(block.options, :style, :normal)
+      )
 
-    case Keyword.get(block.options, :link_to) do
-      nil ->
-        page
-
-      destination ->
-        Page.link_to(page, destination,
-          x: placement.x,
-          y: y,
-          width: placement.width,
-          height: max(length(placement.lines) * line_height(block), line_height(block))
-        )
-    end
+    maybe_render_block_link(page, block, placement, y)
   end
 
   defp render_placement(
@@ -1611,7 +1725,7 @@ defmodule PaperForge.Layout.Engine do
 
   defp render_placement(
          page,
-         %{type: :table, block: block, y: y, rows: measured_rows},
+         %{type: :table, block: block, y: y, rows: measured_rows} = placement,
          _context,
          _document
        ) do
@@ -1619,7 +1733,7 @@ defmodule PaperForge.Layout.Engine do
       [
         x: Keyword.get(block.options, :x, Page.content_left(page)),
         y: y,
-        width: Keyword.get(block.options, :width, Page.content_width(page)),
+        width: placement.width,
         row_heights: Enum.map(measured_rows, & &1.height),
         line_height: table_line_height(block),
         padding: Keyword.get(block.options, :padding, 6),
@@ -1630,9 +1744,13 @@ defmodule PaperForge.Layout.Engine do
         header_fill_color:
           Keyword.get(block.options, :header_fill_color, PaperForge.Color.gray(0.92)),
         header_color: Keyword.get(block.options, :header_color, PaperForge.Color.black()),
+        body_fill_color: Keyword.get(block.options, :body_fill_color),
         stripe_fill_color: Keyword.get(block.options, :stripe_fill_color),
         stroke_color: Keyword.get(block.options, :stroke_color, PaperForge.Color.gray(0.65)),
-        cell_align: Keyword.get(block.options, :cell_align, :left)
+        line_width: Keyword.get(block.options, :line_width, 0.5),
+        cell_align: Keyword.get(block.options, :cell_align, :left),
+        cell_valign: Keyword.get(block.options, :cell_valign, :top),
+        color: Keyword.get(block.options, :color, PaperForge.Color.black())
       ]
       |> Enum.reject(fn {_key, value} -> is_nil(value) end)
 
@@ -1656,20 +1774,101 @@ defmodule PaperForge.Layout.Engine do
        ) do
     x = Keyword.get(block.options, :x, Page.content_left(page))
     width = Keyword.get(block.options, :width, Page.content_width(page))
-    values = Enum.map(block.content, fn {_label, value} -> value end)
-    max_value = max(Enum.max(values, fn -> 1 end), 1)
-    gap = Keyword.get(block.options, :gap, 12)
-    value_area = Keyword.get(block.options, :value_area, 22)
-    value_gap = Keyword.get(block.options, :value_gap, 7)
-    plot_height = max(height - value_area, 1)
-    bar_width = max((width - gap * (length(values) - 1)) / max(length(values), 1), 8)
+    render_chart(page, block.content, x, y, width, height, block.options)
+  end
 
-    block.content
+  defp render_placement(page, placement, context, document),
+    do: render_special_placement(page, placement, context, document)
+
+  defp render_text_background(page, block, placement, y, height) do
+    fill_color =
+      Keyword.get(block.options, :fill_color, Keyword.get(block.options, :background_color))
+
+    if not is_nil(fill_color) or Keyword.has_key?(block.options, :stroke_color) do
+      Page.rectangle(page,
+        x: placement.x,
+        y: y,
+        width: placement.width,
+        height: height,
+        fill: not is_nil(fill_color),
+        stroke: Keyword.get(block.options, :line_width, 0) > 0,
+        fill_color: fill_color || PaperForge.Color.white(),
+        stroke_color: Keyword.get(block.options, :stroke_color, PaperForge.Color.gray(0.7)),
+        line_width: Keyword.get(block.options, :line_width, 0.5)
+      )
+    else
+      page
+    end
+  end
+
+  defp maybe_render_block_link(page, block, placement, y) do
+    case Keyword.get(block.options, :link_to) do
+      nil ->
+        page
+
+      destination ->
+        Page.link_to(page, destination,
+          x: placement.x,
+          y: y,
+          width: placement.width,
+          height: max(length(placement.lines) * line_height(block), line_height(block))
+        )
+    end
+  end
+
+  defp render_chart(page, series, x, y, width, height, options) do
+    page =
+      case Keyword.get(options, :background_color) do
+        nil ->
+          page
+
+        color ->
+          Page.rectangle(page,
+            x: x,
+            y: y,
+            width: width,
+            height: height,
+            fill: true,
+            stroke: false,
+            fill_color: color
+          )
+      end
+
+    case Keyword.get(options, :chart_type, :bar) do
+      :bar ->
+        render_bar_chart(page, series, x, y, width, height, options)
+
+      type when type in [:line, :area, :scatter] ->
+        render_cartesian_chart(page, series, x, y, width, height, type, options)
+
+      type when type in [:pie, :donut] ->
+        render_radial_chart(page, series, x, y, width, height, type, options)
+
+      other ->
+        raise ArgumentError, "unsupported chart type: #{inspect(other)}"
+    end
+  end
+
+  defp render_bar_chart(page, series, x, y, width, height, options) do
+    values = Enum.map(series, fn {_label, value} -> value end)
+    max_value = max(Enum.max(values, fn -> 1 end), 1)
+    padding = chart_padding(options)
+    plot_x = x + padding
+    plot_width = max(width - padding * 2, 1)
+    gap = Keyword.get(options, :gap, 12)
+    value_area = Keyword.get(options, :value_area, 22)
+    value_gap = Keyword.get(options, :value_gap, 7)
+    label_area = 18
+    plot_height = max(height - padding * 2 - value_area - label_area, 1)
+    bar_width = max((plot_width - gap * (length(values) - 1)) / max(length(values), 1), 8)
+    colors = chart_colors(options)
+
+    series
     |> Enum.with_index()
     |> Enum.reduce(page, fn {{label, value}, index}, current ->
       bar_height = plot_height * value / max_value
-      bar_x = x + index * (bar_width + gap)
-      bar_y = y + value_area + plot_height - bar_height
+      bar_x = plot_x + index * (bar_width + gap)
+      bar_y = y + padding + value_area + plot_height - bar_height
 
       current
       |> Page.rectangle(
@@ -1678,20 +1877,212 @@ defmodule PaperForge.Layout.Engine do
         width: bar_width,
         height: bar_height,
         fill: true,
-        fill_color: Keyword.get(block.options, :color, PaperForge.Color.rgb255(0, 119, 181))
+        stroke: false,
+        fill_color: Enum.at(colors, rem(index, length(colors)))
       )
-      |> Page.text(to_string(value),
+      |> maybe_chart_value(value, bar_x, max(bar_y - value_gap, y + padding), bar_width, options)
+      |> Page.text(label,
         x: bar_x,
-        y: max(bar_y - value_gap, y),
+        y: y + height - padding - 8,
         width: bar_width,
         align: :center,
-        size: 8
+        size: 8,
+        color: chart_label_color(options)
       )
-      |> Page.text(label, x: bar_x, y: y + height + 10, width: bar_width, align: :center, size: 8)
     end)
   end
 
-  defp render_placement(
+  defp render_cartesian_chart(page, series, x, y, width, height, type, options) do
+    values = Enum.map(series, &elem(&1, 1))
+    max_value = max(Enum.max(values, fn -> 1 end), 1)
+    padding = chart_padding(options)
+    plot_x = x + padding
+    plot_width = max(width - padding * 2, 1)
+    label_area = 18
+    top_area = if Keyword.get(options, :show_values, true), do: 16, else: 4
+    plot_height = max(height - padding * 2 - label_area - top_area, 1)
+    step = if length(series) > 1, do: plot_width / (length(series) - 1), else: 0
+    color = hd(chart_colors(options))
+
+    points =
+      series
+      |> Enum.with_index()
+      |> Enum.map(fn {{_label, value}, index} ->
+        {plot_x + index * step,
+         y + padding + top_area + plot_height - plot_height * value / max_value}
+      end)
+
+    page =
+      if type == :area and points != [] do
+        [{first_x, _} | _] = points
+        {last_x, _} = List.last(points)
+
+        segments =
+          [{:move_to, first_x, y + padding + top_area + plot_height}] ++
+            Enum.map(points, fn {px, py} -> {:line_to, px, py} end) ++
+            [{:line_to, last_x, y + padding + top_area + plot_height}, :close]
+
+        Page.path(page, segments,
+          fill: true,
+          stroke: false,
+          fill_color: Keyword.get(options, :fill_color, color)
+        )
+      else
+        page
+      end
+
+    page =
+      if type in [:line, :area] and length(points) > 1 do
+        segments =
+          points
+          |> Enum.with_index()
+          |> Enum.map(fn {{px, py}, index} ->
+            if index == 0, do: {:move_to, px, py}, else: {:line_to, px, py}
+          end)
+
+        Page.path(page, segments,
+          fill: false,
+          stroke: true,
+          stroke_color: color,
+          line_width: Keyword.get(options, :line_width, 2)
+        )
+      else
+        page
+      end
+
+    radius = Keyword.get(options, :point_radius, 3.5)
+
+    series
+    |> Enum.zip(points)
+    |> Enum.reduce(page, fn {{label, value}, {px, py}}, current ->
+      current
+      |> Page.circle(x: px, y: py, radius: radius, fill: true, stroke: false, fill_color: color)
+      |> maybe_chart_value(value, px - 20, max(py - 13, y + padding), 40, options)
+      |> Page.text(label,
+        x: px - 24,
+        y: y + height - padding - 8,
+        width: 48,
+        align: :center,
+        size: 8,
+        color: chart_label_color(options)
+      )
+    end)
+  end
+
+  defp render_radial_chart(page, series, x, y, width, height, type, options) do
+    total = series |> Enum.map(&max(elem(&1, 1), 0)) |> Enum.sum()
+    colors = chart_colors(options)
+    padding = chart_padding(options)
+    inner_width = max(width - padding * 2, 1)
+    inner_height = max(height - padding * 2, 1)
+    radius = max(min(inner_width * 0.28, inner_height * 0.42), 10)
+    center_x = x + padding + radius
+    center_y = y + padding + inner_height / 2
+
+    {page, _angle} =
+      series
+      |> Enum.with_index()
+      |> Enum.reduce({page, -90.0}, fn {{_label, value}, index}, {current, angle} ->
+        sweep = if total > 0, do: max(value, 0) / total * 360, else: 0
+        color = Enum.at(colors, rem(index, length(colors)))
+        {draw_wedge(current, center_x, center_y, radius, angle, sweep, color), angle + sweep}
+      end)
+
+    page =
+      if type == :donut do
+        Page.circle(page,
+          x: center_x,
+          y: center_y,
+          radius: radius * Keyword.get(options, :inner_radius, 0.55),
+          fill: true,
+          stroke: false,
+          fill_color: Keyword.get(options, :background_color, PaperForge.Color.white())
+        )
+      else
+        page
+      end
+
+    legend_x = center_x + radius + 24
+    legend_width = max(x + width - padding - legend_x, 60)
+
+    series
+    |> Enum.with_index()
+    |> Enum.reduce(page, fn {{label, value}, index}, current ->
+      row_y = y + padding + 6 + index * 18
+      color = Enum.at(colors, rem(index, length(colors)))
+
+      current
+      |> Page.circle(
+        x: legend_x,
+        y: row_y + 4,
+        radius: 4,
+        fill: true,
+        stroke: false,
+        fill_color: color
+      )
+      |> Page.text("#{label}  #{value}",
+        x: legend_x + 11,
+        y: row_y,
+        width: legend_width,
+        size: 8,
+        color: chart_label_color(options)
+      )
+    end)
+  end
+
+  defp draw_wedge(page, cx, cy, radius, start_angle, sweep, color) do
+    steps = max(ceil(abs(sweep) / 12), 1)
+
+    arc =
+      Enum.map(0..steps, fn step ->
+        angle = (start_angle + sweep * step / steps) * :math.pi() / 180
+        {:line_to, cx + radius * :math.cos(angle), cy + radius * :math.sin(angle)}
+      end)
+
+    Page.path(page, [{:move_to, cx, cy} | arc] ++ [:close],
+      fill: true,
+      stroke: false,
+      fill_color: color
+    )
+  end
+
+  defp maybe_chart_value(page, value, x, y, width, options) do
+    if Keyword.get(options, :show_values, true),
+      do:
+        Page.text(page, to_string(value),
+          x: x,
+          y: y,
+          width: width,
+          align: :center,
+          size: 8,
+          color: chart_label_color(options)
+        ),
+      else: page
+  end
+
+  defp chart_label_color(options),
+    do: Keyword.get(options, :label_color, PaperForge.Color.black())
+
+  defp chart_padding(options), do: max(Keyword.get(options, :chart_padding, 12), 0)
+
+  defp chart_colors(options) do
+    case Keyword.get(options, :colors) do
+      colors when is_list(colors) and colors != [] ->
+        colors
+
+      _ ->
+        [
+          Keyword.get(options, :color, PaperForge.Color.rgb255(15, 143, 131)),
+          PaperForge.Color.rgb255(23, 107, 135),
+          PaperForge.Color.rgb255(232, 173, 53),
+          PaperForge.Color.rgb255(231, 101, 84),
+          PaperForge.Color.rgb255(102, 83, 165),
+          PaperForge.Color.rgb255(74, 154, 195)
+        ]
+    end
+  end
+
+  defp render_special_placement(
          page,
          %{type: :svg, block: block, y: y, image_height: height},
          _context,
@@ -1705,7 +2096,7 @@ defmodule PaperForge.Layout.Engine do
     )
   end
 
-  defp render_placement(
+  defp render_special_placement(
          page,
          %{type: :qr_code, block: block, y: y, image_height: height},
          _context,
@@ -1746,7 +2137,7 @@ defmodule PaperForge.Layout.Engine do
     end)
   end
 
-  defp render_placement(
+  defp render_special_placement(
          page,
          %{type: :image, block: block, y: y, image_height: image_height},
          _context,
@@ -1781,7 +2172,7 @@ defmodule PaperForge.Layout.Engine do
     |> maybe_render_caption(block, y + image_height + 4, width, x)
   end
 
-  defp render_placement(
+  defp render_special_placement(
          page,
          %{type: :barcode, block: block, y: y, image_height: height},
          _context,
@@ -1816,7 +2207,12 @@ defmodule PaperForge.Layout.Engine do
     Page.text(page, block.content, x: x, y: y + height - 2, width: width, align: :center, size: 9)
   end
 
-  defp render_placement(page, %{type: :separator, block: block, y: y}, _context, _document) do
+  defp render_special_placement(
+         page,
+         %{type: :separator, block: block, y: y},
+         _context,
+         _document
+       ) do
     Page.line(page,
       x1: Page.content_left(page),
       y1: y + Keyword.get(block.options, :height, 12) / 2,
@@ -1826,9 +2222,9 @@ defmodule PaperForge.Layout.Engine do
     )
   end
 
-  defp render_placement(page, %{type: :spacer}, _context, _document), do: page
+  defp render_special_placement(page, %{type: :spacer}, _context, _document), do: page
 
-  defp render_placement(
+  defp render_special_placement(
          page,
          %{type: :grid, block: block, y: y},
          _context,
@@ -1875,14 +2271,19 @@ defmodule PaperForge.Layout.Engine do
         width: cell_width - 20,
         height: cell_height - 20,
         size: Keyword.get(block.options, :size, 10),
-        line_height: Keyword.get(block.options, :line_height, 13)
+        line_height: Keyword.get(block.options, :line_height, 13),
+        font: Keyword.get(block.options, :font, :helvetica),
+        weight: Keyword.get(block.options, :weight, :regular),
+        style: Keyword.get(block.options, :style, :normal),
+        color: Keyword.get(block.options, :color, PaperForge.Color.black()),
+        align: Keyword.get(block.options, :align, :left)
       )
     end)
   end
 
-  defp render_placement(page, %{type: :columns, block: block, y: y}, _context, _document) do
+  defp render_special_placement(page, %{type: :columns, block: block, y: y}, _context, _document) do
     %{count: count, paragraphs: paragraphs} = block.content
-    gap = Keyword.get(block.options, :gap, 18)
+    gap = Keyword.get(block.options, :column_gap, Keyword.get(block.options, :gap, 18))
     width = Keyword.get(block.options, :width, Page.content_width(page))
     column_width = (width - (count - 1) * gap) / count
     per_column = max(ceil(length(paragraphs) / count), 1)
@@ -1897,7 +2298,7 @@ defmodule PaperForge.Layout.Engine do
           lines =
             TextWrapper.wrap(paragraph,
               width: column_width,
-              font: Keyword.get(block.options, :font, :helvetica),
+              font: metric_font_for_block(block),
               size: default_size(block)
             )
 
@@ -1908,8 +2309,13 @@ defmodule PaperForge.Layout.Engine do
              y: cursor,
              width: column_width,
              height: length(lines) * line_height,
+             font: Keyword.get(block.options, :font, :helvetica),
              size: default_size(block),
-             line_height: line_height
+             line_height: line_height,
+             align: Keyword.get(block.options, :align, :left),
+             color: Keyword.get(block.options, :color, PaperForge.Color.black()),
+             weight: Keyword.get(block.options, :weight, :regular),
+             style: Keyword.get(block.options, :style, :regular)
            ), cursor + length(lines) * line_height + 8}
         end)
 
@@ -1917,7 +2323,12 @@ defmodule PaperForge.Layout.Engine do
     end)
   end
 
-  defp render_placement(page, %{type: :custom, block: block} = placement, context, _document) do
+  defp render_special_placement(
+         page,
+         %{type: :custom, block: block} = placement,
+         context,
+         _document
+       ) do
     block.content.(
       page,
       %{
@@ -1954,15 +2365,33 @@ defmodule PaperForge.Layout.Engine do
     end
   end
 
-  defp render_rich_text(page, runs, y, block) do
-    x = Keyword.get(block.options, :x, Page.content_left(page))
+  defp render_rich_text_lines(page, lines, x, y, width, block) do
+    lines
+    |> Enum.with_index()
+    |> Enum.reduce(page, fn {runs, line_index}, current ->
+      render_rich_text_line(current, runs, x, y + line_index * line_height(block), width, block)
+    end)
+  end
+
+  defp render_rich_text_line(page, runs, x, y, width, block) do
+    line_width = rich_line_width(runs, block)
+
+    x =
+      case Keyword.get(block.options, :align, :left) do
+        :center -> x + max((width - line_width) / 2, 0)
+        :right -> x + max(width - line_width, 0)
+        _left -> x
+      end
 
     Enum.reduce(runs, {page, x}, fn %{text: text, options: options}, {current, cursor} ->
       size = Keyword.get(options, :size, Keyword.get(block.options, :size, default_size(block)))
       font = Keyword.get(options, :font, Keyword.get(block.options, :font, :helvetica))
-      next = cursor + PaperForge.TextMetrics.line_width(text, font: font, size: size)
+      weight = Keyword.get(options, :weight, Keyword.get(block.options, :weight, :regular))
+      style = Keyword.get(options, :style, Keyword.get(block.options, :style, :regular))
+      metric_font = builtin_metric_font(font, weight, style)
+      next = cursor + PaperForge.TextMetrics.line_width(text, font: metric_font, size: size)
 
-      page =
+      current =
         Page.text(current, text,
           x: cursor,
           y: y,
@@ -1974,11 +2403,66 @@ defmodule PaperForge.Layout.Engine do
               :color,
               Keyword.get(block.options, :color, PaperForge.Color.black())
             ),
-          weight: Keyword.get(options, :weight, :regular)
+          weight: weight,
+          style: style
         )
 
-      {page, next}
+      current =
+        case Keyword.get(options, :link) do
+          nil ->
+            current
+
+          link ->
+            Page.link(current, link,
+              x: cursor,
+              y: y,
+              width: max(next - cursor, 1),
+              height: line_height(block)
+            )
+        end
+
+      {current, next}
     end)
     |> elem(0)
+  end
+
+  defp builtin_metric_font(:helvetica, :bold, style) when style in [:italic, :oblique],
+    do: :helvetica_bold_oblique
+
+  defp builtin_metric_font(:helvetica, :bold, _style), do: :helvetica_bold
+
+  defp builtin_metric_font(:helvetica, _weight, style) when style in [:italic, :oblique],
+    do: :helvetica_oblique
+
+  defp builtin_metric_font(:times_roman, :bold, style) when style in [:italic, :oblique],
+    do: :times_bold_italic
+
+  defp builtin_metric_font(:times_roman, :bold, _style), do: :times_bold
+
+  defp builtin_metric_font(:times_roman, _weight, style) when style in [:italic, :oblique],
+    do: :times_italic
+
+  defp builtin_metric_font(:courier, :bold, style) when style in [:italic, :oblique],
+    do: :courier_bold_oblique
+
+  defp builtin_metric_font(:courier, :bold, _style), do: :courier_bold
+
+  defp builtin_metric_font(:courier, _weight, style) when style in [:italic, :oblique],
+    do: :courier_oblique
+
+  defp builtin_metric_font(font, _weight, _style), do: font
+
+  defp metric_font_for_block(block) do
+    font = Keyword.get(block.options, :font, :helvetica)
+    level = Keyword.get(block.options, :level, 1)
+
+    default_weight =
+      if(block.type == :heading and level <= 2, do: :bold, else: :regular)
+
+    builtin_metric_font(
+      font,
+      Keyword.get(block.options, :weight, default_weight),
+      Keyword.get(block.options, :style, :regular)
+    )
   end
 end

@@ -52,7 +52,27 @@ defmodule PaperForge.Flow do
     put_block(flow, Block.new(:svg, source, options))
   end
 
-  @doc "Adds a native bar chart from `{label, value}` pairs."
+  @doc "Adds a measured scientific expression from `PaperForge.Math` AST."
+  @spec math(t(), PaperForge.Math.ast(), keyword()) :: t()
+  def math(%__MODULE__{} = flow, ast, options \\ []) do
+    {_width, measured_height} = PaperForge.Math.measure(ast, options)
+    height = Keyword.get(options, :height, measured_height + 8)
+
+    custom(
+      flow,
+      fn page, context ->
+        PaperForge.Math.render(page, ast,
+          x: context.block_x,
+          y: context.block_y,
+          size: Keyword.get(options, :size, 14),
+          color: Keyword.get(options, :color, PaperForge.Color.black())
+        )
+      end,
+      Keyword.put(options, :height, height)
+    )
+  end
+
+  @doc "Adds a native vector chart from `{label, value}` pairs. Supports `:bar`, `:line`, `:area`, `:scatter`, `:pie`, and `:donut` through `:chart_type`."
   @spec chart(t(), [{binary(), number()}], keyword()) :: t()
   def chart(%__MODULE__{} = flow, series, options \\ []) when is_list(series) do
     put_block(flow, Block.new(:chart, series, options))

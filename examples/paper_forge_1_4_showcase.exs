@@ -74,7 +74,7 @@ document =
   |> PaperForge.metadata(
     title: "#{company} #{year} Impact and Growth Review",
     author: company,
-    subject: "PaperForge 1.3 secure, accessible, declarative document showcase",
+    subject: "PaperForge 1.4 interoperable scientific document showcase",
     keywords: ["PaperForge", "Elixir", "PDF", "annual report", "climate technology"]
   )
   |> PaperForge.attach(
@@ -530,7 +530,7 @@ report_flow = fn flow ->
         stroke: false,
         fill_color: gold
       )
-      |> Page.text("PAPERFORGE 1.0",
+      |> Page.text("PAPERFORGE 1.4",
         x: x + 24,
         y: y + 493,
         size: 8,
@@ -1238,7 +1238,7 @@ document =
     ]
   )
 
-output = System.get_env("PAPERFORGE_OUTPUT", "tmp/paper_forge_1_3_showcase.pdf")
+output = System.get_env("PAPERFORGE_OUTPUT", "tmp/paper_forge_1_4_showcase.pdf")
 
 write_options =
   case System.get_env("PAPERFORGE_OWNER_PASSWORD") do
@@ -1264,5 +1264,5 @@ IO.inspect(
     blocks: report.blocks,
     placements: length(report.placements)
   },
-  label: "PaperForge 1.3 secure and accessible showcase"
+  label: "PaperForge 1.4 interoperability and science showcase"
 )

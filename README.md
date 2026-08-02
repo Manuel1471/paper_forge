@@ -1,17 +1,73 @@
 # PaperForge
 
-PaperForge is a pure Elixir PDF generation engine. It builds PDF object graphs,
-page content streams, resources, cross-reference tables, trailers, text layout,
-vector graphics, metadata, and image XObjects directly in Elixir.
+> **Document engineering for the BEAM.**
+>
+> Build, secure, validate, and transform documents entirely in Elixir.
+
+## Project Status
+
+| Signal | Status |
+| --- | --- |
+| Public API | Stable `1.x` compatibility contract |
+| Production use | Ready within the [documented scope](#scope-boundaries) |
+| Package | Published on [Hex](https://hex.pm/packages/paper_forge) |
+| Documentation | Published on [HexDocs](https://paper-forge.hexdocs.pm/) |
+| Continuous integration | Formatting, strict compilation, and the full test suite on [GitHub Actions](https://github.com/Manuel1471/paper_forge/actions) |
+| Performance | Reproducible latency, memory, and concurrency benchmarks |
+| Runtime | Pure Elixir; no installation-time native compilation |
+
+[![A five-page impact report generated entirely with PaperForge](docs/assets/paperforge-showcase.png)](https://github.com/Manuel1471/paper_forge/blob/main/examples/paper_forge_1_4_showcase.exs)
+
+The report above is native PDF output from the maintained
+[`paper_forge_1_4_showcase.exs`](https://github.com/Manuel1471/paper_forge/blob/main/examples/paper_forge_1_4_showcase.exs) example.
+The same engine also powers reusable
+[`.paperforge` templates](https://github.com/Manuel1471/paper_forge/blob/main/examples/paper_forge_1_4_showcase.paperforge) and
+[scientific documents](https://github.com/Manuel1471/paper_forge/blob/main/examples/investigacion.paperforge).
+
+PaperForge is a document platform for Elixir applications. It turns structured
+content into native PDF object graphs, measured layouts, interactive forms,
+secure deliverables, imported documents, and production rendering workflows.
 
 No browser, wkhtmltopdf, Chromium, ImageMagick, Ghostscript, or external
 rendering service is required.
 
-PaperForge 1.3 provides a stable public API for pure-Elixir PDF authoring,
+PaperForge 1.4 provides a stable public API for pure-Elixir PDF authoring,
 versioned declarative templates, reusable design systems, AES-256 document
 security, PAdES digital signatures, tamper-evident protection, tagged PDF output, bounded concurrent
 rendering, production telemetry, and reproducible performance tooling.
 Documented public modules follow Semantic Versioning throughout the 1.x series.
+
+## Performance Snapshot
+
+Reference large-document profile on Elixir 1.20.2, OTP 29, 10 schedulers,
+`MIX_ENV=prod`, 2 warmups, and 10 measured samples:
+
+| Input | Output | Median total | Median layout | Peak process memory |
+| ---: | ---: | ---: | ---: | ---: |
+| 5,000 table rows | 179 pages / 616,018 bytes | 766.95 ms | 717.66 ms | approximately 81 MB |
+
+These are reference measurements, not cross-machine guarantees. See
+[Performance Envelope](#performance-envelope) for the runner, methodology,
+p95 values, concurrency profiles, and reproduction commands.
+
+## One Engine, Complete Document Lifecycle
+
+```mermaid
+flowchart LR
+    A["Elixir APIs"] --> IR["Measured Layout IR"]
+    B[".paperforge templates"] --> IR
+    C["HTML and Markdown"] --> IR
+    D["Existing PDF pages"] --> IR
+    IR --> P["Native PDF"]
+    P --> S["Secure and sign"]
+    P --> V["Validate and comply"]
+    P --> T["Compose and transform"]
+    P --> R["Render at production scale"]
+```
+
+Use the high-level `PaperForge.Flow` API for paginated documents, the
+declarative `.paperforge` format for reusable templates, or `PaperForge.Page`
+for precise drawing. All three paths converge on the same PDF-native engine.
 
 ## Start Here
 
@@ -21,6 +77,8 @@ Documented public modules follow Semantic Versioning throughout the 1.x series.
 | Use PaperForge in a Phoenix application | [Phoenix Quick Start](#phoenix-quick-start) and [`PHOENIX.md`](PHOENIX.md) |
 | Build reports, invoices, or contracts | [Document Authoring](#document-authoring) |
 | Build PDFs from reusable data templates | [Declarative Documents](#declarative-documents) |
+| Import HTML, Markdown, or PDF pages | [Import, Science, Forms, And Review](#import-science-forms-and-review) and [`INTEROPERABILITY.md`](INTEROPERABILITY.md) |
+| Build formulas and scientific reports | [`SCIENTIFIC.md`](SCIENTIFIC.md) |
 | Encrypt, sign, or protect documents | [Security And Protection](#security-and-protection) |
 | Prepare accessible or archival PDFs | [Compliance And Accessibility](#compliance-and-accessibility) |
 | Draw at exact coordinates | [Low-level Page API](#low-level-page-api) |
@@ -35,18 +93,79 @@ Documented public modules follow Semantic Versioning throughout the 1.x series.
 
 ## Why PaperForge?
 
-- **Pure Elixir runtime.** No browser, native executable, service, or
-  installation-time compilation is required.
-- **Business-document layout.** Build reports, invoices, statements, and
-  contracts with automatic pagination, templates, tables, navigation, and
-  reusable components.
-- **PDF-native output.** Text, links, outlines, attachments, annotations,
-  vectors, images, fonts, and metadata are emitted as PDF structures.
-- **Predictable production behavior.** Rendering is deterministic, concurrent
-  work is bounded, failures are isolated, and Telemetry events expose runtime
-  cost.
-- **Two levels of control.** Use `PaperForge.Flow` for structured documents or
-  `PaperForge.Page` for exact coordinates and custom graphics.
+PaperForge was built around a simple idea: document generation should be a
+first-class capability of the BEAM. Elixir applications should not need a
+browser, an external rendering service, or a platform-specific binary to
+produce professional documents.
+
+Every layer, from measured layout and declarative templates to signatures,
+accessibility preparation, scientific notation, and bounded production
+rendering, is designed to remain deterministic, composable, and natural to
+operate inside an Elixir system.
+
+PaperForge exists because generating professional PDF documents should not
+require browsers, external rendering engines, or native compilation.
+
+## Design Principles
+
+- **Deterministic output.** Identical immutable input produces reproducible
+  document structure within the same PaperForge version.
+- **Pure Elixir runtime.** The default generation and signing paths do not
+  require native compilation or system executables.
+- **Production first.** Validation, bounded concurrency, telemetry, resource
+  limits, and explicit failure modes are part of the design.
+- **Document semantics.** Text, navigation, forms, annotations, attachments,
+  and accessibility structures remain native PDF objects.
+- **Stable public APIs.** Documented `1.x` modules follow Semantic Versioning
+  and explicit deprecation policy.
+
+## Designed For
+
+Financial reports, contracts, invoices, government and institutional forms,
+scientific papers, internal dashboards, certificates, statements, and other
+documents that need repeatable layout or PDF-native behavior.
+
+## Compatibility
+
+| Surface | Supported or tested range |
+| --- | --- |
+| Elixir | `~> 1.20` |
+| Erlang/OTP | OTP 29 in CI |
+| PDF headers | PDF 1.4 through PDF 1.7 |
+| Runtime installation | BEAM dependencies only by default |
+
+## Why Not Just HTML?
+
+HTML-to-PDF tools are a good fit when a browser rendering model is the desired
+source of truth. PaperForge takes a different approach for applications that
+need deterministic paged layout and direct access to PDF capabilities.
+
+| Concern | Typical browser HTML-to-PDF pipeline | PaperForge |
+| --- | --- | --- |
+| Browser process | Usually required | Not required |
+| Platform executable | Usually required | Not required by default |
+| Layout model | Browser and print CSS | Deterministic document Layout IR |
+| Runtime language | Mixed process boundary | Pure Elixir generation path |
+| PDF-native structures | Often require post-processing | Built into the document model |
+| Forms, annotations, attachments, signatures | Usually separate tooling | First-class APIs |
+
+## Ecosystem
+
+```text
+PaperForge
+|-- Core document and PDF engine
+|-- Flow and Page APIs
+|-- .paperforge declarative templates
+|-- HTML, Markdown, SVG, and PDF import
+|-- Security, signatures, and compliance preparation
+|-- Scientific documents and Math AST
+`-- Production concurrency, telemetry, and benchmarks
+
+Future directions
+|-- Visual Template Studio
+|-- Extended interoperability
+`-- Distributed generation patterns
+```
 
 ## Capability Overview
 
@@ -58,8 +177,10 @@ Documented public modules follow Semantic Versioning throughout the 1.x series.
 | Typography | Standard PDF fonts, embedded TrueType, physical subsetting, real metrics, font families, Unicode maps, rich text, alignment, justification, and deterministic hyphenation |
 | Navigation | Linked tables of contents, internal links, named destinations, page-aware references, outlines, and bookmarks |
 | Images | JPEG and PNG, alpha soft masks, EXIF orientation, deduplication, `:contain`/`:cover`, focal points, alignment, and numbered captions |
-| Graphics | Lines, rectangles, circles, charts, QR codes, barcodes, and an XML-parsed SVG vector subset |
-| PDF features | Metadata, URI links, annotations, highlights, attachments, footnotes, endnotes, compression, and PDF 1.4 through 1.7 headers |
+| Graphics | Lines, rectangles, circles, scientific charts, QR codes, barcodes, and SVG paths, curves, transforms, groups, viewBox, clipping, styles, and text |
+| Interoperability | CommonMark Markdown and an HTML/CSS subset to Layout IR, classic PDF page import, ordered composition, and reusable resource inventories |
+| Scientific documents | Native Math AST, fractions, roots, matrices, integrals, numbered equations, bibliography entries, citations, footnotes, and page-aware references |
+| PDF features | AcroForm fields and data workflows, review annotations, metadata, links, attachments, footnotes, endnotes, compression, and PDF 1.4 through 1.7 headers |
 | Security | AES-256 passwords and permissions, provider-backed PAdES signatures, watermarks, fingerprints, identifiers, and link/attachment policies |
 | Accessibility and archive preparation | Tagged PDF structure, logical page reading order, language, alternate text metadata, XMP, PDF/UA-1 preparation, ICC output intents, and PDF/A-2b/3b preparation |
 | Production | Structured validation, deterministic output, incremental file writing, bounded concurrency, retries, resource limits, cancellation, and Telemetry |
@@ -83,6 +204,91 @@ Documented public modules follow Semantic Versioning throughout the 1.x series.
 | Inspect layout decisions and overflow | `PaperForge.debug/2` |
 | Maintain an application built on legacy helpers | `add_flow/4` and `add_table/4` |
 
+## Import, Science, Forms, And Review
+
+PaperForge 1.4 can turn CommonMark or a practical HTML/CSS subset into the same
+Layout IR used by native `Flow` blocks. It can also import pages from classic,
+unencrypted PDFs, compose documents in order, and inventory reusable resources.
+
+```elixir
+{:ok, intro} = PaperForge.Import.markdown("# Study results\n\nMeasured in Elixir.")
+{:ok, appendix} = PaperForge.Import.html("<h2>Appendix</h2><p>Imported HTML.</p>")
+{:ok, combined} = PaperForge.Interoperability.compose([first_pdf, second_pdf])
+```
+
+Imported tables have readable defaults but remain CSS-configurable. The safe
+subset supports element, class, and ID selectors plus practical table styling:
+
+```html
+<style>
+  table {
+    width: 100%;
+    border-color: #ccd9d7;
+    border-width: 0.5pt;
+    border-collapse: collapse;
+  }
+
+  th {
+    color: #ffffff;
+    background-color: #173f52;
+    padding: 8pt;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  td {
+    color: #243b46;
+    padding: 7pt;
+    line-height: 12pt;
+    vertical-align: middle;
+  }
+
+  tr:nth-child(even) {
+    background-color: #f0f7f5;
+  }
+</style>
+```
+
+Supported table declarations include foreground and background colors,
+font size and style, alignment, vertical alignment, padding, line height,
+width, border color, border width, border style, border collapse, margins,
+and even-row striping. Browser layout features such as flexbox, CSS Grid,
+positioned elements, scripts, and complex pseudo-elements are intentionally
+outside the deterministic paged-document subset.
+
+The wider HTML importer also supports practical document CSS:
+
+- Element, `.class`, `#id`, `element.class`, `element#id`, and universal
+  selectors, with inline declarations taking precedence.
+- Text color, backgrounds, built-in PDF font families, font size, weight,
+  style, alignment, text transformation, line height, and hyphenation.
+- Width, `max-width`, height, padding, vertical margins, border color, border
+  width, and `border-style: none` or visible borders.
+- `display: none`, `visibility: hidden`, list marker selection, widow and
+  orphan limits, and `break-before`, `break-after`, or `break-inside` controls.
+- Image sizing plus `object-fit: contain | cover | fill` and common
+  `object-position` combinations.
+- Legacy `page-break-*` declarations as aliases for paged-media break rules.
+
+Block backgrounds, borders, and padding are rendered as native PDF geometry;
+they are not flattened screenshots. Unsupported declarations fail in strict
+mode or are ignored when `strict_css: false` is selected explicitly.
+
+Scientific documents use a native Math AST rather than screenshots. Fractions,
+roots, matrices, scripts, and integrals remain selectable PDF vectors and text.
+`PaperForge.Scientific` adds equation numbering, page-aware references,
+citations, and bibliographies around the existing footnote and TOC engine.
+
+Standard interactive forms are available through `PaperForge.AcroForm`, with
+text fields, checkboxes, push buttons, radio groups, list boxes, combo boxes,
+signature fields, defaults, appearances, restricted calculations, data
+import/export, and flattening. XFA is intentionally unsupported.
+
+Review workflows can add text notes, highlights, underline and strikeout
+markup, stamps, free text, shapes, ink, file attachments, links, authorship,
+subjects, and reply relationships. See [`INTEROPERABILITY.md`](INTEROPERABILITY.md)
+and [`SCIENTIFIC.md`](SCIENTIFIC.md) for complete examples and supported limits.
+
 ## Installation
 
 Add PaperForge to your dependencies:
@@ -90,7 +296,7 @@ Add PaperForge to your dependencies:
 ```elixir
 def deps do
   [
-    {:paper_forge, "~> 1.3"}
+    {:paper_forge, "~> 1.4"}
   ]
 end
 ```
@@ -108,7 +314,7 @@ def deps do
   [
     {:paper_forge,
      github: "Manuel1471/paper_forge",
-     tag: "v1.3.0"}
+     tag: "v1.4.0"}
   ]
 end
 ```
@@ -172,7 +378,7 @@ PaperForge runs inside a Phoenix application like any other Elixir library. It
 does not require a browser process, command-line renderer, native executable,
 or separate document service.
 
-Add `{:paper_forge, "~> 1.3"}` to the Phoenix application's dependencies, run
+Add `{:paper_forge, "~> 1.4"}` to the Phoenix application's dependencies, run
 `mix deps.get`, and return the generated binary from a controller:
 
 ```elixir
@@ -198,7 +404,7 @@ production limits in [`PHOENIX.md`](PHOENIX.md).
 
 ## Declarative Documents
 
-PaperForge 1.3 separates document design from application code. A versioned
+PaperForge 1.4 separates document design from application code. A versioned
 `.paperforge` JSON file defines variables, conditions, loops, reusable
 components, styles, themes, and shared layouts. The safe compiler validates
 input data and produces `PaperForge.Flow` Layout IR without evaluating Elixir
@@ -249,9 +455,21 @@ end
 ```
 
 Declarative templates may also define security policy, protection, and
-compliance. Signature metadata may be declared too. Passwords, private keys,
-and certificates are deliberately excluded from compiled templates and
-must be supplied only when writing:
+compliance. Signature metadata may be declared too. User and owner passwords
+can live directly in a controlled `.paperforge` template:
+
+```json
+"security": {
+  "algorithm": "aes_256",
+  "user_password": "reader-secret",
+  "owner_password": "owner-secret",
+  "permissions": {"copy": false, "modify": false}
+}
+```
+
+Passwords stored this way are plain text. Shared and production templates
+should normally inject secrets when writing; runtime values override template
+values:
 
 ```elixir
 PaperForge.Declarative.write(template, data, "contract.pdf",
@@ -311,6 +529,12 @@ process-local cache for templates that do not use registered Elixir components.
 
 See [`DECLARATIVE.md`](DECLARATIVE.md) for the complete format, validation
 contract, supported blocks, trust boundary, and design-system API.
+
+PaperForge 1.4 templates can also import supported HTML and Markdown, declare
+native Math AST equations, references, notes, bibliographies, common review
+annotations, and root-level AcroForms. PDF page import and whole-document
+composition remain explicit application operations through
+`PaperForge.Interoperability`; templates cannot open arbitrary PDF files.
 
 ## Security And Protection
 
@@ -463,7 +687,7 @@ Available authoring blocks include `rich_text/3`, `table_of_contents/2`,
 `reference/3`, `component/4`, `grid/4`, and `columns/4`. Tables accept explicit
 `:column_widths`, `:header_fill_color`, `:header_color`, and
 `:stripe_fill_color` options. See
-[`paper_forge_1_3_showcase.exs`](examples/paper_forge_1_3_showcase.exs) for a
+[`paper_forge_1_4_showcase.exs`](https://github.com/Manuel1471/paper_forge/blob/main/examples/paper_forge_1_4_showcase.exs) for a
 complete production-style document.
 
 Images support `fit: :fill | :contain | :cover`, horizontal and vertical
@@ -471,7 +695,7 @@ alignment, and `focal_point: {x, y}`. Numbered images and tables create stable
 destinations for page-aware references.
 
 The complete release example is
-[`paper_forge_1_3_showcase.exs`](examples/paper_forge_1_3_showcase.exs). It
+[`paper_forge_1_4_showcase.exs`](https://github.com/Manuel1471/paper_forge/blob/main/examples/paper_forge_1_4_showcase.exs). It
 combines navigation, advanced tables, footnotes, endnotes, charts, SVG, QR,
 barcode, attachments, components, and custom report panels in one PDF.
 
@@ -497,6 +721,25 @@ breaks. Layout reports expose `:measurements` for each placed block.
 flow
 |> Flow.paragraph(long_copy, hyphenate: true, min_lines_at_top: 2, min_lines_at_bottom: 2)
 |> Flow.chart([{"Q1", 418}, {"Q2", 432}, {"Q3", 451}], height: 140)
+|> Flow.chart([{"Jan", 32}, {"Feb", 46}, {"Mar", 41}],
+  chart_type: :line,
+  color: PaperForge.Color.rgb255(15, 143, 131),
+  background_color: PaperForge.Color.rgb255(244, 247, 248),
+  label_color: PaperForge.Color.rgb255(16, 47, 66),
+  chart_padding: 14,
+  point_radius: 4
+)
+|> Flow.chart([{"Research", 62}, {"Operations", 23}, {"Reserve", 15}],
+  chart_type: :donut,
+  colors: [
+    PaperForge.Color.rgb255(15, 143, 131),
+    PaperForge.Color.rgb255(231, 101, 84),
+    PaperForge.Color.rgb255(232, 173, 53)
+  ],
+  background_color: PaperForge.Color.rgb255(237, 247, 247),
+  label_color: PaperForge.Color.rgb255(16, 47, 66),
+  chart_padding: 14
+)
 |> Flow.svg("<svg><rect x='0' y='0' width='80' height='30' fill='#0077b5'/></svg>", height: 40)
 |> Flow.qr_code("https://example.com/pay/INV-2048", width: 96, height: 96)
 |> Flow.barcode("20481234", width: 180, height: 64)
@@ -1202,44 +1445,31 @@ PaperForge.write!(document, "document.pdf")
 
 ## Architecture
 
-PaperForge separates public drawing operations from low-level PDF objects.
+PaperForge separates authoring intent, measured layout, PDF objects, and byte
+serialization. High-level and low-level APIs share the same compiler and
+writer.
 
-```text
-PaperForge
-|-- Document
-|   |-- object allocation
-|   |-- font registry
-|   |-- image registry
-|   `-- metadata reference
-|-- Page
-|   `-- high-level drawing operations
-|-- Flow
-|   `-- block-based document layout builder
-|-- Layout
-|   |-- Block
-|   |-- Engine
-|   `-- two-pass pagination and rendering
-|-- PageCompiler
-|   |-- coordinate transforms
-|   |-- font registration
-|   |-- image registration
-|   `-- resource dictionaries
-|-- Graphics
-|   |-- Text
-|   |-- TextBox
-|   |-- Line
-|   |-- Rectangle
-|   |-- Circle
-|   `-- Image
-|-- Serializer
-|   `-- Elixir values to PDF syntax
-`-- Writer
-    |-- PDF header
-    |-- indirect objects
-    |-- cross-reference table
-    |-- trailer
-    `-- EOF marker
+```mermaid
+flowchart TD
+    F["Flow API / .paperforge / imports"] --> IR["Layout IR"]
+    IR --> L["Layout Engine"]
+    L --> P["Page operations"]
+    X["Page API"] --> P
+    P --> C["Page Compiler"]
+    C --> O["PDF object graph and resources"]
+    O --> S["Serializer"]
+    S --> W["Atomic or incremental Writer"]
+    W --> PDF["PDF 1.4-1.7 document"]
 ```
+
+| Layer | Primary responsibility |
+| --- | --- |
+| `Flow`, declarative compiler, and importers | Express document intent as reusable blocks |
+| Layout Engine | Measure, paginate, split, and resolve page-aware content |
+| `Page` and Graphics | Record exact drawing and annotation operations |
+| Page Compiler | Transform coordinates and register fonts, images, and resources |
+| Document | Own indirect objects, registries, metadata, navigation, and security state |
+| Serializer and Writer | Produce PDF syntax, xref data, trailers, and final output |
 
 The generated PDF uses traditional cross-reference tables. Tests verify that
 xref offsets point to the start of their corresponding indirect objects.
@@ -1251,13 +1481,17 @@ the code-first and no-code authoring paths:
 
 | Example | Demonstrates |
 | --- | --- |
-| `examples/paper_forge_1_3_showcase.exs` | Five-page editorial report using the complete Elixir API, tagged PDF, protection policy, and optional AES-256 output |
-| `examples/paper_forge_1_3_showcase.paperforge` | Self-contained no-code report with variables, inline components, themes, chart, table, navigation, QR, signing metadata, security policy, and PDF/UA preparation |
+| `examples/paper_forge_1_4_showcase.exs` | Editorial report using the full-control Elixir API, tagged PDF, protection policy, attachments, navigation, tables, charts, QR, and optional AES-256 output |
+| `examples/paper_forge_1_4_showcase.paperforge` | Self-contained no-code report with variables, components, themes, imported HTML/Markdown, numbered Math AST equations, bibliography, AcroForms, annotations, charts, tables, navigation, QR, signing metadata, security policy, and PDF/UA preparation |
+| `examples/paper_forge_1_4_html_css.exs` | Focused HTML and CSS import example showing strict CSS validation, semantic content, page breaks, native Math AST, and aligned AcroForm fields |
+| `examples/investigacion.paperforge` | Six-page fictional physics study authored declaratively with Math AST equations, a coupling matrix, scientific tables, line/area/scatter/donut charts, references, embedded AES-256 credentials, review fields, and digital-signature metadata |
+| `examples/investigacion.exs` | Minimal delivery runner that emits a password-protected review edition and a digitally signed companion from the same declarative research template |
 
 Run an example from the project root:
 
 ```bash
-mix run examples/paper_forge_1_3_showcase.exs
+mix run examples/paper_forge_1_4_showcase.exs
+mix run examples/paper_forge_1_4_html_css.exs
 ```
 
 ## Development
@@ -1583,6 +1817,20 @@ See [`API.md`](API.md) for the public compatibility policy and
 
 See [`MIGRATING.md`](MIGRATING.md) for the stable 1.0 compatibility contract.
 
+## Roadmap
+
+```text
+1.x     Stable document-authoring platform
+ |
+Next    Extended interoperability and international typography
+ |
+Future  Optional visual Studio and distributed generation patterns
+```
+
+The stable `1.x` contract remains the priority. Future work extends inputs,
+typography, and operational tooling without making the visual product or an
+external service a requirement for the open-source library.
+
 ## Future Enhancements
 
 These ideas are not required by, or promised as part of, the stable 1.x API.
@@ -1606,7 +1854,7 @@ They describe possible directions for later minor and major releases.
 - Add authenticated template repositories, visual component catalogs, and
   preview workflows on top of the declarative compiler.
 - Add persisted and distributed template caches for multi-node applications;
-  version 1.3 intentionally uses a bounded process-local cache.
+  version 1.4 intentionally uses a bounded process-local cache.
 
 A separate visual authoring product is planned for teams that prefer arranging
 documents visually or want to shorten template-development time. It will
@@ -1627,25 +1875,21 @@ only when the product is ready.
 - Persisted or distributed caches for reusable compiled Layout IR with explicit
   format-version invalidation.
 
-### HTML And CSS
+### Interoperability Expansion
 
-- HTML parsing
-- CSS cascade and computed styles
-- HTML/CSS to PaperForge Layout IR
-- Paged-media layout
-- Flexbox and advanced document styling
-
-## Project Status
-
-PaperForge 1.3 is suitable for production PDF authoring within the documented
-scope. Public APIs listed in [`API.md`](API.md) follow Semantic Versioning
-throughout the 1.x series. Runtime installation remains pure Elixir and does
-not require native compilation or external rendering services.
+- Expand the current safe HTML/CSS subset with paged-media rules, flexbox,
+  grid, generated content, and a complete browser-style cascade.
+- Add encrypted and compressed-object-stream PDF import, source outline and
+  AcroForm catalog merging, and higher-level resource editing.
+- Add XFA only if a maintainable security and compatibility model emerges;
+  standard AcroForms are the supported interactive-form format.
 
 ## Contributing
 
 Contributions, bug reports, architecture discussions, and PDF examples are
-welcome.
+welcome. Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a
+change and follow the community expectations in
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
 Before opening a pull request:
 

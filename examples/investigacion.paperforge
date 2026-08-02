@@ -1,0 +1,274 @@
+{
+  "version": "1",
+  "id": "aurora-field-institute-photonic-lattice-study",
+  "variables": {
+    "institution": {"type": "string", "required": true, "default": "Aurora Field Institute"},
+    "study": {"type": "string", "required": true, "default": "Coherent Energy Transfer in a Driven Photonic Lattice"},
+    "report_id": {"type": "string", "required": true, "default": "AFI-PHX-27-041"},
+    "lead_author": {"type": "string", "required": true, "default": "Dr. Elena Marlow"},
+    "review_status": {"type": "string", "default": "Preprint / fictional demonstration"},
+    "results": {
+      "type": "list",
+      "required": true,
+      "min_length": 5,
+      "default": [
+        ["L-01", "4.2 GHz", "0.41", "0.39", "-4.9%", "Stable"],
+        ["L-02", "4.8 GHz", "0.56", "0.58", "+3.6%", "Stable"],
+        ["L-03", "5.4 GHz", "0.72", "0.75", "+4.2%", "Peak"],
+        ["L-04", "6.0 GHz", "0.61", "0.59", "-3.3%", "Stable"],
+        ["L-05", "6.6 GHz", "0.44", "0.40", "-9.1%", "Damped"]
+      ]
+    }
+  },
+  "security": {
+    "algorithm": "aes_256",
+    "user_password": "magg1999",
+    "owner_password": "magg1999",
+    "permissions": {"print": "high_resolution", "copy": false, "modify": false, "extract": false}
+  },
+  "signature": {
+    "algorithm": "ps256",
+    "reason": "Scientific review approval",
+    "location": "Monterrey, Mexico",
+    "contact_info": "review@aurora-field.example"
+  },
+  "protection": {
+    "identifier": "urn:paperforge:research:afi-phx-27-041",
+    "policy": {
+      "allowed_uri_schemes": ["https"],
+      "allow_attachments": false,
+      "max_attachment_bytes": 0
+    }
+  },
+  "compliance": {
+    "profiles": ["pdf_ua_1"],
+    "language": "en-US",
+    "title": "Coherent Energy Transfer in a Driven Photonic Lattice"
+  },
+  "metadata": {
+    "title": "{{study}}",
+    "author": "{{lead_author}}",
+    "subject": "Fictional nonlinear photonics research generated from a declarative PaperForge template"
+  },
+  "forms": [
+    {
+      "type": "text",
+      "name": "reviewer_name",
+      "page": 6,
+      "rect": [246, 150, 495, 172],
+      "origin": "top_left",
+      "tooltip": "Independent reviewer name",
+      "background_color": "#ffffff",
+      "border_color": "#9eb8c4",
+      "border_width": 0.8,
+      "border_radius": 4
+    },
+    {
+      "type": "checkbox",
+      "name": "methods_verified",
+      "page": 6,
+      "rect": [246, 198, 260, 212],
+      "origin": "top_left",
+      "value": false,
+      "tooltip": "Methods and assumptions verified",
+      "background_color": "#ffffff",
+      "border_color": "#0f8f83",
+      "border_width": 0.8,
+      "border_radius": 3,
+      "check_color": "#0f8f83",
+      "check_width": 1.5
+    },
+    {
+      "type": "signature",
+      "name": "review_signature",
+      "page": 6,
+      "rect": [246, 245, 495, 277],
+      "origin": "top_left",
+      "tooltip": "Scientific review signature",
+      "background_color": "#ffffff",
+      "border_color": "#9eb8c4",
+      "border_width": 0.8,
+      "border_radius": 4
+    }
+  ],
+  "theme": "aurora",
+  "layout": "research_note",
+  "design_system": {
+    "tokens": {
+      "colors": {
+        "ink": "#102f42",
+        "ocean": "#176b87",
+        "teal": "#0f8f83",
+        "coral": "#e76554",
+        "gold": "#e8ad35",
+        "violet": "#6653a5",
+        "ice": "#edf7f7",
+        "mist": "#f4f7f8",
+        "line": "#c7d7dc"
+      },
+      "type": {"display": 29, "title": 22, "section": 16, "body": 9.5, "small": 7.5}
+    },
+    "styles": {
+      "display": {"size": "$type.display", "color": "$colors.ink", "line_height": 34, "weight": "bold"},
+      "title": {"size": "$type.title", "color": "$colors.ink", "line_height": 27, "weight": "bold", "space_after": 14},
+      "section": {"size": "$type.section", "color": "$colors.ocean", "line_height": 20, "weight": "bold", "space_after": 8},
+      "body": {"size": "$type.body", "color": "$colors.ink", "line_height": 14},
+      "body_bold": {"size": "$type.body", "color": "$colors.ink", "line_height": 14, "weight": "bold"},
+      "small": {"size": "$type.small", "color": "$colors.ocean", "line_height": 11},
+      "label": {"size": "$type.small", "color": "$colors.ocean", "line_height": 11, "weight": "bold"},
+      "signal": {"size": 10.5, "color": "$colors.teal", "line_height": 15}
+    },
+    "layouts": {
+      "research_note": {
+        "document": {"compress": true, "pdf_version": "1.7"},
+        "page_templates": {
+          "paper": {
+            "size": "a4",
+            "margins": {"top": 72, "right": 52, "bottom": 32, "left": 52},
+            "header": "{{institution}}  /  QUANTUM SYSTEMS UNIT",
+            "footer": "{{report_id}}  /  Page {page} of {total}"
+          }
+        },
+        "layout_options": {"template": "paper"}
+      }
+    },
+    "themes": {
+      "aurora": {
+        "tokens": {"colors": {"teal": "#0c9185", "coral": "#ed6b58"}}
+      }
+    }
+  },
+  "blocks": [
+    {"type": "paragraph", "text": "RESEARCH NOTE  /  {{report_id}}", "options": {"style": "small", "space_after": 8}},
+    {"type": "spacer", "content": 7},
+    {"type": "heading", "text": "{{study}}", "options": {"style": "display", "destination": "cover"}},
+    {"type": "spacer", "content": 16},
+    {"type": "paragraph", "text": "A fictional study of coherent energy transfer in a driven photonic lattice.", "options": {"style": "signal", "space_after": 14}},
+    {"type": "separator", "options": {"color": "$colors.gold", "width": 2}},
+    {"type": "spacer", "content": 14},
+    {"type": "columns", "count": 3, "paragraphs": ["LEAD INVESTIGATOR\n{{lead_author}}", "OBSERVATION WINDOW\n42 microseconds", "STATUS\n{{review_status}}"], "options": {"style": "small", "column_gap": 20}},
+    {"type": "spacer", "content": 24},
+    {"type": "heading", "text": "Abstract", "options": {"style": "section"}},
+    {"type": "paragraph", "text": "We model coherent energy transfer across a synthetic chain of twelve microwave resonators. A narrow forcing window near 5.4 GHz produces a repeatable localization peak while preserving phase coherence.", "options": {"style": "body", "space_after": 8}},
+    {"type": "spacer", "content": 10},
+    {"type": "paragraph", "text": "Across 180 fictional trials, the observed transfer coefficient reaches 0.75, within 4.2% of the nonlinear model. The study is a PaperForge design demonstration and makes no scientific claim.", "options": {"style": "body", "space_after": 18}},
+    {"type": "spacer", "content": 24},
+    {"type": "heading", "text": "Research question", "options": {"style": "section"}},
+    {"type": "paragraph", "text": "RESEARCH HYPOTHESIS", "options": {"style": "label", "space_after": 4}},
+    {"type": "paragraph", "text": "A weak periodic drive can create a controllable band of localized energy without collapsing coherence across the lattice. Transfer should rise toward a resonance threshold, then decline as damping dominates.", "options": {"style": "body"}},
+    {"type": "spacer", "content": 32},
+    {"type": "paragraph", "text": "KEY FINDING  /  Maximum observed transfer: 0.75 at 5.4 GHz", "options": {"style": "signal", "background_color": "$colors.mist", "padding": 12}},
+    {"type": "spacer", "content": 20},
+    {"type": "heading", "text": "Study at a glance", "options": {"style": "section"}},
+    {"type": "columns", "count": 3, "paragraphs": ["180 TRIALS\nThirty-six repetitions across five controlled drive bands.", "12 RESONATORS\nA finite lattice with measured nearest-neighbor coupling.", "4.2% PEAK ERROR\nObserved-to-model residual at the resonance maximum."], "options": {"style": "body_bold", "column_gap": 20}},
+    {"type": "spacer", "content": 18},
+    {"type": "paragraph", "text": "WHY IT MATTERS  /  The experiment tests whether a narrow, controllable energy-transfer window can remain measurable after damping and calibration uncertainty are included.", "options": {"style": "label", "background_color": "$colors.ice", "padding": 12}},
+
+    {"type": "page_break"},
+    {"type": "heading", "text": "1. Theoretical framework", "options": {"style": "title", "destination": "theory"}},
+    {"type": "paragraph", "text": "SYSTEM MODEL", "options": {"style": "label", "space_after": 4}},
+    {"type": "paragraph", "text": "Each resonator is a site in a finite driven lattice. Its state evolves under nearest-neighbor coupling, periodic forcing, and weak damping. Equation 1 defines the normalized transfer score used throughout the report.", "options": {"style": "body"}},
+    {"type": "spacer", "content": 22},
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {"symbol": "T"},
+          {"subscript": {"base": {"symbol": ""}, "value": {"symbol": "n"}}},
+          {"symbol": " = "},
+          {"fraction": {
+            "numerator": {"root": {"row": [{"superscript": {"base": {"symbol": "A"}, "value": {"symbol": "2"}}}, {"symbol": " + "}, {"superscript": {"base": {"symbol": "B"}, "value": {"symbol": "2"}}}]}},
+            "denominator": {"row": [{"symbol": "1 + "}, {"superscript": {"base": {"symbol": "gamma"}, "value": {"symbol": "2"}}}]}
+          }}
+        ]
+      },
+      "options": {"title": "Eq. 1  /  Normalized transfer", "level": 5, "size": 15, "color": "$colors.ink", "space_before": 8, "space_after": 18}
+    },
+    {"type": "spacer", "content": 14},
+    {"type": "paragraph", "text": "INTERPRETATION", "options": {"style": "label", "space_after": 4}},
+    {"type": "paragraph", "text": "The numerator combines the in-phase and quadrature amplitudes, while the denominator penalizes damping. This normalization permits direct comparison across drive powers.", "options": {"style": "body"}},
+    {"type": "spacer", "content": 8},
+    {"type": "spacer", "content": 16},
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {"integral": {"lower": {"symbol": "0"}, "upper": {"symbol": "tau"}, "body": {"superscript": {"base": {"symbol": "psi(t)"}, "value": {"symbol": "2"}}}, "variable": "t"}},
+          {"symbol": " = E"},
+          {"subscript": {"base": {"symbol": ""}, "value": {"symbol": "window"}}}
+        ]
+      },
+      "options": {"title": "Eq. 2  /  Observation-window energy", "level": 5, "size": 15, "color": "$colors.ink", "space_before": 8, "space_after": 18}
+    },
+    {"type": "spacer", "content": 18},
+    {"type": "heading", "text": "Coupling matrix", "options": {"style": "section"}},
+    {"type": "math", "ast": {"matrix": [[{"symbol": "0"}, {"symbol": "k"}, {"symbol": "0"}], [{"symbol": "k"}, {"symbol": "d"}, {"symbol": "k"}], [{"symbol": "0"}, {"symbol": "k"}, {"symbol": "0"}]]}, "options": {"size": 13, "space_after": 14, "color": "$colors.violet"}},
+    {"type": "spacer", "content": 12},
+    {"type": "paragraph", "text": "Here k is the nearest-neighbor coupling coefficient and d is the controlled detuning at the central site. Native Math AST keeps every symbol and rule sharp at any zoom.", "options": {"style": "body"}},
+    {"type": "spacer", "content": 22},
+    {"type": "heading", "text": "Model assumptions", "options": {"style": "section"}},
+    {"type": "columns", "count": 2, "paragraphs": ["LOCAL COUPLING\nOnly adjacent resonators exchange energy; edge sites have one neighbor and interior sites have two.", "WEAK DAMPING\nLoss remains stationary during each 42-microsecond observation window and is estimated before every sweep."], "options": {"style": "body", "column_gap": 24}},
+
+    {"type": "page_break"},
+    {"type": "heading", "text": "2. Experimental protocol", "options": {"style": "title", "destination": "methods"}},
+    {"type": "paragraph", "text": "APPARATUS  /  The fictional setup contains twelve coupled superconducting resonators sampled by a phase-locked receiver. Each frequency point is repeated thirty-six times after thermal stabilization.", "options": {"style": "body"}},
+    {"type": "spacer", "content": 12},
+    {"type": "columns", "count": 3, "paragraphs": ["01 / PREPARE\nCool the lattice to 18 mK and estimate the unloaded quality factor.", "02 / DRIVE\nSweep five forcing frequencies at fixed normalized power.", "03 / VERIFY\nRepeat every observation and compare residual phase error."], "options": {"style": "body", "column_gap": 18}},
+    {"type": "spacer", "content": 18},
+    {"type": "heading", "text": "Controlled variables", "options": {"style": "section"}},
+    {"type": "table", "columns": ["Variable", "Set point", "Tolerance", "Purpose"], "rows": [["Bath temperature", "18 mK", "+/- 0.4 mK", "Suppress thermal occupation"], ["Coupling k", "22 MHz", "+/- 0.8 MHz", "Maintain common bandwidth"], ["Drive power", "-42 dBm", "+/- 0.2 dB", "Avoid nonlinear saturation"], ["Window tau", "42 us", "+/- 0.5 us", "Capture coherent transfer"]], "options": {"column_widths": [120, 92, 92, 184], "header_fill_color": "$colors.ink", "header_color": "#ffffff", "stripe_fill_color": "$colors.ice", "border_color": "$colors.line", "padding": 8, "size": 8, "cell_line_height": 11, "row_height": 38, "space_after": 18}},
+    {"type": "spacer", "content": 14},
+    {"type": "heading", "text": "Quality controls", "options": {"style": "section"}},
+    {"type": "list", "content": ["Blind the analyst to the predicted peak until fitting is complete.", "Reject runs whose phase drift exceeds 0.8 degrees per microsecond.", "Preserve every accepted and rejected trace under the same deterministic study identifier.", "Report both predicted and observed transfer rather than selecting only favorable trials."], "options": {"style": "body", "type": "ordered"}},
+    {"type": "spacer", "content": 18},
+    {"type": "heading", "text": "Data integrity", "options": {"style": "section"}},
+    {"type": "columns", "count": 2, "paragraphs": ["ACCEPTANCE\n172 of 180 traces passed the predefined phase-drift threshold. Rejected traces remain in the study archive.", "TRACEABILITY\nEvery table row and chart point resolves to a retained trial group under the same deterministic report identifier."], "options": {"style": "body", "column_gap": 24}},
+    {"type": "spacer", "content": 12},
+    {"type": "paragraph", "text": "METHOD NOTE  /  No result was removed because it weakened the modeled response.", "options": {"style": "small", "background_color": "$colors.mist", "padding": 11}},
+    {"type": "footnote", "content": "All instruments, observations, authors, and values in this study are fictional and exist only to demonstrate PaperForge 1.4."},
+
+    {"type": "page_break"},
+    {"type": "heading", "text": "3. Results and interpretation", "options": {"style": "title", "destination": "results"}},
+    {"type": "paragraph", "text": "OBSERVED RESPONSE", "options": {"style": "label", "space_after": 4}},
+    {"type": "paragraph", "text": "Transfer rises from 0.39 at 4.2 GHz to a measured peak of 0.75 at 5.4 GHz, then declines as damping overtakes coherent coupling. The model preserves the residual error rather than smoothing it away.", "options": {"style": "body"}},
+    {"type": "spacer", "content": 16},
+    {"type": "chart", "content": [["4.2", 39], ["4.8", 58], ["5.4", 75], ["6.0", 59], ["6.6", 40]], "options": {"chart_type": "line", "height": 145, "color": "$colors.teal", "background_color": "$colors.mist", "label_color": "$colors.ink", "chart_padding": 16, "line_width": 2.4, "point_radius": 4, "space_after": 16}},
+    {"type": "table", "columns": ["Run", "Drive", "Predicted T", "Observed T", "Residual", "State"], "rows": "{{results}}", "options": {"column_widths": [62, 72, 86, 86, 72, 82], "header_fill_color": "$colors.ocean", "header_color": "#ffffff", "stripe_fill_color": "$colors.mist", "border_color": "$colors.line", "padding": 7, "size": 8, "cell_line_height": 11, "row_height": 34, "space_after": 16}},
+    {"type": "paragraph", "text": "INTERPRETATION", "options": {"style": "label", "space_after": 4}},
+    {"type": "paragraph", "text": "The peak is narrow enough to be controllable and broad enough to survive the modeled calibration uncertainty.", "options": {"style": "body"}},
+    {"type": "spacer", "content": 14},
+    {"type": "columns", "count": 2, "paragraphs": ["MODEL FIT\nMean absolute residual: 5.0%. The largest deviation occurs in the damped high-frequency run.", "LIMITATION\nThe synthetic dataset excludes fabrication defects and long-duration thermal drift."], "options": {"style": "body", "column_gap": 24}},
+    {"type": "equation_reference", "number": 1, "options": {"text": "Return to the transfer model  /  Equation 1, page {page}", "style": "small"}},
+
+    {"type": "page_break"},
+    {"type": "heading", "text": "4. Signal decomposition", "options": {"style": "title", "destination": "signals"}},
+    {"type": "paragraph", "text": "ANALYTICAL VIEWS", "options": {"style": "label", "space_after": 4}},
+    {"type": "paragraph", "text": "Three complementary graphics separate the response into composition, temporal persistence, and calibration stability. Every chart is a native PDF vector generated from variable data in this .paperforge file.", "options": {"style": "body"}},
+    {"type": "spacer", "content": 20},
+    {"type": "heading", "text": "Observed response composition", "options": {"style": "section"}},
+    {"type": "chart", "content": [["Coherent", 62], ["Damped", 23], ["Noise", 15]], "options": {"chart_type": "donut", "height": 145, "colors": ["$colors.teal", "$colors.coral", "$colors.gold"], "background_color": "$colors.ice", "label_color": "$colors.ink", "chart_padding": 14, "inner_radius": 0.58, "show_values": true}},
+    {"type": "spacer", "content": 16},
+    {"type": "heading", "text": "Coherence retained across the window", "options": {"style": "section"}},
+    {"type": "chart", "content": [["0 us", 100], ["10 us", 94], ["20 us", 87], ["30 us", 79], ["42 us", 71]], "options": {"chart_type": "area", "height": 115, "color": "$colors.ocean", "fill_color": "$colors.ice", "background_color": "$colors.mist", "label_color": "$colors.ink", "chart_padding": 14, "line_width": 2, "point_radius": 3, "show_values": true}},
+    {"type": "spacer", "content": 20},
+    {"type": "heading", "text": "Calibration residual by run", "options": {"style": "section"}},
+    {"type": "chart", "content": [["L-01", 5], ["L-02", 4], ["L-03", 4], ["L-04", 3], ["L-05", 9]], "options": {"chart_type": "scatter", "height": 105, "color": "$colors.violet", "background_color": "$colors.mist", "label_color": "$colors.ink", "chart_padding": 14, "point_radius": 5, "show_values": true}},
+    {"type": "paragraph", "text": "READOUT", "options": {"style": "label", "space_after": 4}},
+    {"type": "paragraph", "text": "Coherence remains the dominant component. The final run carries the largest calibration residual and motivates the damped-state label.", "options": {"style": "body"}},
+
+    {"type": "page_break"},
+    {"type": "heading", "text": "5. Independent review", "options": {"style": "title", "destination": "review"}},
+    {"type": "paragraph", "text": "REVIEW WORKFLOW  /  This final page turns the report into an approval artifact. The protected edition includes compact interactive review fields; a companion edition carries the invisible incremental digital signature.", "options": {"style": "body"}},
+    {"type": "spacer", "content": 18},
+    {"type": "paragraph", "text": "REVIEWER", "options": {"style": "label", "space_after": 28}},
+    {"type": "paragraph", "text": "METHODS AND ASSUMPTIONS VERIFIED", "options": {"style": "label", "space_after": 34}},
+    {"type": "paragraph", "text": "SIGNATURE", "options": {"style": "label", "space_after": 38}},
+    {"type": "separator", "options": {"color": "$colors.line"}},
+    {"type": "spacer", "content": 14},
+    {"type": "heading", "text": "Reviewer checklist", "options": {"style": "section"}},
+    {"type": "list", "content": ["The equations match the stated assumptions.", "The tabulated values agree with the plotted response.", "Residuals and limitations are visible and not selectively omitted.", "The report is explicitly identified as a fictional demonstration."], "options": {"style": "body", "type": "ordered"}},
+    {"type": "spacer", "content": 18},
+    {"type": "bibliography", "entries": [{"author": "Marlow, E. and Chen, R.", "title": "Driven localization in finite resonator lattices", "year": 2027}, {"author": "Aurora Field Institute", "title": "Phase-coherent measurement protocol AFI-QS-12", "year": 2026}, {"author": "PaperForge Contributors", "title": "Declarative scientific document generation", "year": 2026}], "options": {"title": "References", "level": 3, "size": 7.5, "line_height": 11}},
+    {"type": "paragraph", "text": "DOCUMENT CONTROL  /  Protected edition: AES-256 and interactive review fields. Signed edition: incremental PAdES signature with the same deterministic template hash.", "options": {"style": "label", "background_color": "$colors.mist", "padding": 11}}
+  ]
+}

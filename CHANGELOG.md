@@ -5,6 +5,131 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-08-01
+
+### Added
+
+- Added `PaperForge.Import.html/2` for document-oriented HTML to Layout IR,
+  including headings, paragraphs, lists, quotes, code, tables, images, inline
+  SVG, explicit page breaks, and safe local content handling.
+- Added a strict CSS subset with element, class, and ID selectors; colors,
+  typography, alignment, dimensions, vertical spacing, and page-break
+  properties.
+- Added CommonMark import through `PaperForge.Import.markdown/2` using the
+  pure-Elixir `earmark_parser` dependency.
+- Added declarative `html`, `markdown`, `math`, automatically numbered
+  `equation`, `equation_reference`, `bibliography`, `footnote`, `endnotes`, and
+  `annotation` blocks to `.paperforge` and its bundled JSON Schema.
+- Added root-level declarative AcroForms with text, checkbox, button, radio,
+  list, combo, and signature fields, including choices, defaults, tooltips, and
+  restricted calculations applied after pagination.
+- Added `PaperForge.Interoperability` and a pure-Elixir classic PDF parser for
+  selected-page import, ordered document composition, resource inventories,
+  graph remapping, and duplicate font/XObject reduction.
+- Added `PaperForge.Math`, a measured native Math AST for symbols, rows,
+  fractions, roots, matrices, superscripts, subscripts, and bounded integrals.
+- Added `PaperForge.Scientific` for numbered equations, named equation
+  destinations, page-aware equation references, citations, and bibliographies.
+- Added standard `PaperForge.AcroForm` text, checkbox, push-button, radio,
+  list, combo, and signature fields with defaults, generated appearances,
+  restricted calculations, data import/export, current-document editing, and
+  flattening.
+- Added underline, strikeout, stamp, free-text, square, circle, ink, and file
+  attachment annotations with authors, subjects, colors, reply relationships,
+  real EmbeddedFile objects, and review-conversation metadata.
+- Added SVG text rendering and inherited font size, weight, style, and anchor
+  handling to the existing paths, Bézier curves, groups, transforms, viewBox,
+  clipping, and presentation-style pipeline.
+- Added focused unit and integration tests for imported markup, PDF page
+  composition, Math AST, scientific references, AcroForms, expanded
+  annotations, SVG text, and declarative 1.4 blocks.
+- Added `INTEROPERABILITY.md` and `SCIENTIFIC.md` with complete examples,
+  operational boundaries, and migration guidance.
+- Added `investigacion.paperforge`, a six-page fictional photonics study that
+  demonstrates declarative scientific layout, Math AST, tables, charts,
+  references, AES-256 policy, review fields, and signature metadata, plus a
+  minimal runner for protected and digitally signed delivery editions.
+- Added native configurable bar, line, area, scatter, pie, and donut charts to
+  both `PaperForge.Flow` and `.paperforge`, including palettes, value labels,
+  themed backgrounds, label colors, point sizing, line width, and donut
+  inner-radius controls. Charts reserve configurable interior padding so marks
+  and labels do not touch panel boundaries.
+- Added optional declarative `user_password` and `owner_password` values so a
+  controlled `.paperforge` template can produce AES-256 output without Elixir
+  write options.
+- Added per-side declarative page margins for reliable clearance between page
+  headers, flowing content, and footers.
+- Added declarative `weight` support and real bold/italic built-in font variant
+  resolution, with matching text metrics for inline rich-text runs.
+- Added declarative text-note and highlight annotations alongside the expanded
+  review annotation set.
+
+### Changed
+
+- Improved Math AST baseline conversion, symmetric fraction spacing, radical
+  clearance, and symbol advances using the built-in font metrics.
+- Added configurable compact AcroForm appearances with rounded corners,
+  background and border styling, and checkbox mark styling in both Elixir and
+  `.paperforge` templates.
+- Preserved tooltip and appearance options when declarative radio groups are
+  compiled, matching the other AcroForm field types.
+- Corrected paragraph font-weight defaults and weight-aware text measurement,
+  and made declarative columns honor `column_gap`, font, weight, color, style,
+  and alignment consistently.
+- Added `top_left` AcroForm rectangle coordinates for direct alignment with
+  flowing layout content while retaining PDF-native `bottom_left` defaults.
+- Fixed hexadecimal AcroForm appearance colors so Preview and other PDF
+  readers render configured backgrounds, borders, and checks instead of black
+  fallback rectangles.
+- Improved imported HTML table defaults with vertically centered cells,
+  stronger headers, alternating row fills, increased padding, and lighter
+  configurable dividers. Expanded the safe CSS subset with table padding,
+  line height, border styling, vertical alignment, body/header colors, and
+  deterministic `tr:nth-child(even)` striping.
+- Expanded practical HTML styling with compound selectors, built-in PDF font
+  families, text transformation, block backgrounds and borders, padding,
+  hidden content, list styles, hyphenation, widow/orphan controls, paged-media
+  breaks, and image fit and position.
+- Updated the package metadata, HexDocs extras, README, public API policy,
+  migration guide, release examples, and documentation tests for 1.4.0.
+- Introduced the project identity "Document engineering for the BEAM" across
+  the README, Hex package description, and primary API documentation. The
+  README now opens with a generated showcase and a concise document-lifecycle
+  diagram before the detailed reference material.
+- Reorganized the README around project status, verified compatibility,
+  design principles, representative use cases, a reproducible performance
+  snapshot, ecosystem boundaries, an HTML-to-PDF comparison, architecture,
+  and a concise roadmap so the project can be evaluated quickly.
+- Renamed the two maintained release showcases to
+  `paper_forge_1_4_showcase.exs` and `paper_forge_1_4_showcase.paperforge`.
+- Kept runtime generation free from native compilation, browser processes,
+  command-line renderers, and external services.
+
+### Fixed
+
+- Fixed numeric radio-group values so they are normalized to valid PDF names
+  and can always be serialized and exported consistently.
+- Fixed multiline rich text so inline font, weight, style, color, and URI-link
+  options survive word wrapping and pagination.
+- Fixed paragraph and rich-text `background_color` rendering, and made grid
+  blocks honor their configured font, weight, style, color, and alignment.
+- Fixed top-left AcroForm coordinates for pages with offset or inherited
+  `MediaBox` geometry.
+- Fixed declarative rich-text run objects that omit `options`, treating them as
+  regular runs instead of rejecting them during compilation.
+- Fixed Math AST spacing for integral limits and differentials, added radical
+  clearance for superscripted radicands, centered matrix cells within symmetric
+  brackets, and corrected integral height measurement for tight layouts.
+
+### Not Supported
+
+- XFA forms are intentionally outside the standard AcroForm implementation.
+- Binary PDF import currently rejects encryption and compressed object streams
+  and does not merge source outlines, named destinations, or catalog-level
+  AcroForms.
+- HTML/CSS import is a document subset rather than a browser engine; it does
+  not execute JavaScript or implement flexbox, grid, or a complete CSS cascade.
+
 ## [1.3.0] - 2026-08-01
 
 ### Added
@@ -993,6 +1118,7 @@ establishes the public API and Semantic Versioning contract for 1.x.
 - Uses native PDF coordinates with the origin at the bottom-left corner
 - Isolates graphic operations using the PDF `q` and `Q` operators
 
+[1.4.0]: https://github.com/Manuel1471/paper_forge/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/Manuel1471/paper_forge/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Manuel1471/paper_forge/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Manuel1471/paper_forge/compare/v1.0.0...v1.1.0

@@ -1,5 +1,29 @@
 # Migrating PaperForge
 
+## Migrating from 1.3 to 1.4
+
+PaperForge 1.4 is backward compatible with the documented 1.3 public API.
+Existing Elixir and `.paperforge` documents require no changes.
+
+Applications can adopt the new features independently:
+
+1. Convert CommonMark or the supported HTML/CSS subset with
+   `PaperForge.Import` and pass the resulting `Flow` through the normal layout
+   engine.
+2. Import or compose classic, unencrypted PDF documents with
+   `PaperForge.Interoperability`; keep encrypted and object-stream PDFs on an
+   application-specific conversion path for now.
+3. Build formulas with `PaperForge.Math` and use `PaperForge.Scientific` when
+   equation numbering, citations, bibliographies, or page references are
+   needed.
+4. Add interactive standard fields through `PaperForge.AcroForm`; XFA remains
+   intentionally unsupported.
+5. Replace custom annotation dictionaries with the expanded stable
+   `PaperForge.Page.annotation/3` helpers where possible.
+
+The runtime remains pure Elixir/OTP. `earmark_parser` is the only new runtime
+dependency and requires no native compilation or external executable.
+
 ## Migrating from 1.2 to 1.3
 
 PaperForge 1.3 is backward compatible with the documented 1.2 public API.

@@ -9,6 +9,7 @@ defmodule PaperForge.Declarative do
   """
 
   alias PaperForge.Color
+  alias PaperForge.AcroForm
   alias PaperForge.Declarative.Cache
   alias PaperForge.Declarative.Compiled
   alias PaperForge.Declarative.Error
@@ -20,6 +21,8 @@ defmodule PaperForge.Declarative do
   alias PaperForge.Declarative.Validator
   alias PaperForge.DesignSystem
   alias PaperForge.Flow
+  alias PaperForge.Import
+  alias PaperForge.Math
 
   @max_depth 64
   @default_limits %{
@@ -29,7 +32,7 @@ defmodule PaperForge.Declarative do
     max_data_bytes: 10_000_000
   }
   @option_keys ~w(
-    align background_color borders caption cell_height color column_gap column_widths
+    align background_color borders caption cell_height color colors column_gap column_widths
     compress count default_font destination even_footer even_header extends fill_color fit
     focal_point font footer gap header header_color
     header_fill_color height hyphenate id keep_together level line_height link marker
@@ -37,11 +40,15 @@ defmodule PaperForge.Declarative do
     page_break_before pdf_version prefix repeat_header
     row_split row_height cell_line_height size space_after space_before spacer stroke_color stripe_fill_color style suffix template title
     type valign width widow_lines orphan_lines x y first_footer first_header last_footer
-    last_header text
+    last_header text author subject name filename data points reply_to reply_type
+    default_appearance border_color line_width chart_type show_values show_legend
+    point_radius inner_radius grid_color label_color chart_padding
+    weight
   )a
   @enum_values ~w(
     left center right justify top middle bottom contain cover fill ordered unordered
     keep split error clip ellipsis continue portrait landscape all none a3 a4 a5 letter legal
+    bar line area scatter pie donut regular bold
   )a
 
   @type source :: binary() | map()
@@ -118,6 +125,7 @@ defmodule PaperForge.Declarative do
            registry: registry,
            limits: limits(options),
            blocks: 0,
+           equation_count: 0,
            component_stack: []
          },
          {:ok, flow, _state} <-
@@ -148,6 +156,7 @@ defmodule PaperForge.Declarative do
              variables
            ),
          metadata: interpolate(Map.get(definition, "metadata", %{}), variables),
+         forms: compile_forms(interpolate(Map.get(definition, "forms", []), variables)),
          security: compile_security(interpolate(Map.get(definition, "security", %{}), variables)),
          signature:
            compile_signature(interpolate(Map.get(definition, "signature", %{}), variables)),
@@ -295,6 +304,7 @@ defmodule PaperForge.Declarative do
 
     document =
       document
+      |> apply_forms(compiled.forms)
       |> maybe_comply(compiled.compliance)
       |> maybe_protect(compiled.protection)
 
@@ -434,6 +444,7 @@ defmodule PaperForge.Declarative do
 
     case apply_block(flow, type, content, node, context, options, state) do
       {:ok, next_flow} -> {:ok, next_flow, state}
+      {:ok, next_flow, next_state} -> {:ok, next_flow, next_state}
       error -> error
     end
   rescue
@@ -665,6 +676,106 @@ defmodule PaperForge.Declarative do
   defp apply_block(flow, "svg", content, _node, _context, options, _state),
     do: {:ok, Flow.svg(flow, to_text(content), options)}
 
+  defp apply_block(flow, "html", content, _node, _context, options, _state) do
+    with {:ok, imported} <- Import.html(to_text(content), options) do
+      {:ok, append_flow(flow, imported)}
+    end
+  end
+
+  defp apply_block(flow, "markdown", content, _node, _context, options, _state) do
+    with {:ok, imported} <- Import.markdown(to_text(content), options) do
+      {:ok, append_flow(flow, imported)}
+    end
+  end
+
+  defp apply_block(flow, "math", content, node, context, options, _state) do
+    ast = interpolate(Map.get(node, "ast", content), context)
+    {:ok, Flow.math(flow, math_ast(ast), options)}
+  end
+
+  defp apply_block(flow, "equation", content, node, context, options, state) do
+    number = state.equation_count + 1
+    ast = interpolate(Map.get(node, "ast", content), context) |> math_ast()
+    destination = Keyword.get(options, :destination, "equation-#{number}")
+    title = Keyword.get(options, :title, "Equation #{number}")
+
+    flow =
+      flow
+      |> Flow.heading(title,
+        level: Keyword.get(options, :level, 4),
+        destination: destination,
+        bookmark: false
+      )
+      |> Flow.math(ast, options)
+
+    {:ok, flow, %{state | equation_count: number}}
+  end
+
+  defp apply_block(flow, "equation_reference", content, node, _context, options, _state) do
+    number = Map.get(node, "number", content)
+
+    if is_integer(number) and number > 0 do
+      text = Keyword.get(options, :text, "Equation #{number}, page {page}")
+      {:ok, Flow.reference(flow, "equation-#{number}", Keyword.put(options, :text, text))}
+    else
+      {:error,
+       error(
+         :invalid_equation_reference,
+         "$.blocks.number",
+         "equation number must be a positive integer"
+       )}
+    end
+  end
+
+  defp apply_block(flow, "footnote", content, _node, _context, options, _state),
+    do: {:ok, Flow.footnote(flow, to_text(content), options)}
+
+  defp apply_block(flow, "endnotes", content, _node, _context, options, _state) do
+    notes =
+      List.wrap(content)
+      |> Enum.with_index(1)
+      |> Enum.map(fn
+        {%{"number" => number, "text" => text}, _index} -> {number, to_text(text)}
+        {text, index} -> {index, to_text(text)}
+      end)
+
+    {:ok, Flow.endnotes(flow, notes, options)}
+  end
+
+  defp apply_block(flow, "bibliography", content, node, context, options, _state) do
+    entries = interpolate(Map.get(node, "entries", content || []), context)
+    title = Keyword.get(options, :title, "References")
+
+    flow = Flow.heading(flow, title, level: Keyword.get(options, :level, 2))
+
+    flow =
+      entries
+      |> List.wrap()
+      |> Enum.with_index(1)
+      |> Enum.reduce(flow, fn {entry, number}, current ->
+        Flow.paragraph(current, "#{number}. #{bibliography_entry(entry)}", options)
+      end)
+
+    {:ok, flow}
+  end
+
+  defp apply_block(flow, "annotation", content, node, _context, options, _state) do
+    type = annotation_type(Map.get(node, "annotation_type"))
+    annotation_options = Keyword.put(options, :contents, to_text(content || ""))
+
+    custom_options = [height: Keyword.get(options, :height, 0)]
+
+    renderer = fn page, _context ->
+      case type do
+        :note -> PaperForge.Page.note(page, to_text(content || ""), options)
+        :highlight -> PaperForge.Page.highlight(page, to_text(content || ""), options)
+        _ -> PaperForge.Page.annotation(page, type, annotation_options)
+      end
+    end
+
+    {:ok, Flow.custom(flow, renderer, custom_options)}
+  end
+
   defp apply_block(flow, "chart", content, _node, _context, options, _state),
     do: {:ok, Flow.chart(flow, chart_series(content), options)}
 
@@ -731,6 +842,138 @@ defmodule PaperForge.Declarative do
     do:
       {:error,
        error(:unsupported_block, "$.blocks.type", "unsupported block type #{inspect(type)}")}
+
+  defp append_flow(flow, imported), do: %{flow | blocks: imported.blocks ++ flow.blocks}
+
+  defp math_ast(%{"symbol" => value}), do: Math.symbol(value)
+  defp math_ast(%{"row" => items}) when is_list(items), do: Math.row(Enum.map(items, &math_ast/1))
+
+  defp math_ast(%{"fraction" => %{"numerator" => numerator, "denominator" => denominator}}),
+    do: Math.fraction(math_ast(numerator), math_ast(denominator))
+
+  defp math_ast(%{"root" => value} = root),
+    do: Math.root(math_ast(value), optional_math_ast(root["index"]))
+
+  defp math_ast(%{"matrix" => rows}) when is_list(rows),
+    do: Math.matrix(Enum.map(rows, fn row -> Enum.map(row, &math_ast/1) end))
+
+  defp math_ast(%{"superscript" => %{"base" => base, "value" => value}}),
+    do: Math.superscript(math_ast(base), math_ast(value))
+
+  defp math_ast(%{"subscript" => %{"base" => base, "value" => value}}),
+    do: Math.subscript(math_ast(base), math_ast(value))
+
+  defp math_ast(%{"integral" => integral}) do
+    Math.integral(
+      optional_math_ast(integral["lower"]),
+      optional_math_ast(integral["upper"]),
+      math_ast(Map.fetch!(integral, "body")),
+      Map.get(integral, "variable", "x")
+    )
+  end
+
+  defp math_ast(value) when is_binary(value) or is_number(value), do: Math.symbol(value)
+
+  defp math_ast(other),
+    do: raise(ArgumentError, "invalid declarative math AST: #{inspect(other)}")
+
+  defp optional_math_ast(nil), do: nil
+  defp optional_math_ast(value), do: math_ast(value)
+
+  defp bibliography_entry(entry) when is_binary(entry), do: entry
+
+  defp bibliography_entry(entry) when is_map(entry) do
+    [entry["author"], entry["title"], entry["publisher"], entry["year"]]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map_join(". ", &to_text/1)
+  end
+
+  defp bibliography_entry(entry), do: to_text(entry)
+
+  defp annotation_type(value) do
+    case to_string(value) do
+      "note" -> :note
+      "highlight" -> :highlight
+      "underline" -> :underline
+      "strikeout" -> :strikeout
+      "stamp" -> :stamp
+      "free_text" -> :free_text
+      "square" -> :square
+      "circle" -> :circle
+      "ink" -> :ink
+      "file_attachment" -> :file_attachment
+      other -> raise ArgumentError, "unsupported annotation type #{inspect(other)}"
+    end
+  end
+
+  defp compile_forms(forms) when is_list(forms), do: Enum.map(forms, &compile_form/1)
+
+  defp compile_form(%{"type" => "radio", "name" => name, "choices" => choices} = form) do
+    %{
+      type: :radio,
+      name: name,
+      value: form["value"],
+      options: compile_form_options(form),
+      choices:
+        Enum.map(choices, fn choice ->
+          [page: choice["page"], rect: choice["rect"], value: to_text(choice["value"])]
+        end)
+    }
+  end
+
+  defp compile_form(%{"type" => type, "name" => name, "page" => page, "rect" => rect} = form) do
+    options = Keyword.put(compile_form_options(form), :rect, rect)
+
+    %{type: form_type(type), name: name, page: page, options: options}
+  end
+
+  defp compile_form_options(form) do
+    [
+      value: form["value"],
+      origin: form_origin(form["origin"]),
+      default: form["default"],
+      tooltip: form["tooltip"],
+      options: form["options"],
+      calculation: compile_calculation(form["calculation"]),
+      background_color: form["background_color"],
+      border_color: form["border_color"],
+      border_width: form["border_width"],
+      border_radius: form["border_radius"],
+      check_color: form["check_color"],
+      check_width: form["check_width"]
+    ]
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+  end
+
+  defp compile_calculation(nil), do: nil
+
+  defp compile_calculation(%{"operation" => operation, "fields" => fields})
+       when operation in ["sum", "product", "average"] and is_list(fields),
+       do: {String.to_existing_atom(operation), Enum.map(fields, &to_text/1)}
+
+  defp compile_calculation(other),
+    do: raise(ArgumentError, "invalid AcroForm calculation #{inspect(other)}")
+
+  defp form_origin(nil), do: nil
+  defp form_origin("bottom_left"), do: :bottom_left
+  defp form_origin("top_left"), do: :top_left
+
+  defp form_type("text"), do: :text
+  defp form_type("checkbox"), do: :checkbox
+  defp form_type("button"), do: :button
+  defp form_type("list"), do: :list
+  defp form_type("combo"), do: :combo
+  defp form_type("signature"), do: :signature
+
+  defp apply_forms(document, forms) do
+    Enum.reduce(forms, document, fn
+      %{type: :radio, name: name, choices: choices, value: value, options: options}, current ->
+        AcroForm.add_radio_group(current, name, choices, Keyword.put(options, :value, value))
+
+      %{type: type, name: name, page: page, options: options}, current ->
+        AcroForm.add_field(current, page, type, name, options)
+    end)
+  end
 
   defp parse_loop(%{"each" => each, "as" => binding}) when is_binary(each) and is_binary(binding),
     do: {:ok, each, binding}
@@ -799,6 +1042,18 @@ defmodule PaperForge.Declarative do
 
   defp option_value([x, y], :focal_point) when is_number(x) and is_number(y), do: {x, y}
 
+  defp option_value(value, :margins) when is_map(value) do
+    allowed = %{"top" => :top, "right" => :right, "bottom" => :bottom, "left" => :left}
+
+    Enum.map(value, fn {key, margin} ->
+      case Map.fetch(allowed, to_string(key)) do
+        {:ok, side} when is_number(margin) and margin >= 0 -> {side, margin}
+        {:ok, _side} -> raise ArgumentError, "margin #{key} must be a non-negative number"
+        :error -> raise ArgumentError, "unknown margin side #{inspect(key)}"
+      end
+    end)
+  end
+
   defp option_value("#" <> hex = color, _key) when byte_size(hex) in [3, 6],
     do: parse_color(color)
 
@@ -859,7 +1114,7 @@ defmodule PaperForge.Declarative do
       )
 
   defp compile_security(options) when is_map(options) do
-    allowed = ~w(algorithm encrypt_metadata permissions)
+    allowed = ~w(algorithm encrypt_metadata permissions user_password owner_password)
     ensure_known_keys!(options, allowed, "security")
 
     permissions =
@@ -877,6 +1132,8 @@ defmodule PaperForge.Declarative do
     []
     |> maybe_put(:algorithm, enum_atom(options["algorithm"], ~w(aes_256), "security.algorithm"))
     |> maybe_put(:encrypt_metadata, options["encrypt_metadata"])
+    |> maybe_put(:user_password, options["user_password"])
+    |> maybe_put(:owner_password, options["owner_password"])
     |> maybe_put(:permissions, permissions, permissions != [])
   end
 
@@ -1051,6 +1308,7 @@ defmodule PaperForge.Declarative do
   defp rich_runs(runs) when is_list(runs) do
     Enum.map(runs, fn
       %{"text" => text, "options" => options} -> {to_text(text), options_to_keyword(options, %{})}
+      %{"text" => text} -> to_text(text)
       text -> to_text(text)
     end)
   end
