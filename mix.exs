@@ -1,7 +1,7 @@
 defmodule PaperForge.MixProject do
   use Mix.Project
 
-  @version "1.3.0"
+  @version "1.4.0"
   @source_url "https://github.com/Manuel1471/paper_forge"
 
   def project do
@@ -29,6 +29,7 @@ defmodule PaperForge.MixProject do
     [
       {:qiroex, "~> 1.0"},
       {:jason, "~> 1.4"},
+      {:earmark_parser, "~> 1.4"},
       {:telemetry, "~> 1.3"},
       {:sign_core, "~> 0.1.4"},
       {:soft_signer, "~> 0.1.0"},
@@ -38,9 +39,9 @@ defmodule PaperForge.MixProject do
 
   defp description do
     """
-    A pure Elixir PDF authoring engine with declarative templates, reusable
-    component libraries, design systems, AES-256 security, PAdES signatures, tagged PDF,
-    unified layout, fonts, images, navigation, and production output.
+    Document engineering for the BEAM. Build, secure, validate, and transform
+    native PDF documents entirely in Elixir, with declarative templates,
+    measured layout, interoperability, accessibility, and production rendering.
     """
   end
 
@@ -54,14 +55,19 @@ defmodule PaperForge.MixProject do
       files: [
         "lib",
         "priv",
+        "docs",
         "examples",
         "mix.exs",
         "README.md",
         "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md",
         "API.md",
         "DECLARATIVE.md",
         "PAPERFORGE_TEMPLATES.md",
         "PHOENIX.md",
+        "INTEROPERABILITY.md",
+        "SCIENTIFIC.md",
         "MIGRATING.md",
         "PRODUCTION.md",
         "LICENSE"
@@ -75,13 +81,18 @@ defmodule PaperForge.MixProject do
       name: "PaperForge",
       source_ref: "v#{@version}",
       source_url: @source_url,
+      assets: %{"docs" => "docs"},
       extras: [
         "README.md",
         "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md",
         "API.md",
         "DECLARATIVE.md",
         "PAPERFORGE_TEMPLATES.md",
         "PHOENIX.md",
+        "INTEROPERABILITY.md",
+        "SCIENTIFIC.md",
         "MIGRATING.md",
         "PRODUCTION.md",
         "LICENSE"

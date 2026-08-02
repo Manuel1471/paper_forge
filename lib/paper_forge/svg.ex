@@ -44,6 +44,9 @@ defmodule PaperForge.SVG do
           render_node(current, child, style, matrix, clip, clips)
         end)
 
+      "text" ->
+        render_text(page, node, attrs, style, matrix)
+
       name when name in ["defs", "clipPath", "title", "desc"] ->
         page
 
@@ -57,6 +60,43 @@ defmodule PaperForge.SVG do
         end
     end
   end
+
+  defp render_text(page, node, attrs, style, matrix) do
+    text = node_text(node) |> String.trim()
+    {x, y} = transform_point(number(attrs["x"], 0), number(attrs["y"], 0), matrix)
+    size = number(Map.get(style, "font-size"), 12) * matrix_scale(matrix)
+    estimated_width = String.length(text) * size * 0.55
+
+    x =
+      case Map.get(style, "text-anchor", attrs["text-anchor"]) do
+        "middle" -> x - estimated_width / 2
+        "end" -> x - estimated_width
+        _ -> x
+      end
+
+    Page.text(page, text,
+      x: x,
+      y: y - size,
+      size: size,
+      color: color(Map.get(style, "fill", "black")),
+      weight: svg_weight(Map.get(style, "font-weight")),
+      style: svg_font_style(Map.get(style, "font-style")),
+      origin: :top_left
+    )
+  end
+
+  defp node_text({:xmlElement, _, _, _, _, _, _, _, content, _, _, _}) do
+    content
+    |> Enum.map(fn
+      {:xmlText, _, _, _, value, _} -> to_string(value)
+      child = {:xmlElement, _, _, _, _, _, _, _, _, _, _, _} -> node_text(child)
+      _ -> ""
+    end)
+    |> Enum.join("")
+  end
+
+  defp matrix_scale({a, b, c, d, _e, _f}),
+    do: max((:math.sqrt(a * a + b * b) + :math.sqrt(c * c + d * d)) / 2, 0.01)
 
   defp collect_clip_paths(root, matrix) do
     root
@@ -130,7 +170,12 @@ defmodule PaperForge.SVG do
       "fill-rule",
       "stroke-linecap",
       "stroke-linejoin",
-      "opacity"
+      "opacity",
+      "font-family",
+      "font-size",
+      "font-style",
+      "font-weight",
+      "text-anchor"
     ])
     |> Map.merge(inline)
   end
@@ -461,4 +506,10 @@ defmodule PaperForge.SVG do
   defp named_color("green"), do: Color.rgb255(0, 128, 0)
   defp named_color("blue"), do: Color.rgb255(0, 0, 255)
   defp named_color(_name), do: Color.black()
+
+  defp svg_weight(value) when value in ["bold", "600", "700", "800", "900"], do: :bold
+  defp svg_weight(_value), do: :regular
+  defp svg_font_style("italic"), do: :italic
+  defp svg_font_style("oblique"), do: :italic
+  defp svg_font_style(_value), do: :normal
 end

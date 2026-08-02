@@ -58,6 +58,10 @@
     "title": "{{company}} - {{period}} impact report",
     "author": "{{company}}"
   },
+  "forms": [
+    {"type": "text", "name": "reviewer_name", "page": 4, "rect": [210, 130, 500, 154], "tooltip": "Scientific appendix reviewer"},
+    {"type": "checkbox", "name": "methods_reviewed", "page": 4, "rect": [210, 92, 228, 110], "value": true, "tooltip": "Methods reviewed"}
+  ],
   "design_system": {
     "components": {
       "metric_line": {
@@ -136,6 +140,7 @@
     {"type": "separator", "options": {"color": "$colors.sun"}},
     {"type": "spacer", "content": 12},
     {"type": "paragraph", "text": "{{summary}}", "options": {"style": "body"}},
+    {"type": "markdown", "content": "**Imported narrative.** This sentence is authored as CommonMark and compiled into the same measured Layout IR.", "options": {"style": "body"}},
     {"type": "spacer", "content": 12},
     {
       "component": "metrics_section",
@@ -215,6 +220,50 @@
         {"type": "paragraph", "text": "{{outlook}}", "options": {"style": "body"}},
         {"type": "qr_code", "content": "https://hex.pm/packages/paper_forge", "options": {"width": 72, "height": 72}}
       ]
-    }
+    },
+    {"type": "page_break"},
+    {"type": "heading", "text": "Scientific appendix", "options": {"style": "section", "destination": "scientific-appendix"}},
+    {"type": "paragraph", "text": "The formula below is declared as structured data and rendered with native PDF text and vectors.", "options": {"style": "body"}},
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {"integral": {"lower": {"symbol": "0"}, "upper": {"symbol": "1"}, "body": {"superscript": {"base": {"symbol": "x"}, "value": {"symbol": "2"}}}, "variable": "x"}},
+          {"symbol": " = "},
+          {"fraction": {"numerator": {"symbol": "1"}, "denominator": {"symbol": "3"}}}
+        ]
+      },
+      "options": {"size": 20, "space_after": 18}
+    },
+    {"type": "equation_reference", "number": 1, "options": {"text": "Return to Equation 1 on page {page}", "size": 8}},
+    {"type": "spacer", "content": 12},
+    {"type": "html", "content": "<h3>Imported methods note</h3><p>This appendix paragraph comes from the supported HTML subset.</p>", "options": {"style": "body"}},
+    {"type": "separator", "options": {"color": "$colors.jade"}},
+    {"type": "spacer", "content": 14},
+    {"type": "heading", "text": "Model inputs", "options": {"style": "section"}},
+    {
+      "type": "math",
+      "ast": {"matrix": [[{"symbol": "118"}, {"symbol": "132"}], [{"symbol": "145"}, {"symbol": "167"}]]},
+      "options": {"size": 14, "space_after": 16}
+    },
+    {"type": "spacer", "content": 12},
+    {"type": "paragraph", "text": "The matrix records quarterly network activity used in the illustrative trend model. It is measured as a normal layout block and remains sharp at every zoom level.", "options": {"style": "body"}},
+    {"type": "heading", "text": "Research workflow", "options": {"style": "section"}},
+    {
+      "type": "list",
+      "content": [
+        "Import field notes from Markdown or the supported HTML subset.",
+        "Express formulas as validated Math AST data.",
+        "Number equations, figures, and tables with stable destinations.",
+        "Publish citations, footnotes, and a navigable bibliography."
+      ],
+      "options": {"style": "body", "type": "ordered"}
+    },
+    {"type": "paragraph", "text": "Methods note: all values in this example are fictional and exist only to demonstrate PaperForge 1.4 interoperability and scientific authoring.", "options": {"style": "body", "background_color": "$colors.mist", "padding": 12}},
+    {"type": "bibliography", "entries": [{"author": "PaperForge Contributors", "title": "Declarative scientific authoring", "year": 2026}], "options": {"title": "Selected reference", "size": 8}},
+    {"type": "heading", "text": "Interactive peer review", "options": {"style": "section"}},
+    {"type": "paragraph", "text": "Reviewer name", "options": {"style": "body", "space_after": 18}},
+    {"type": "paragraph", "text": "Methods reviewed", "options": {"style": "body"}},
+    {"type": "annotation", "annotation_type": "underline", "content": "Scientific appendix reviewed", "options": {"x": 75, "y": 54, "width": 180, "height": 24}}
   ]
 }

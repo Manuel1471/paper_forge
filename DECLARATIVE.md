@@ -1,6 +1,6 @@
 # Declarative Documents
 
-PaperForge 1.3 compiles versioned `.paperforge` JSON templates into the same
+PaperForge 1.4 compiles versioned `.paperforge` JSON templates into the same
 `PaperForge.Flow` Layout IR used by the Elixir authoring API. Templates contain
 data only: the compiler does not evaluate Elixir expressions or arbitrary
 functions.
@@ -49,6 +49,7 @@ Every template requires `"version": "1"`.
 | `theme` | Theme selected from the resolved design system |
 | `layout` | Shared layout selected from the resolved design system |
 | `blocks` | Ordered declarative document content |
+| `forms` | Standard AcroForm fields applied after pagination |
 
 ## Variables And Validation
 
@@ -282,6 +283,10 @@ templates, and default blocks. A template selects one with `"layout":
 - `heading`, `paragraph`, and `rich_text`
 - `table`, `list`, `grid`, and `columns`
 - `image`, `svg`, and `chart`
+- `html`, `markdown`, and `math`
+- `equation`, `equation_reference`, and `bibliography`
+- `footnote` and `endnotes`
+- `annotation` for common PDF review annotations
 - `qr_code` and `barcode`
 - `spacer`, `separator`, and `page_break`
 - `table_of_contents` and `reference`
@@ -289,6 +294,118 @@ templates, and default blocks. A template selects one with `"layout":
 Block-specific values use `content` or their named fields: `columns` and
 `rows` for tables, `cells` for grids, and `paragraphs` for columns. Common
 options live under `options` and compile to existing `PaperForge.Flow` options.
+Page templates accept either one numeric `margins` value or individual
+`top`, `right`, `bottom`, and `left` values in a margins object.
+
+`rich_text` runs accept `font`, `size`, `color`, `weight`, and `style` options.
+Use `"weight": "bold"` for genuine built-in or registered bold font variants;
+the renderer measures each run with the same variant used in the PDF.
+
+Charts accept `[label, value]` pairs and `options.chart_type` values `bar`,
+`line`, `area`, `scatter`, `pie`, or `donut`. Use `color` for a single-series
+accent or `colors` for a reusable palette. `show_values`, `line_width`,
+`point_radius`, and `inner_radius` control the marks. `background_color` and
+`label_color` let each chart panel follow the document theme without leaving
+the declarative format. `chart_padding` reserves interior space around marks,
+value labels, and axis labels; it defaults to `12` points.
+
+### Imported Markup And Math
+
+`html` accepts the documented safe HTML/CSS subset and `markdown` accepts
+CommonMark. Both compile into ordinary measured blocks. `math` accepts a JSON
+Math AST containing `symbol`, `row`, `fraction`, `root`, `matrix`,
+`superscript`, `subscript`, or `integral` nodes.
+
+HTML tables can style `table`, `th`, and `td` with colors, backgrounds,
+typography, padding, line height, borders, horizontal and vertical alignment,
+and width. `tr:nth-child(even)` provides deterministic row striping. Complex
+browser layout and scripting remain outside the import contract.
+
+The same safe subset supports simple and compound element/class/ID selectors,
+inline declarations, built-in PDF font families, text transformation,
+backgrounds, borders, padding, sizing, vertical margins, list markers,
+hyphenation, widow/orphan controls, hidden content, paged-media breaks, and
+image fit and position. Use `strict_css: true` to reject unsupported
+declarations during template validation.
+
+Use `equation` with the same `ast` field for automatic numbering and a stable
+`equation-N` destination. `equation_reference` accepts `number` and can format
+the final page through `options.text`. `bibliography` accepts string entries or
+objects containing `author`, `title`, `publisher`, and `year`.
+
+```json
+[
+  {
+    "type": "equation",
+    "ast": {
+      "fraction": {
+        "numerator": {"symbol": "1"},
+        "denominator": {"symbol": "2"}
+      }
+    }
+  },
+  {"type": "equation_reference", "number": 1},
+  {
+    "type": "bibliography",
+    "entries": [
+      {"author": "PaperForge Contributors", "title": "Scientific authoring", "year": 2026}
+    ]
+  }
+]
+```
+
+### Forms And Annotations
+
+Root-level `forms` are applied after pagination so their one-based `page` and
+PDF-coordinate `rect` values remain stable. Supported types are `text`,
+`checkbox`, `button`, `radio`, `list`, `combo`, and `signature`. Choice fields
+accept `options`; calculated fields accept `sum`, `product`, or `average` over
+named fields. Radio fields declare one or more page/rect/value choices.
+`origin` defaults to `bottom_left`, matching native PDF coordinates. Set it to
+`top_left` when aligning fields with flowing content authored from the visual
+top-left page origin.
+
+```json
+{
+  "forms": [
+    {
+      "type": "text",
+      "name": "reviewer",
+      "page": 1,
+      "rect": [72, 90, 280, 111],
+      "border_radius": 5,
+      "border_width": 0.75,
+      "border_color": "0.65 0.72 0.75"
+    },
+    {
+      "type": "radio",
+      "name": "decision",
+      "value": "approve",
+      "choices": [
+        {"page": 1, "rect": [72, 50, 90, 68], "value": "approve"},
+        {"page": 1, "rect": [110, 50, 128, 68], "value": "revise"}
+      ]
+    }
+  ]
+}
+```
+
+The rectangle controls the physical field size. Compact web-like controls can
+use heights around 18-21 points for text and 11-14 points for checkboxes.
+Appearance options include `background_color`, `border_color`, `border_width`,
+`border_radius`, `check_color`, and `check_width`.
+
+An `annotation` block accepts `annotation_type`: `note`, `highlight`,
+`underline`, `strikeout`, `stamp`, `free_text`, `square`, `circle`, `ink`, or
+`file_attachment`.
+Geometry and annotation metadata live under `options`. Attachment bytes must
+come from validated template data or a trusted component; templates do not
+gain arbitrary filesystem access.
+
+PDF page import and document composition are intentionally application-level
+operations through `PaperForge.Interoperability`. They change the complete
+document graph and can open external files, so `.paperforge` does not provide a
+block that reads or combines arbitrary PDFs.
 
 ## Imports, Resources, And Limits
 
@@ -365,9 +482,24 @@ Templates may declare output policy without embedding credentials:
 }
 ```
 
-`security` and `signature` are compiled as policy only. User/owner passwords,
-private keys, certificates, and key passwords must be passed to
-`PaperForge.Declarative.write/4` at the final output boundary:
+`security` may contain `user_password` and `owner_password`, allowing a
+template to produce an encrypted PDF without Elixir write options:
+
+```json
+{
+  "security": {
+    "algorithm": "aes_256",
+    "user_password": "reader-secret",
+    "owner_password": "owner-secret",
+    "permissions": {"print": "high_resolution", "copy": false}
+  }
+}
+```
+
+Embedded passwords are plain text in the template. Keep them only in
+controlled templates or examples. For shared templates and production secret
+rotation, omit them from `.paperforge` and pass them at the final output
+boundary instead. Runtime options override embedded values:
 
 ```elixir
 PaperForge.Declarative.write(template, data, "contract.pdf",
@@ -388,7 +520,7 @@ PaperForge.Declarative.write(template, data, "contract.pdf",
 The default PKCS#8 provider runs entirely in Elixir/OTP. Selecting
 `{:pkcs12, path, options}` is optional and invokes OpenSSL at runtime. A custom
 `provider:` can integrate HSM or cloud signing without changing the template.
-This prevents a compiled template, cache entry, source file, or ordinary data
+Keeping credentials at write time prevents a compiled template, cache entry, source file, or ordinary data
 map from retaining secrets. PDF/A profiles require `icc_profile` and cannot
 be combined with encryption. Use `PaperForge.Compliance.validate/2` and an
 external validator such as VeraPDF for release certification.
@@ -406,11 +538,11 @@ application job isolation.
 Render the self-contained declarative report with the CLI or application API:
 
 ```bash
-mix paper_forge.validate examples/paper_forge_1_3_showcase.paperforge
+mix paper_forge.validate examples/paper_forge_1_4_showcase.paperforge
 ```
 
-The template at `examples/paper_forge_1_3_showcase.paperforge` contains default
+The template at `examples/paper_forge_1_4_showcase.paperforge` contains default
 data, inline reusable components, themes, navigation, a chart, a table, QR
 output, security policy, protection policy, and tagged-PDF preparation. The
-companion `examples/paper_forge_1_3_showcase.exs` demonstrates the same report
+companion `examples/paper_forge_1_4_showcase.exs` demonstrates the same report
 domain with full low-level visual control.

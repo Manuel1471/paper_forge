@@ -13,7 +13,7 @@ Add PaperForge to `mix.exs`:
 defp deps do
   [
     {:phoenix, "~> 1.8"},
-    {:paper_forge, "~> 1.3"}
+    {:paper_forge, "~> 1.4"}
   ]
 end
 ```

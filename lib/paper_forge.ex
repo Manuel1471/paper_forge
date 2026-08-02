@@ -1,9 +1,11 @@
 defmodule PaperForge do
   @moduledoc """
-  Public API for creating PDF documents with PaperForge.
+  Document engineering for the BEAM.
 
-  PaperForge provides a functional API for creating documents, adding
-  pages, assigning metadata, serializing PDFs, and writing them to disk.
+  PaperForge provides the public API for building, securing, validating, and
+  transforming native PDF documents entirely in Elixir. It includes functional
+  document construction, measured layout, exact page drawing, metadata,
+  serialization, and production output workflows.
 
   ## Example
 
