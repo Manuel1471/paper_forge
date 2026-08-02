@@ -409,6 +409,23 @@ block that reads or combines arbitrary PDFs.
 
 ## Imports, Resources, And Limits
 
+Embedded fonts can be declared without executable template code:
+
+```json
+{
+  "fonts": {
+    "body": {"path": "assets/NotoSans-Regular.ttf", "subset": true},
+    "body_bold": {"source": "app:noto-sans-bold", "subset": true}
+  },
+  "font_fallbacks": {"body": ["symbols"]},
+  "document": {"default_font": "body"}
+}
+```
+
+`path` is confined to the template root. Logical `source` names are resolved
+only from trusted `font_sources:` supplied by the host application, which lets
+desktop or server products bundle fonts without exposing arbitrary files.
+
 `load/2` resolves `imports`, `libraries`, and `includes` relative to the source
 file and rejects paths outside `root:`. Import cycles, count limits, and maximum
 template bytes are checked before compilation.

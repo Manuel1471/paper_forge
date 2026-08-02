@@ -5,6 +5,23 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-08-02
+
+### Added
+
+- Added declarative `fonts` and `font_fallbacks` registries with trusted binary
+  sources and root-confined local TrueType paths.
+- Added JSON Schema and validation coverage for declarative fonts.
+
+### Fixed
+
+- Fixed Flow measurement of registered TrueType fonts in paragraphs, columns,
+  tables, and footnotes.
+- Fixed tables falling back to Helvetica during rendering when the document
+  default was an embedded font, which corrupted extracted UTF-8 text.
+- Fixed declarative embedded fonts being registered too late for a custom
+  document default font.
+
 ## [1.4.0] - 2026-08-01
 
 ### Added

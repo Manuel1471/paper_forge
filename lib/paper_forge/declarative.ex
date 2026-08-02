@@ -148,6 +148,8 @@ defmodule PaperForge.Declarative do
              interpolate(Map.get(definition, "layout_options", %{}), variables),
              system.tokens
            ),
+         fonts: compile_fonts(definition, options),
+         font_fallbacks: compile_font_fallbacks(Map.get(definition, "font_fallbacks", %{})),
          styles: compile_named_options(system.styles, system.tokens, variables),
          page_templates:
            compile_named_options(
@@ -292,9 +294,15 @@ defmodule PaperForge.Declarative do
   end
 
   defp render_compiled(compiled) do
+    {default_font, document_options} =
+      Keyword.pop(compiled.document_options, :default_font, :helvetica)
+
     document =
-      compiled.document_options
+      document_options
       |> PaperForge.new()
+      |> register_fonts(compiled.fonts)
+      |> register_font_fallbacks(compiled.font_fallbacks)
+      |> PaperForge.default_font(default_font)
       |> register_styles(compiled.styles)
       |> register_templates(compiled.page_templates)
       |> register_metadata(compiled.metadata)
@@ -311,6 +319,76 @@ defmodule PaperForge.Declarative do
     {:ok, document, report}
   rescue
     exception -> {:error, [error(:render_error, "$", Exception.message(exception), exception)]}
+  end
+
+  defp compile_fonts(definition, options) do
+    sources = options |> Keyword.get(:font_sources, %{}) |> Map.new()
+    root = Map.get(definition, "__root__")
+
+    definition
+    |> Map.get("fonts", %{})
+    |> Map.new(fn {name, font} ->
+      data =
+        cond do
+          source = font["source"] ->
+            Map.get(sources, source) || Map.get(sources, safe_name(source)) ||
+              raise(ArgumentError, "unknown declarative font source #{inspect(source)}")
+
+          path = font["path"] ->
+            load_declarative_font!(path, root)
+        end
+
+      {safe_name(name), [data: data, subset: Map.get(font, "subset", true)]}
+    end)
+  end
+
+  defp compile_font_fallbacks(fallbacks) do
+    Map.new(fallbacks, fn {name, values} ->
+      {safe_name(name), Enum.map(values, &safe_name/1)}
+    end)
+  end
+
+  defp load_declarative_font!(path, root) when is_binary(root) do
+    absolute = Path.expand(path, root)
+    prefix = root <> "/"
+
+    if (absolute == root or String.starts_with?(absolute, prefix)) and
+         not symlinked_path?(absolute, root) do
+      File.read!(absolute)
+    else
+      raise ArgumentError, "font path escapes the template root"
+    end
+  end
+
+  defp load_declarative_font!(_path, _root),
+    do: raise(ArgumentError, "font paths require a template loaded from disk")
+
+  defp symlinked_path?(path, root) do
+    path
+    |> Path.relative_to(root)
+    |> Path.split()
+    |> Enum.reduce_while(root, fn segment, current ->
+      candidate = Path.join(current, segment)
+
+      case File.lstat(candidate) do
+        {:ok, %File.Stat{type: :symlink}} -> {:halt, true}
+        {:ok, _stat} -> {:cont, candidate}
+        {:error, _reason} -> {:halt, true}
+      end
+    end)
+    |> Kernel.==(true)
+  end
+
+  defp register_fonts(document, fonts) do
+    Enum.reduce(fonts, document, fn {name, options}, current ->
+      PaperForge.register_font(current, name, options)
+    end)
+  end
+
+  defp register_font_fallbacks(document, fallbacks) do
+    Enum.reduce(fallbacks, document, fn {name, values}, current ->
+      PaperForge.font_fallback(current, name, values)
+    end)
   end
 
   defp design_system(template, options) do

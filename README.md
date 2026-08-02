@@ -992,6 +992,23 @@ Page.text(
 )
 ```
 
+Declarative templates can register root-confined files or trusted host sources:
+
+```json
+{
+  "fonts": {
+    "body": {"path": "assets/NotoSans-Regular.ttf", "subset": true},
+    "body_bold": {"source": "app:noto-sans-bold", "subset": true}
+  },
+  "font_fallbacks": {"body": ["symbols"]},
+  "document": {"default_font": "body"}
+}
+```
+
+Applications resolve logical sources with
+`font_sources: %{"app:noto-sans-bold" => font_binary}`. This keeps templates
+portable while preserving the loader's root and filesystem security policy.
+
 Embedded TrueType fonts are written as PDF Type 0 fonts with a CIDFontType2
 descendant, `Identity-H` encoding, a `/FontFile2` stream, widths from the TTF
 `hmtx` table, and a `/ToUnicode` CMap so text extraction and search can recover

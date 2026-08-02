@@ -616,7 +616,7 @@ defmodule PaperForge.Layout.Engine do
     lines =
       TextWrapper.wrap(text,
         width: fragment_width(%{block: block}, state.page),
-        font: metric_font_for_block(block),
+        font: metric_font_for_block(block, state.document),
         size: size,
         hyphenate: Keyword.get(block.options, :hyphenate, false)
       )
@@ -1298,7 +1298,7 @@ defmodule PaperForge.Layout.Engine do
     |> Enum.map(fn paragraph ->
       TextWrapper.wrap(paragraph,
         width: width,
-        font: metric_font_for_block(block),
+        font: metric_font_for_block(block, state.document),
         size: default_size(block)
       )
       |> length()
@@ -1320,7 +1320,7 @@ defmodule PaperForge.Layout.Engine do
       TextWrapper.wrap(
         block_text(block),
         width: width,
-        font: metric_font_for_block(block),
+        font: metric_font_for_block(block, state.document),
         size: Keyword.get(block.options, :size, default_size(block)),
         hyphenate: Keyword.get(block.options, :hyphenate, false)
       )
@@ -1645,7 +1645,7 @@ defmodule PaperForge.Layout.Engine do
     |> maybe_render_block_link(block, placement, y)
   end
 
-  defp render_placement(page, %{type: type, block: block, y: y} = placement, _context, _document)
+  defp render_placement(page, %{type: type, block: block, y: y} = placement, _context, document)
        when type in [:paragraph, :heading] do
     text = Enum.join(placement.lines, "\n")
     level = Keyword.get(block.options, :level, 1)
@@ -1680,7 +1680,7 @@ defmodule PaperForge.Layout.Engine do
         x: placement.x + padding,
         y: y + padding,
         width: max(placement.width - padding * 2, 1),
-        font: Keyword.get(block.options, :font, :helvetica),
+        font: Keyword.get(block.options, :font, document.default_font),
         size: size,
         line_height: line_height(block),
         align: Keyword.get(block.options, :align, :left),
@@ -1727,7 +1727,7 @@ defmodule PaperForge.Layout.Engine do
          page,
          %{type: :table, block: block, y: y, rows: measured_rows} = placement,
          _context,
-         _document
+         document
        ) do
     options =
       [
@@ -1738,7 +1738,7 @@ defmodule PaperForge.Layout.Engine do
         line_height: table_line_height(block),
         padding: Keyword.get(block.options, :padding, 6),
         header: Keyword.get(block.options, :repeat_header, true),
-        font: Keyword.get(block.options, :font, :helvetica),
+        font: Keyword.get(block.options, :font, document.default_font),
         size: Keyword.get(block.options, :size, 9),
         column_widths: Keyword.get(block.options, :column_widths),
         header_fill_color:
@@ -2228,7 +2228,7 @@ defmodule PaperForge.Layout.Engine do
          page,
          %{type: :grid, block: block, y: y},
          _context,
-         _document
+         document
        ) do
     %{columns: columns, cells: cells} = block.content
     gap = Keyword.get(block.options, :gap, 12)
@@ -2272,7 +2272,7 @@ defmodule PaperForge.Layout.Engine do
         height: cell_height - 20,
         size: Keyword.get(block.options, :size, 10),
         line_height: Keyword.get(block.options, :line_height, 13),
-        font: Keyword.get(block.options, :font, :helvetica),
+        font: Keyword.get(block.options, :font, document.default_font),
         weight: Keyword.get(block.options, :weight, :regular),
         style: Keyword.get(block.options, :style, :normal),
         color: Keyword.get(block.options, :color, PaperForge.Color.black()),
@@ -2281,7 +2281,7 @@ defmodule PaperForge.Layout.Engine do
     end)
   end
 
-  defp render_special_placement(page, %{type: :columns, block: block, y: y}, _context, _document) do
+  defp render_special_placement(page, %{type: :columns, block: block, y: y}, _context, document) do
     %{count: count, paragraphs: paragraphs} = block.content
     gap = Keyword.get(block.options, :column_gap, Keyword.get(block.options, :gap, 18))
     width = Keyword.get(block.options, :width, Page.content_width(page))
@@ -2298,7 +2298,7 @@ defmodule PaperForge.Layout.Engine do
           lines =
             TextWrapper.wrap(paragraph,
               width: column_width,
-              font: metric_font_for_block(block),
+              font: metric_font_for_block(block, document),
               size: default_size(block)
             )
 
@@ -2309,7 +2309,7 @@ defmodule PaperForge.Layout.Engine do
              y: cursor,
              width: column_width,
              height: length(lines) * line_height,
-             font: Keyword.get(block.options, :font, :helvetica),
+             font: Keyword.get(block.options, :font, document.default_font),
              size: default_size(block),
              line_height: line_height,
              align: Keyword.get(block.options, :align, :left),
@@ -2452,17 +2452,23 @@ defmodule PaperForge.Layout.Engine do
 
   defp builtin_metric_font(font, _weight, _style), do: font
 
-  defp metric_font_for_block(block) do
-    font = Keyword.get(block.options, :font, :helvetica)
+  defp metric_font_for_block(block, document) do
+    font = Keyword.get(block.options, :font, document.default_font)
     level = Keyword.get(block.options, :level, 1)
 
     default_weight =
       if(block.type == :heading and level <= 2, do: :bold, else: :regular)
 
-    builtin_metric_font(
-      font,
-      Keyword.get(block.options, :weight, default_weight),
-      Keyword.get(block.options, :style, :regular)
-    )
+    metric_key =
+      builtin_metric_font(
+        font,
+        Keyword.get(block.options, :weight, default_weight),
+        Keyword.get(block.options, :style, :regular)
+      )
+
+    case FontRegistry.fetch(document.font_registry, metric_key) do
+      {:ok, registered} -> registered
+      :error -> metric_key
+    end
   end
 end

@@ -7,7 +7,7 @@ defmodule PaperForge.Declarative.Validator do
   @root_fields MapSet.new(~w(
     version id variables document metadata layout_options page_templates design_system
     theme layout blocks imports includes libraries components kind name props defaults slots
-    security signature protection compliance forms
+    security signature protection compliance forms fonts font_fallbacks
     variants __source__ __root__ __locations__
   ))
   @variable_fields MapSet.new(~w(
@@ -37,6 +37,7 @@ defmodule PaperForge.Declarative.Validator do
                    ~w(allowed_uri_schemes allowed_hosts allow_attachments max_attachments max_attachment_bytes allowed_attachment_mimes)
                  )
   @compliance_fields MapSet.new(~w(profiles language title icc_profile output_condition))
+  @font_fields MapSet.new(~w(source path subset))
 
   @spec validate(map(), map(), keyword()) :: {:ok, map()} | {:error, [Error.t()]}
   def validate(template, data, options \\ []) do
@@ -46,6 +47,7 @@ defmodule PaperForge.Declarative.Validator do
       unknown_keys(template, @root_fields, "$", :unknown_root_field) ++
         component_file_errors(template) ++
         policy_errors(template) ++
+        font_errors(template) ++
         variable_definition_errors(Map.get(template, "variables", %{})) ++
         block_errors(Map.get(template, "blocks", []), "$.blocks") ++
         form_errors(Map.get(template, "forms", []), "$.forms")
@@ -66,6 +68,49 @@ defmodule PaperForge.Declarative.Validator do
     case errors ++ data_errors ++ extra_errors do
       [] -> {:ok, values}
       issues -> {:error, issues}
+    end
+  end
+
+  defp font_errors(template) do
+    fonts = Map.get(template, "fonts", %{})
+    fallbacks = Map.get(template, "font_fallbacks", %{})
+
+    cond do
+      not is_map(fonts) ->
+        [error(:invalid_fonts, "$.fonts", "must be an object")]
+
+      not is_map(fallbacks) ->
+        [error(:invalid_font_fallbacks, "$.font_fallbacks", "must be an object")]
+
+      true ->
+        Enum.flat_map(fonts, fn {name, definition} ->
+          path = "$.fonts.#{name}"
+
+          cond do
+            not is_map(definition) ->
+              [error(:invalid_font, path, "must be an object")]
+
+            not is_binary(definition["source"]) and not is_binary(definition["path"]) ->
+              [error(:missing_font_source, path, "requires source or path")]
+
+            is_binary(definition["source"]) and is_binary(definition["path"]) ->
+              [error(:ambiguous_font_source, path, "source and path are mutually exclusive")]
+
+            true ->
+              unknown_keys(definition, @font_fields, path, :unknown_font_field)
+          end
+        end) ++
+          Enum.flat_map(fallbacks, fn {name, values} ->
+            if is_list(values) and Enum.all?(values, &is_binary/1),
+              do: [],
+              else: [
+                error(
+                  :invalid_font_fallback,
+                  "$.font_fallbacks.#{name}",
+                  "must be a list of font names"
+                )
+              ]
+          end)
     end
   end
 
