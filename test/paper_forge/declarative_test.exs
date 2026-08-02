@@ -236,6 +236,58 @@ defmodule PaperForge.DeclarativeTest do
     refute pdf =~ "Protected declarative PDF"
   end
 
+  test "registers embedded Unicode fonts from trusted declarative sources" do
+    font = File.read!("test/fixtures/fonts/SFNSMono.ttf")
+
+    template = %{
+      "version" => "1",
+      "fonts" => %{"document_sans" => %{"source" => "studio:sans", "subset" => true}},
+      "document" => %{"default_font" => "document_sans"},
+      "blocks" => [
+        %{"type" => "paragraph", "text" => "Español: información y edición"},
+        %{
+          "type" => "columns",
+          "count" => 2,
+          "paragraphs" => ["Français: résumé", "Português: relatório"]
+        },
+        %{
+          "type" => "table",
+          "columns" => ["Idioma", "Muestra"],
+          "rows" => [["Deutsch", "Größe"], ["Español", "Descripción"]]
+        }
+      ]
+    }
+
+    assert {:ok, document, _report} =
+             PaperForge.Declarative.render(template, %{}, font_sources: %{"studio:sans" => font})
+
+    pdf = PaperForge.to_binary(document)
+    assert pdf =~ "/ToUnicode"
+    assert pdf =~ "/FontFile2"
+  end
+
+  test "rejects unknown and ambiguous declarative font sources" do
+    assert {:error, errors} =
+             PaperForge.Declarative.compile(%{
+               "version" => "1",
+               "fonts" => %{"body" => %{"source" => "missing"}},
+               "blocks" => []
+             })
+
+    assert Enum.any?(errors, &(&1.code == :compilation_error))
+
+    assert {:error, errors} =
+             PaperForge.Declarative.compile(%{
+               "version" => "1",
+               "fonts" => %{
+                 "body" => %{"source" => "trusted", "path" => "font.ttf"}
+               },
+               "blocks" => []
+             })
+
+    assert Enum.any?(errors, &(&1.code == :ambiguous_font_source))
+  end
+
   test "renders declarative chart variants and palettes" do
     source = %{
       "version" => "1",

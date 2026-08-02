@@ -35,6 +35,17 @@
       "additionalProperties": {"$ref": "#/$defs/valueSchema"}
     },
     "document": {"type": "object"},
+    "fonts": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/font"}
+    },
+    "font_fallbacks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {"type": "string", "minLength": 1}
+      }
+    },
     "metadata": {"type": "object"},
     "security": {"$ref": "#/$defs/security"},
     "signature": {"$ref": "#/$defs/signature"},
@@ -55,6 +66,19 @@
     }
   },
   "$defs": {
+    "font": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "subset": {"type": "boolean"}
+      },
+      "oneOf": [
+        {"required": ["source"]},
+        {"required": ["path"]}
+      ]
+    },
     "rect": {
       "type": "array",
       "minItems": 4,
