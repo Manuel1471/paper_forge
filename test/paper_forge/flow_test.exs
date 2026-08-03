@@ -30,6 +30,27 @@ defmodule PaperForge.FlowTest do
     assert length(flow.blocks) == 3
   end
 
+  test "honors explicit x and y coordinates without changing flow allocation" do
+    {_document, report} =
+      PaperForge.layout(
+        PaperForge.new(),
+        fn flow ->
+          flow
+          |> Flow.paragraph("Moved", x: 72, y: 144, width: 120)
+          |> Flow.paragraph("Following")
+        end,
+        page_options: [size: {300, 300}, margins: 24]
+      )
+
+    moved = Enum.find(report.placements, &(&1.block.content == "Moved"))
+    following = Enum.find(report.placements, &(&1.block.content == "Following"))
+
+    assert moved.x == 72
+    assert moved.y == 144
+    assert moved.width == 120
+    assert following.y < moved.y
+  end
+
   test "renders a unified flow with bookmarks and named heading destinations" do
     {document, report} =
       PaperForge.new()

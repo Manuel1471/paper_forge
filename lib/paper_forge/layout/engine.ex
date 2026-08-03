@@ -1133,12 +1133,16 @@ defmodule PaperForge.Layout.Engine do
     fragment
     |> Map.put(:page_number, state.page_number)
     |> Map.put(:x, fragment_x(fragment, state.page))
+    |> Map.put(:y, fragment_y(fragment))
     |> Map.put(:width, fragment_width(fragment, state.page))
     |> Map.put(:section, Keyword.get(fragment.block.options, :section))
   end
 
   defp fragment_x(%{block: block}, page),
     do: Keyword.get(block.options, :x, Page.content_left(page))
+
+  defp fragment_y(%{block: block, y: flow_y}),
+    do: Keyword.get(block.options, :y, flow_y)
 
   defp fragment_width(%{block: block}, page) do
     case Keyword.get(block.options, :width, Page.content_width(page)) do
