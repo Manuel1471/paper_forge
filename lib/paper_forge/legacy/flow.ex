@@ -35,8 +35,9 @@ defmodule PaperForge.Legacy.Flow do
 
     state =
       blocks
-      |> Enum.map(&IO.iodata_to_binary/1)
-      |> Enum.reduce(state, &flow_block/2)
+      |> Enum.reduce(state, fn block, current_state ->
+        flow_block(IO.iodata_to_binary(block), current_state)
+      end)
       |> finish()
 
     {state.document,

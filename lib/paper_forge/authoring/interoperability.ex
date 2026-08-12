@@ -91,16 +91,27 @@ defmodule PaperForge.Interoperability do
   defp select_pages(document, selection) do
     pages = document.objects[document.pages_reference.object_id].value["Kids"]
 
-    selected =
-      case selection do
-        :all -> pages
-        %Range{} = range -> Enum.map(range, &Enum.at(pages, &1 - 1))
-        indexes when is_list(indexes) -> Enum.map(indexes, &Enum.at(pages, &1 - 1))
-      end
+    case selection do
+      :all ->
+        {:ok, pages}
 
-    if Enum.any?(selected, &is_nil/1),
-      do: {:error, :page_index_out_of_range},
-      else: {:ok, selected}
+      %Range{} = range ->
+        select_page_indexes(pages, Enum.to_list(range))
+
+      indexes when is_list(indexes) ->
+        select_page_indexes(pages, indexes)
+
+      _ ->
+        {:error, :invalid_page_selection}
+    end
+  end
+
+  defp select_page_indexes(pages, indexes) do
+    if Enum.all?(indexes, &(is_integer(&1) and &1 > 0 and &1 <= length(pages))) do
+      {:ok, Enum.map(indexes, &Enum.fetch!(pages, &1 - 1))}
+    else
+      {:error, :page_index_out_of_range}
+    end
   end
 
   defp import_document(target, source, page_references) do

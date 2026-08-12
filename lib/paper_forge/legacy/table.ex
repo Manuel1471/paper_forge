@@ -28,7 +28,7 @@ defmodule PaperForge.Legacy.Table do
         Page.new(page_options)
         |> Page.table(
           headers ++ chunk,
-          table_page_options(Page.new(page_options), options, header_rows > 0)
+          table_page_options(page, options, header_rows > 0)
         )
 
       Page.add_to_document(page, current_document)

@@ -50,6 +50,18 @@ defmodule PaperForge.Declarative do
     keep split error clip ellipsis continue portrait landscape all none a3 a4 a5 letter legal
     bar line area scatter pie donut regular bold
   )a
+  @declarative_font_slots for index <- 1..64,
+                              do: String.to_atom("paperforge_declarative_font_#{index}")
+  @metadata_keys %{
+    "title" => :title,
+    "author" => :author,
+    "subject" => :subject,
+    "keywords" => :keywords,
+    "creator" => :creator,
+    "producer" => :producer,
+    "creation_date" => :creation_date,
+    "modification_date" => :modification_date
+  }
 
   @type source :: binary() | map()
 
@@ -120,13 +132,15 @@ defmodule PaperForge.Declarative do
            ),
          {:ok, system} <- design_system(template, options),
          {:ok, definition} <- apply_layout(template, system),
+         {:ok, font_keys} <- declarative_font_keys(definition),
          state <- %{
            design: system,
            registry: registry,
            limits: limits(options),
            blocks: 0,
            equation_count: 0,
-           component_stack: []
+           component_stack: [],
+           font_keys: font_keys
          },
          {:ok, flow, _state} <-
            compile_blocks(Map.get(definition, "blocks", []), variables, state, 0) do
@@ -141,15 +155,18 @@ defmodule PaperForge.Declarative do
          document_options:
            options_to_keyword(
              interpolate(Map.get(definition, "document", %{}), variables),
-             system.tokens
+             system.tokens,
+             font_keys
            ),
          layout_options:
            options_to_keyword(
              interpolate(Map.get(definition, "layout_options", %{}), variables),
-             system.tokens
+             system.tokens,
+             font_keys
            ),
-         fonts: compile_fonts(definition, options),
-         font_fallbacks: compile_font_fallbacks(Map.get(definition, "font_fallbacks", %{})),
+         fonts: compile_fonts(definition, options, font_keys),
+         font_fallbacks:
+           compile_font_fallbacks(Map.get(definition, "font_fallbacks", %{}), font_keys),
          styles: compile_named_options(system.styles, system.tokens, variables),
          page_templates:
            compile_named_options(
@@ -321,7 +338,7 @@ defmodule PaperForge.Declarative do
     exception -> {:error, [error(:render_error, "$", Exception.message(exception), exception)]}
   end
 
-  defp compile_fonts(definition, options) do
+  defp compile_fonts(definition, options, font_keys) do
     sources = options |> Keyword.get(:font_sources, %{}) |> Map.new()
     root = Map.get(definition, "__root__")
 
@@ -331,20 +348,20 @@ defmodule PaperForge.Declarative do
       data =
         cond do
           source = font["source"] ->
-            Map.get(sources, source) || Map.get(sources, safe_name(source)) ||
+            Map.get(sources, source) || Map.get(sources, existing_atom(source)) ||
               raise(ArgumentError, "unknown declarative font source #{inspect(source)}")
 
           path = font["path"] ->
             load_declarative_font!(path, root)
         end
 
-      {safe_name(name), [data: data, subset: Map.get(font, "subset", true)]}
+      {font_key(name, font_keys), [data: data, subset: Map.get(font, "subset", true)]}
     end)
   end
 
-  defp compile_font_fallbacks(fallbacks) do
+  defp compile_font_fallbacks(fallbacks, font_keys) do
     Map.new(fallbacks, fn {name, values} ->
-      {safe_name(name), Enum.map(values, &safe_name/1)}
+      {font_key(name, font_keys), Enum.map(values, &font_key(&1, font_keys))}
     end)
   end
 
@@ -517,7 +534,8 @@ defmodule PaperForge.Declarative do
     options =
       options_to_keyword(
         interpolate(Map.get(node, "options", %{}), context),
-        state.design.tokens
+        state.design.tokens,
+        state.font_keys
       )
 
     case apply_block(flow, type, content, node, context, options, state) do
@@ -1095,32 +1113,40 @@ defmodule PaperForge.Declarative do
     end)
   end
 
-  defp options_to_keyword(options, tokens) when is_map(options) do
+  defp options_to_keyword(options, tokens, font_keys \\ %{})
+
+  defp options_to_keyword(options, tokens, font_keys) when is_map(options) do
     Enum.reduce(options, [], fn {key, value}, acc ->
       case option_key(key) do
         nil -> raise ArgumentError, "unknown declarative option #{inspect(key)}"
-        atom -> [{atom, option_value(resolve_tokens(value, tokens), atom)} | acc]
+        atom -> [{atom, option_value(resolve_tokens(value, tokens), atom, font_keys)} | acc]
       end
     end)
   end
 
-  defp options_to_keyword(_options, _tokens), do: []
+  defp options_to_keyword(_options, _tokens, _font_keys), do: []
 
   defp option_key(key) do
     key = to_string(key)
     Enum.find(@option_keys, &(Atom.to_string(&1) == key))
   end
 
-  defp option_value(value, key)
-       when key in [:style, :template, :font, :default_font, :extends] and is_binary(value),
-       do: safe_name(value)
+  defp option_value(value, key, _font_keys)
+       when key in [:style, :template, :extends] and is_binary(value),
+       do: value
 
-  defp option_value([width, height], :size) when is_number(width) and is_number(height),
-    do: {width, height}
+  defp option_value(value, key, font_keys)
+       when key in [:font, :default_font] and is_binary(value),
+       do: font_key(value, font_keys)
 
-  defp option_value([x, y], :focal_point) when is_number(x) and is_number(y), do: {x, y}
+  defp option_value([width, height], :size, _font_keys)
+       when is_number(width) and is_number(height),
+       do: {width, height}
 
-  defp option_value(value, :margins) when is_map(value) do
+  defp option_value([x, y], :focal_point, _font_keys) when is_number(x) and is_number(y),
+    do: {x, y}
+
+  defp option_value(value, :margins, _font_keys) when is_map(value) do
     allowed = %{"top" => :top, "right" => :right, "bottom" => :bottom, "left" => :left}
 
     Enum.map(value, fn {key, margin} ->
@@ -1132,19 +1158,19 @@ defmodule PaperForge.Declarative do
     end)
   end
 
-  defp option_value("#" <> hex = color, _key) when byte_size(hex) in [3, 6],
+  defp option_value("#" <> hex = color, _key, _font_keys) when byte_size(hex) in [3, 6],
     do: parse_color(color)
 
-  defp option_value(value, _key) when is_binary(value) do
+  defp option_value(value, _key, _font_keys) when is_binary(value) do
     Enum.find(@enum_values, value, &(Atom.to_string(&1) == value))
   end
 
-  defp option_value(value, key) when is_list(value),
-    do: Enum.map(value, &option_value(&1, key))
+  defp option_value(value, key, font_keys) when is_list(value),
+    do: Enum.map(value, &option_value(&1, key, font_keys))
 
-  defp option_value(value, _key) when is_map(value), do: stringify(value)
+  defp option_value(value, _key, _font_keys) when is_map(value), do: stringify(value)
 
-  defp option_value(value, _key), do: value
+  defp option_value(value, _key, _font_keys), do: value
 
   defp parse_color("#" <> <<r::binary-size(1), g::binary-size(1), b::binary-size(1)>>),
     do: parse_color("##{r}#{r}#{g}#{g}#{b}#{b}")
@@ -1165,12 +1191,44 @@ defmodule PaperForge.Declarative do
 
   defp compile_named_options(definitions, tokens, context) do
     Map.new(definitions, fn {name, options} ->
-      {safe_name(name), options_to_keyword(interpolate(options, context), tokens)}
+      {declarative_identifier(name), options_to_keyword(interpolate(options, context), tokens)}
     end)
   end
 
-  defp safe_name(name) when is_atom(name), do: name
-  defp safe_name(name) when is_binary(name), do: String.to_atom(name)
+  defp declarative_font_keys(definition) do
+    names = definition |> Map.get("fonts", %{}) |> Map.keys() |> Enum.sort()
+
+    if length(names) <= length(@declarative_font_slots) do
+      {:ok, Map.new(Enum.zip(names, @declarative_font_slots))}
+    else
+      {:error,
+       error(
+         :too_many_fonts,
+         "$.fonts",
+         "a template can register at most #{length(@declarative_font_slots)} fonts"
+       )}
+    end
+  end
+
+  defp font_key(name, _font_keys) when is_atom(name), do: name
+
+  defp font_key(name, font_keys) when is_binary(name) do
+    Map.get(font_keys, name) || existing_atom(name) ||
+      raise(ArgumentError, "unknown declarative font #{inspect(name)}")
+  end
+
+  defp existing_atom(value) when is_atom(value), do: value
+
+  defp existing_atom(value) when is_binary(value) do
+    String.to_existing_atom(value)
+  rescue
+    ArgumentError -> nil
+  end
+
+  defp declarative_identifier(value) when is_atom(value), do: value
+
+  defp declarative_identifier(value) when is_binary(value),
+    do: existing_atom(value) || value
 
   defp register_styles(document, styles),
     do:
@@ -1188,7 +1246,7 @@ defmodule PaperForge.Declarative do
     do:
       PaperForge.metadata(
         document,
-        Enum.map(metadata, fn {key, value} -> {safe_name(key), value} end)
+        Enum.map(metadata, fn {key, value} -> {metadata_key(key), value} end)
       )
 
   defp compile_security(options) when is_map(options) do
@@ -1201,7 +1259,8 @@ defmodule PaperForge.Declarative do
       |> keyword_map(~w(print copy modify extract), "security.permissions")
       |> Enum.map(fn
         {:print, value} when value in ["none", "low_resolution", "high_resolution"] ->
-          {:print, safe_name(value)}
+          {:print,
+           enum_atom(value, ~w(none low_resolution high_resolution), "security.permissions.print")}
 
         pair ->
           pair
@@ -1352,7 +1411,7 @@ defmodule PaperForge.Declarative do
 
   defp keyword_map(map, allowed, path) when is_map(map) do
     ensure_known_keys!(map, allowed, path)
-    Enum.map(map, fn {key, value} -> {safe_name(key), value} end)
+    Enum.map(map, fn {key, value} -> {existing_atom(to_string(key)), value} end)
   end
 
   defp ensure_known_keys!(map, allowed, path) do
@@ -1366,8 +1425,17 @@ defmodule PaperForge.Declarative do
 
   defp enum_atom(value, allowed, path) do
     if value in allowed,
-      do: safe_name(value),
+      # `value` is constrained by a small, compile-time allowlist. This is safe
+      # while still allowing public enum atoms that are not otherwise loaded.
+      do: String.to_atom(value),
       else: raise(ArgumentError, "unsupported #{path} value: #{inspect(value)}")
+  end
+
+  defp metadata_key(key) do
+    case Map.fetch(@metadata_keys, to_string(key)) do
+      {:ok, metadata_key} -> metadata_key
+      :error -> raise ArgumentError, "unsupported metadata key #{inspect(key)}"
+    end
   end
 
   defp maybe_put(options, _key, nil), do: options
@@ -1385,9 +1453,14 @@ defmodule PaperForge.Declarative do
 
   defp rich_runs(runs) when is_list(runs) do
     Enum.map(runs, fn
-      %{"text" => text, "options" => options} -> {to_text(text), options_to_keyword(options, %{})}
-      %{"text" => text} -> to_text(text)
-      text -> to_text(text)
+      %{"text" => text, "options" => options} ->
+        {to_text(text), options_to_keyword(options, %{})}
+
+      %{"text" => text} ->
+        to_text(text)
+
+      text ->
+        to_text(text)
     end)
   end
 

@@ -32,4 +32,17 @@ defmodule PaperForge.InteroperabilityTest do
     assert {:error, _reason} = Interoperability.parse_pdf("not a pdf")
     assert {:error, {:unsupported_pdf_source, :bad}} = Interoperability.import_pages(:bad)
   end
+
+  test "rejects zero, negative, and malformed page selections" do
+    document =
+      PaperForge.new()
+      |> PaperForge.add_page(fn page -> Page.text(page, "First", x: 30, y: 30) end)
+      |> PaperForge.add_page(fn page -> Page.text(page, "Second", x: 30, y: 30) end)
+
+    assert {:error, :page_index_out_of_range} = Interoperability.import_pages(document, [0])
+    assert {:error, :page_index_out_of_range} = Interoperability.import_pages(document, [-1])
+    assert {:error, :page_index_out_of_range} = Interoperability.import_pages(document, [3])
+    assert {:error, :page_index_out_of_range} = Interoperability.import_pages(document, 0..1)
+    assert {:error, :invalid_page_selection} = Interoperability.import_pages(document, :first)
+  end
 end

@@ -140,16 +140,16 @@ defmodule PaperForge do
   @doc """
   Registers a reusable page template.
   """
-  @spec page_template(Document.t(), atom(), keyword()) :: Document.t()
+  @spec page_template(Document.t(), atom() | binary(), keyword()) :: Document.t()
   def page_template(%Document{} = document, template_name, options)
-      when is_atom(template_name) and is_list(options) do
+      when (is_atom(template_name) or is_binary(template_name)) and is_list(options) do
     Document.page_template(document, template_name, options)
   end
 
   @doc "Registers a named style for headings, paragraphs, tables, and other flow blocks."
-  @spec style(Document.t(), atom(), keyword()) :: Document.t()
+  @spec style(Document.t(), atom() | binary(), keyword()) :: Document.t()
   def style(%Document{} = document, style_name, options)
-      when is_atom(style_name) and is_list(options) do
+      when (is_atom(style_name) or is_binary(style_name)) and is_list(options) do
     Document.style(document, style_name, options)
   end
 

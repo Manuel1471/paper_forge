@@ -262,7 +262,9 @@ defmodule PaperForge.Layout.Engine do
     type_style = Map.get(document.styles, block.type, [])
 
     selected_style =
-      if is_atom(named_style), do: Map.get(document.styles, named_style, []), else: []
+      if is_atom(named_style) or is_binary(named_style),
+        do: Map.get(document.styles, named_style, []),
+        else: []
 
     %{
       block
