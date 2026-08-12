@@ -5,6 +5,37 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-08-12
+
+### Changed
+
+- Reorganized the internal source tree into explicit authoring, document,
+  resources, layout, rendering, PDF, security, runtime, and legacy layers
+  while preserving all public module names and the stable `PaperForge.Document`
+  API.
+- Isolated maintained legacy `add_flow/4` and `add_table/4` implementations
+  under `PaperForge.Legacy.*`; new documents continue to use the unified Flow
+  layout engine.
+- Reduced temporary allocation during legacy flow rendering and removed a
+  duplicate base-page construction from paginated legacy tables.
+
+### Added
+
+- Added `ARCHITECTURE.md`, documenting the authoring, layout, page-operation,
+  document-core, serialization, and output layers along with dependency rules.
+- Added regression coverage for declarative identifier safety, embedded-font
+  rendering, and invalid PDF page selections.
+
+### Fixed
+
+- Prevented untrusted `.paperforge` templates from creating arbitrary BEAM
+  atoms. Declarative fonts use a bounded internal key pool, while new style and
+  page-template identifiers remain binary keys without changing the atom-based
+  public Elixir API.
+- Made `PaperForge.Interoperability.import_pages/3` reject zero, negative,
+  out-of-range, and malformed page selections deterministically rather than
+  allowing list indexing semantics to select an unintended page.
+
 ## [1.4.1] - 2026-08-02
 
 ### Added

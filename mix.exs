@@ -1,7 +1,7 @@
 defmodule PaperForge.MixProject do
   use Mix.Project
 
-  @version "1.4.1"
+  @version "1.4.2"
   @source_url "https://github.com/Manuel1471/paper_forge"
 
   def project do
@@ -63,6 +63,7 @@ defmodule PaperForge.MixProject do
         "CONTRIBUTING.md",
         "CODE_OF_CONDUCT.md",
         "API.md",
+        "ARCHITECTURE.md",
         "DECLARATIVE.md",
         "PAPERFORGE_TEMPLATES.md",
         "PHOENIX.md",
@@ -88,6 +89,7 @@ defmodule PaperForge.MixProject do
         "CONTRIBUTING.md",
         "CODE_OF_CONDUCT.md",
         "API.md",
+        "ARCHITECTURE.md",
         "DECLARATIVE.md",
         "PAPERFORGE_TEMPLATES.md",
         "PHOENIX.md",

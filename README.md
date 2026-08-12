@@ -87,6 +87,7 @@ for precise drawing. All three paths converge on the same PDF-native engine.
 | Generate many PDFs safely | [Concurrent Rendering](#concurrent-rendering) |
 | Instrument production renders | [Telemetry](#telemetry) |
 | Reproduce performance measurements | [Performance Envelope](#performance-envelope) |
+| Understand the internal pipeline | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
 | Review stable public modules | [`API.md`](API.md) |
 | Upgrade an existing application | [`MIGRATING.md`](MIGRATING.md) |
 | Deploy and size production workloads | [`PRODUCTION.md`](PRODUCTION.md) |
@@ -535,6 +536,27 @@ native Math AST equations, references, notes, bibliographies, common review
 annotations, and root-level AcroForms. PDF page import and whole-document
 composition remain explicit application operations through
 `PaperForge.Interoperability`; templates cannot open arbitrary PDF files.
+
+### Template Safety And Import Validation
+
+Template-defined style and page-template names remain readable strings unless
+they already match a public atom. Declarative embedded fonts are mapped to a
+fixed internal key pool, so compiling untrusted `.paperforge` input cannot
+create an unbounded number of BEAM atoms. The public Elixir API remains
+atom-compatible.
+
+`PaperForge.Interoperability.import_pages/3` uses one-based page indexes.
+`0`, negative indexes, indexes beyond the source page count, and unsupported
+selection values return explicit errors instead of selecting an unintended
+page:
+
+```elixir
+{:error, :page_index_out_of_range} =
+  PaperForge.Interoperability.import_pages(source_document, [0])
+
+{:error, :invalid_page_selection} =
+  PaperForge.Interoperability.import_pages(source_document, :first)
+```
 
 ## Security And Protection
 

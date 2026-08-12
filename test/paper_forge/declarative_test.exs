@@ -266,6 +266,52 @@ defmodule PaperForge.DeclarativeTest do
     assert pdf =~ "/FontFile2"
   end
 
+  test "keeps untrusted declarative identifiers out of the atom table" do
+    unique = "untrusted_#{System.unique_integer([:positive])}"
+    font = File.read!("test/fixtures/fonts/SFNSMono.ttf")
+
+    refute_existing_atom(unique)
+    refute_existing_atom(unique <> "_style")
+    refute_existing_atom(unique <> "_template")
+
+    source = %{
+      "version" => "1",
+      "fonts" => %{unique => %{"source" => unique}},
+      "document" => %{"default_font" => unique},
+      "design_system" => %{
+        "styles" => %{(unique <> "_style") => %{"size" => 11}}
+      },
+      "page_templates" => %{(unique <> "_template") => %{"margins" => 24}},
+      "blocks" => [
+        %{
+          "type" => "paragraph",
+          "text" => "Safe identifiers",
+          "options" => %{
+            "font" => unique,
+            "style" => unique <> "_style",
+            "template" => unique <> "_template"
+          }
+        }
+      ]
+    }
+
+    assert {:ok, compiled} =
+             Declarative.compile(source, %{}, font_sources: %{unique => font})
+
+    assert is_atom(compiled.document_options[:default_font])
+    assert Map.has_key?(compiled.styles, unique <> "_style")
+    assert Map.has_key?(compiled.page_templates, unique <> "_template")
+
+    assert {:ok, document, %{pages: 1}} =
+             Declarative.render(source, %{}, font_sources: %{unique => font})
+
+    assert PaperForge.to_binary(document) =~ "/FontFile2"
+
+    refute_existing_atom(unique)
+    refute_existing_atom(unique <> "_style")
+    refute_existing_atom(unique <> "_template")
+  end
+
   test "rejects unknown and ambiguous declarative font sources" do
     assert {:error, errors} =
              PaperForge.Declarative.compile(%{
@@ -286,6 +332,15 @@ defmodule PaperForge.DeclarativeTest do
              })
 
     assert Enum.any?(errors, &(&1.code == :ambiguous_font_source))
+  end
+
+  defp refute_existing_atom(value) do
+    try do
+      String.to_existing_atom(value)
+      flunk("expected #{inspect(value)} not to exist as an atom")
+    rescue
+      ArgumentError -> :ok
+    end
   end
 
   test "renders declarative chart variants and palettes" do

@@ -7,6 +7,7 @@ defmodule PaperForge.Document do
   """
 
   alias PaperForge.Font
+  alias PaperForge.Document.Objects, as: DocumentObjects
   alias PaperForge.FontError
   alias PaperForge.FontRegistry
   alias PaperForge.Fonts.Builtin
@@ -63,8 +64,8 @@ defmodule PaperForge.Document do
           font_program_registry: %{optional(binary()) => Reference.t()},
           font_source_data: %{optional(atom()) => binary()},
           default_font: atom(),
-          page_templates: %{optional(atom()) => keyword()},
-          styles: %{optional(atom()) => keyword()},
+          page_templates: %{optional(atom() | binary()) => keyword()},
+          styles: %{optional(atom() | binary()) => keyword()},
           components: %{optional(atom()) => function()},
           image_registry: ImageRegistry.t(),
           compress: boolean(),
@@ -179,16 +180,16 @@ defmodule PaperForge.Document do
   @doc """
   Registers a reusable page template.
   """
-  @spec page_template(t(), atom(), keyword()) :: t()
+  @spec page_template(t(), atom() | binary(), keyword()) :: t()
   def page_template(%__MODULE__{} = document, template_name, options)
-      when is_atom(template_name) and is_list(options) do
+      when (is_atom(template_name) or is_binary(template_name)) and is_list(options) do
     %{document | page_templates: Map.put(document.page_templates, template_name, options)}
   end
 
   @doc "Registers a named document style used by `PaperForge.Flow` blocks."
-  @spec style(t(), atom(), keyword()) :: t()
+  @spec style(t(), atom() | binary(), keyword()) :: t()
   def style(%__MODULE__{} = document, style_name, options)
-      when is_atom(style_name) and is_list(options) do
+      when (is_atom(style_name) or is_binary(style_name)) and is_list(options) do
     %{document | styles: Map.put(document.styles, style_name, options)}
   end
 
@@ -241,16 +242,17 @@ defmodule PaperForge.Document do
   @doc """
   Fetches a page template.
   """
-  @spec fetch_page_template(t(), atom()) :: {:ok, keyword()} | :error
+  @spec fetch_page_template(t(), atom() | binary()) :: {:ok, keyword()} | :error
   def fetch_page_template(%__MODULE__{} = document, template_name)
-      when is_atom(template_name) do
+      when is_atom(template_name) or is_binary(template_name) do
     Map.fetch(document.page_templates, template_name)
   end
 
   @doc "Resolves a page template and all of its `:extends` ancestors."
-  @spec resolve_page_template(t(), atom()) :: {:ok, keyword()} | :error | {:error, :cycle}
+  @spec resolve_page_template(t(), atom() | binary()) ::
+          {:ok, keyword()} | :error | {:error, :cycle}
   def resolve_page_template(%__MODULE__{} = document, template_name)
-      when is_atom(template_name) do
+      when is_atom(template_name) or is_binary(template_name) do
     resolve_page_template(document.page_templates, template_name, MapSet.new())
   end
 
@@ -382,24 +384,8 @@ defmodule PaperForge.Document do
   def add_object(
         %__MODULE__{} = document,
         value
-      ) do
-    object_id = document.next_object_id
-    object = Object.new(object_id, value)
-    reference = Reference.new(object_id)
-
-    updated_document = %{
-      document
-      | objects:
-          Map.put(
-            document.objects,
-            object_id,
-            object
-          ),
-        next_object_id: object_id + 1
-    }
-
-    {updated_document, reference}
-  end
+      ),
+      do: DocumentObjects.add(document, value)
 
   @doc """
   Updates an existing indirect object.
@@ -414,24 +400,8 @@ defmodule PaperForge.Document do
         %Reference{object_id: object_id},
         update_function
       )
-      when is_function(update_function, 1) do
-    object = Map.fetch!(document.objects, object_id)
-
-    updated_object = %{
-      object
-      | value: update_function.(object.value)
-    }
-
-    %{
-      document
-      | objects:
-          Map.put(
-            document.objects,
-            object_id,
-            updated_object
-          )
-    }
-  end
+      when is_function(update_function, 1),
+      do: DocumentObjects.update(document, Reference.new(object_id), update_function)
 
   @doc """
   Adds a page reference to the page tree.
@@ -440,23 +410,8 @@ defmodule PaperForge.Document do
   def append_page(
         %__MODULE__{} = document,
         %Reference{} = page_reference
-      ) do
-    update_object(
-      document,
-      document.pages_reference,
-      fn pages_dictionary ->
-        pages_dictionary
-        |> Map.update!(
-          "Kids",
-          &(&1 ++ [page_reference])
-        )
-        |> Map.update!(
-          "Count",
-          &(&1 + 1)
-        )
-      end
-    )
-  end
+      ),
+      do: DocumentObjects.append_page(document, page_reference)
 
   @doc """
   Adds or replaces a named destination in the PDF catalog.
