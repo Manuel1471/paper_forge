@@ -5,6 +5,23 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Reorganized the internal source tree into explicit authoring, document,
+  resources, layout, rendering, PDF, security, runtime, and legacy layers
+  while preserving all public module names and the stable `PaperForge.Document`
+  API.
+- Isolated maintained legacy `add_flow/4` and `add_table/4` implementations
+  under `PaperForge.Legacy.*`; new documents continue to use the unified Flow
+  layout engine.
+
+### Added
+
+- Added `ARCHITECTURE.md`, documenting the authoring, layout, page-operation,
+  document-core, serialization, and output layers along with dependency rules.
+
 ## [1.4.1] - 2026-08-02
 
 ### Added

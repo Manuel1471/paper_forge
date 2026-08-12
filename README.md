@@ -87,6 +87,7 @@ for precise drawing. All three paths converge on the same PDF-native engine.
 | Generate many PDFs safely | [Concurrent Rendering](#concurrent-rendering) |
 | Instrument production renders | [Telemetry](#telemetry) |
 | Reproduce performance measurements | [Performance Envelope](#performance-envelope) |
+| Understand the internal pipeline | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
 | Review stable public modules | [`API.md`](API.md) |
 | Upgrade an existing application | [`MIGRATING.md`](MIGRATING.md) |
 | Deploy and size production workloads | [`PRODUCTION.md`](PRODUCTION.md) |

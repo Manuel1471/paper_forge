@@ -16,6 +16,8 @@ defmodule PaperForge.DocumentationPackageTest do
     assert "INTEROPERABILITY.md" in docs_extras
     assert "SCIENTIFIC.md" in package_files
     assert "SCIENTIFIC.md" in docs_extras
+    assert "ARCHITECTURE.md" in package_files
+    assert "ARCHITECTURE.md" in docs_extras
 
     assert File.exists?("priv/paperforge.schema.json")
     assert File.exists?("examples/paper_forge_1_4_showcase.paperforge")
@@ -60,6 +62,18 @@ defmodule PaperForge.DocumentationPackageTest do
     assert guide =~ "Create PaperForge Documents Without Writing Elixir"
     assert guide =~ "mix paper_forge.validate"
     assert guide =~ "examples/paper_forge_1_4_showcase.paperforge"
+  end
+
+  test "ships a discoverable architecture guide" do
+    readme = File.read!("README.md")
+    guide = File.read!("ARCHITECTURE.md")
+
+    assert readme =~ "[`ARCHITECTURE.md`](ARCHITECTURE.md)"
+    assert guide =~ "PaperForge.PageCompiler"
+    assert guide =~ "PaperForge.Document.Objects"
+    assert guide =~ "PaperForge.Legacy.*"
+    assert guide =~ "|-- rendering/"
+    assert guide =~ "|-- security/"
   end
 
   test "README local files and section links remain valid and packaged" do
