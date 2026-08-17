@@ -1,7 +1,7 @@
 defmodule PaperForge.MixProject do
   use Mix.Project
 
-  @version "1.4.2"
+  @version "1.4.3"
   @source_url "https://github.com/Manuel1471/paper_forge"
 
   def project do
@@ -33,6 +33,7 @@ defmodule PaperForge.MixProject do
       {:telemetry, "~> 1.3"},
       {:sign_core, "~> 0.1.4"},
       {:soft_signer, "~> 0.1.0"},
+      {:stream_data, "~> 1.2", only: :test},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false}
     ]
   end

@@ -33,6 +33,26 @@ defmodule PaperForge.InteroperabilityTest do
     assert {:error, {:unsupported_pdf_source, :bad}} = Interoperability.import_pages(:bad)
   end
 
+  test "applies explicit parsing resource limits before importing objects" do
+    pdf = "%PDF-1.7\n1 0 obj\n<<>>\nendobj\n"
+
+    assert {:error, {:max_file_size_exceeded, 8}} =
+             Interoperability.parse_pdf(pdf, max_file_size: 8)
+
+    assert {:error, {:max_objects_exceeded, 1}} =
+             Interoperability.parse_pdf(pdf <> "2 0 obj\n<<>>\nendobj\n", max_objects: 1)
+
+    assert {:error, :invalid_parse_limits} = Interoperability.parse_pdf(pdf, max_objects: 0)
+
+    nested = "%PDF-1.7\n" <> String.duplicate("[", 4)
+    assert {:error, {:max_depth_exceeded, 3}} = Interoperability.parse_pdf(nested, max_depth: 3)
+
+    stream = "%PDF-1.7\n1 0 obj\n<<>>\nstream\n12345\nendstream\nendobj\n"
+
+    assert {:error, {:max_stream_size_exceeded, 4}} =
+             Interoperability.parse_pdf(stream, max_stream_size: 4)
+  end
+
   test "rejects zero, negative, and malformed page selections" do
     document =
       PaperForge.new()

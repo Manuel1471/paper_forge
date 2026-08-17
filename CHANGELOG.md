@@ -5,6 +5,37 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-08-12
+
+### Added
+
+- Added `PaperForge.ValidationResult`, which distinguishes blocking structural
+  errors from non-blocking authoring warnings with stable PaperForge codes and
+  document paths.
+- Added warnings for empty documents and unregistered default fonts without
+  changing successful validation for otherwise serializable documents.
+- Added `PaperForge.inspect_document/1` for a structured inventory of pages,
+  PDF objects, fonts, images, forms, links, bookmarks, destinations, security,
+  and reusable resources.
+- Added `PaperForge.render/2`, returning the generated PDF together with
+  serialization time, process-memory, reductions, garbage collections,
+  resource counts, output bytes, and an output SHA-256 fingerprint.
+- Added configurable `max_file_size`, `max_objects`, `max_depth`, and
+  `max_stream_size` limits to
+  `PaperForge.Interoperability.parse_pdf/2` for defensive classic-PDF input
+  handling.
+- Added regression coverage for validation warnings, inspection, render
+  diagnostics, output fingerprints, and parser resource limits.
+- Added StreamData property coverage that fuzzes declarative identifiers and
+  verifies untrusted templates cannot create new BEAM atoms.
+- Documented the diagnostics contract and defensive import limits in `API.md`
+  and `INTEROPERABILITY.md`.
+
+### Changed
+
+- Bumped the package version to `1.4.3` for the Hardening & Diagnostics
+  release line.
+
 ## [1.4.2] - 2026-08-12
 
 ### Changed

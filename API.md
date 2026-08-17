@@ -17,6 +17,7 @@ by the `1.x` compatibility contract:
 - `PaperForge.Concurrent`
 - `PaperForge.Concurrent.Result`
 - `PaperForge.Telemetry`
+- `PaperForge.ValidationResult`
 - `PaperForge.Declarative`
 - `PaperForge.Declarative.Compiled`
 - `PaperForge.Declarative.Error`
@@ -52,6 +53,16 @@ the current major release. Removal happens only in the next major version.
 Patch releases preserve document semantics but do not promise identical bytes
 across different PaperForge versions. Identical inputs within the same version
 produce deterministic bytes when callers provide deterministic metadata.
+
+## Diagnostics contract
+
+`PaperForge.validate/1` returns `{:ok, %PaperForge.ValidationResult{}}` for a
+structurally valid document. Its `warnings` field is non-blocking and uses
+stable `PFxxxx` code identifiers for application and Studio diagnostics.
+`PaperForge.inspect_document/1` returns a stable inventory map, and
+`PaperForge.render/2` returns `{:ok, pdf, diagnostics}` for a completed binary
+plus measurements. New diagnostic keys may be added in patch releases; existing
+keys keep their meaning throughout `1.x`.
 
 ## Supported runtime contract
 

@@ -11,6 +11,7 @@ defmodule PaperForge.Validation do
   alias PaperForge.Reference
   alias PaperForge.Stream
   alias PaperForge.ValidationError
+  alias PaperForge.ValidationResult
 
   @supported_versions MapSet.new(["1.4", "1.5", "1.6", "1.7"])
 
@@ -22,7 +23,7 @@ defmodule PaperForge.Validation do
           optional(:actual) => term()
         }
 
-  @spec validate(Document.t()) :: {:ok, map()} | {:error, [issue()]}
+  @spec validate(Document.t()) :: {:ok, ValidationResult.t()} | {:error, [issue()]}
   def validate(%Document{} = document) do
     issues =
       []
@@ -36,7 +37,10 @@ defmodule PaperForge.Validation do
     case issues do
       [] ->
         {:ok,
-         %{
+         %ValidationResult{
+           valid?: true,
+           errors: [],
+           warnings: warnings(document),
            objects: map_size(document.objects),
            pages: page_count(document),
            pdf_version: document.pdf_version,
@@ -128,6 +132,46 @@ defmodule PaperForge.Validation do
       _ -> 0
     end
   end
+
+  defp warnings(document) do
+    []
+    |> warn_empty_document(document)
+    |> warn_unregistered_default_font(document)
+    |> Enum.reverse()
+  end
+
+  defp warn_empty_document(warnings, document) do
+    if page_count(document) == 0 do
+      [issue(:empty_document, "document has no pages", ["pages"]) | warnings]
+    else
+      warnings
+    end
+  end
+
+  defp warn_unregistered_default_font(warnings, document) do
+    builtins = PaperForge.Fonts.Builtin.keys()
+
+    if document.default_font in builtins or
+         Map.has_key?(document.font_registry.fonts, document.default_font) do
+      warnings
+    else
+      [
+        issue(
+          :unknown_default_font,
+          "default font #{inspect(document.default_font)} is not registered",
+          ["default_font"]
+        )
+        | warnings
+      ]
+    end
+  end
+
+  defp issue(code, message, path) do
+    %{code: code, code_id: code_id(code), message: message, path: path, severity: :warning}
+  end
+
+  defp code_id(:empty_document), do: "PF1201"
+  defp code_id(:unknown_default_font), do: "PF3102"
 
   defp references(%Reference{object_id: id}), do: [id]
   defp references(%Stream{dictionary: dictionary}), do: references(dictionary)

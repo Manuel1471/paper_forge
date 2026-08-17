@@ -1,5 +1,22 @@
 # Import, Forms, And PDF Interoperability
 
+## Defensive parsing limits
+
+The classic pure-Elixir PDF parser accepts only direct-object PDFs. Set input
+limits when accepting PDFs from outside your own application:
+
+```elixir
+PaperForge.Interoperability.parse_pdf(binary,
+  max_file_size: 100_000_000,
+  max_objects: 500_000,
+  max_depth: 100,
+  max_stream_size: 50_000_000
+)
+```
+
+The parser rejects the input before import when a configured limit is exceeded.
+Encrypted PDFs and compressed object streams are intentionally unsupported.
+
 PaperForge 1.4 keeps import and composition inside the BEAM. No browser,
 native extension, command-line PDF tool, or external rendering service is
 required at runtime.

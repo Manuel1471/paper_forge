@@ -13,8 +13,8 @@ defmodule PaperForge.Interoperability do
   @type source :: Document.t() | binary()
 
   @doc "Parses a PDF binary into a composable document object graph."
-  @spec parse_pdf(binary()) :: {:ok, Document.t()} | {:error, term()}
-  def parse_pdf(pdf), do: Parser.parse(pdf)
+  @spec parse_pdf(binary(), keyword()) :: {:ok, Document.t()} | {:error, term()}
+  def parse_pdf(pdf, options \\ []), do: Parser.parse(pdf, options)
 
   @doc "Imports selected one-based pages from a PDF or PaperForge document."
   @spec import_pages(source(), Range.t() | [pos_integer()] | :all, keyword()) ::
