@@ -14,6 +14,40 @@ defmodule PaperForge.ValidationTest do
     assert report.pages == 1
     assert report.objects >= 3
     assert report.deterministic?
+    assert report.valid?
+    assert report.errors == []
+    assert report.warnings == []
+  end
+
+  test "reports non-blocking authoring warnings separately from validation errors" do
+    assert {:ok, report} = PaperForge.validate(PaperForge.new())
+
+    assert report.valid?
+
+    assert %{code: :empty_document, code_id: "PF1201", path: ["pages"], severity: :warning} =
+             Enum.find(report.warnings, &(&1.code == :empty_document))
+  end
+
+  test "inspects document resources and returns render diagnostics" do
+    document =
+      PaperForge.new()
+      |> PaperForge.add_page(fn page ->
+        PaperForge.Page.text(page, "Diagnostics", x: 40, y: 40)
+      end)
+
+    inspection = PaperForge.inspect_document(document)
+    assert inspection.pages == 1
+    assert inspection.objects >= 3
+    assert inspection.security == :none
+    assert is_map(inspection.resources)
+
+    assert {:ok, pdf, diagnostics} = PaperForge.render(document)
+    assert pdf =~ "%PDF-1.7"
+    assert diagnostics.pages == 1
+    assert diagnostics.objects == inspection.objects
+    assert diagnostics.output_bytes == byte_size(pdf)
+    assert diagnostics.serialization_time_us >= 0
+    assert diagnostics.fingerprint =~ ~r/^[0-9a-f]{64}$/
   end
 
   test "rejects dangling references with structured issues" do

@@ -369,6 +369,32 @@ defmodule PaperForge do
   @spec fingerprint(Document.t()) :: binary()
   def fingerprint(%Document{} = document), do: PaperForge.Protection.fingerprint(document)
 
+  @doc "Returns a structured inventory suitable for diagnostics and editor tooling."
+  @spec inspect_document(Document.t()) :: map()
+  def inspect_document(%Document{} = document) do
+    inventory = PaperForge.Interoperability.resources(document)
+
+    %{
+      pages: document.objects[document.pages_reference.object_id].value["Count"],
+      objects: map_size(document.objects),
+      fonts: map_size(document.font_registry.fonts),
+      images: map_size(document.image_registry.images),
+      forms:
+        if(document.objects[document.root_reference.object_id].value["AcroForm"], do: 1, else: 0),
+      links: annotation_count(document, "Link"),
+      bookmarks: document.outline_count,
+      named_destinations: map_size(document.named_destinations),
+      security: security_mode(document),
+      resources: Map.new(inventory, fn {kind, references} -> {kind, length(references)} end)
+    }
+  end
+
+  @doc "Renders a PDF and returns timing, memory, resource, and output diagnostics."
+  @spec render(Document.t(), keyword()) :: {:ok, binary(), map()}
+  def render(%Document{} = document, options \\ []) when is_list(options) do
+    PaperForge.Diagnostics.render(document, options)
+  end
+
   @doc "Applies structural PDF/A and PDF/UA conformance profiles."
   @spec comply(Document.t(), keyword()) :: Document.t()
   def comply(%Document{} = document, options) do
@@ -384,7 +410,7 @@ defmodule PaperForge do
   end
 
   @doc "Validates document structure and returns a deterministic validation report."
-  @spec validate(Document.t()) :: {:ok, map()} | {:error, [map()]}
+  @spec validate(Document.t()) :: {:ok, PaperForge.ValidationResult.t()} | {:error, [map()]}
   def validate(%Document{} = document), do: Validation.validate(document)
 
   @doc "Validates document structure and raises `PaperForge.ValidationError` on failure."
@@ -425,6 +451,27 @@ defmodule PaperForge do
         {:error, reason} -> raise File.Error, reason: reason, action: "write file", path: path
       end
     end)
+  end
+
+  defp annotation_count(document, subtype) do
+    Enum.count(document.objects, fn
+      {_id,
+       %PaperForge.Object{value: %{"Type" => {:name, "Annot"}, "Subtype" => {:name, ^subtype}}}} ->
+        true
+
+      _ ->
+        false
+    end)
+  end
+
+  defp security_mode(document) do
+    case document.objects[document.root_reference.object_id] do
+      %PaperForge.Object{value: %{"PaperForgeSecurity" => security}} ->
+        Map.get(security, "Algorithm", "protected")
+
+      _ ->
+        :none
+    end
   end
 
   defp resolve_template_options(options, document) do

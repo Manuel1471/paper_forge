@@ -87,6 +87,7 @@ for precise drawing. All three paths converge on the same PDF-native engine.
 | Generate many PDFs safely | [Concurrent Rendering](#concurrent-rendering) |
 | Instrument production renders | [Telemetry](#telemetry) |
 | Reproduce performance measurements | [Performance Envelope](#performance-envelope) |
+| Validate, inspect, and diagnose a document | [Diagnostics And Validation](#diagnostics-and-validation) |
 | Understand the internal pipeline | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
 | Review stable public modules | [`API.md`](API.md) |
 | Upgrade an existing application | [`MIGRATING.md`](MIGRATING.md) |
@@ -149,6 +150,56 @@ need deterministic paged layout and direct access to PDF capabilities.
 | Runtime language | Mixed process boundary | Pure Elixir generation path |
 | PDF-native structures | Often require post-processing | Built into the document model |
 | Forms, annotations, attachments, signatures | Usually separate tooling | First-class APIs |
+
+## Diagnostics And Validation
+
+Use validation before rendering to separate hard structural errors from
+non-blocking authoring warnings. Each warning carries a stable PaperForge code
+and a document path that editor tooling can map back to a user-facing block.
+
+```elixir
+case PaperForge.validate(document) do
+  {:ok, result} ->
+    IO.inspect(result.warnings)
+
+  {:error, errors} ->
+    IO.inspect(errors)
+end
+```
+
+`PaperForge.inspect_document/1` returns a lightweight inventory of pages,
+objects, fonts, images, forms, links, bookmarks, security, and reusable PDF
+resources. It is intended for operational dashboards and PaperForge Studio.
+
+For a rendered PDF plus timing and resource measurements, use:
+
+```elixir
+{:ok, pdf, diagnostics} = PaperForge.render(document)
+
+diagnostics.pages
+diagnostics.serialization_time_us
+diagnostics.peak_memory_bytes
+diagnostics.output_bytes
+diagnostics.fingerprint
+```
+
+The current `render/2` diagnostics measure final PDF serialization. Flow
+layout is performed when authoring APIs compile pages, so `layout_time_us` is
+reported as `0` for already-built `PaperForge.Document` values.
+
+The classic PDF importer also accepts defensive input limits:
+
+```elixir
+PaperForge.Interoperability.parse_pdf(binary,
+  max_file_size: 100_000_000,
+  max_objects: 500_000,
+  max_depth: 100,
+  max_stream_size: 50_000_000
+)
+```
+
+Limits are enforced before importing objects. Encrypted PDFs and object streams
+remain explicitly unsupported by the pure-Elixir classic parser.
 
 ## Ecosystem
 
