@@ -6,11 +6,17 @@ defmodule PaperForge.EmbeddedFontTest do
   alias PaperForge.FontRegistry
   alias PaperForge.Object
   alias PaperForge.Page
+  alias PaperForge.PerformanceCache
   alias PaperForge.Stream
   alias PaperForge.TextMetrics
 
   @font_path "test/fixtures/fonts/SFNSMono.ttf"
   @unicode_text "Información — Привет — € © ™"
+
+  setup do
+    PerformanceCache.reset()
+    :ok
+  end
 
   test "registers a TrueType font from a path" do
     document =
@@ -201,6 +207,19 @@ defmodule PaperForge.EmbeddedFontTest do
     assert to_unicode =~ "<0041>"
     assert to_unicode =~ "<0042>"
     refute to_unicode =~ "<00F1>"
+  end
+
+  test "reuses a TrueType subset when later text adds no glyphs" do
+    document =
+      PaperForge.new()
+      |> PaperForge.register_font(:sfmono, path: @font_path)
+
+    {document, _font} = Document.use_font_text(document, :sfmono, "AB")
+    {document, _font} = Document.use_font_text(document, :sfmono, "BA")
+
+    assert PerformanceCache.stats().true_type_subset == %{hits: 0, misses: 1}
+    assert PerformanceCache.stats().true_type_parsed == %{hits: 0, misses: 1}
+    assert {:ok, _font} = FontRegistry.fetch(document.font_registry, :sfmono)
   end
 
   test "stores ToUnicode as a compressed stream" do

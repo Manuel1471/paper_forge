@@ -39,16 +39,18 @@ Documented public modules follow Semantic Versioning throughout the 1.x series.
 
 ## Performance Snapshot
 
-Reference large-document profile on Elixir 1.20.2, OTP 29, 10 schedulers,
-`MIX_ENV=prod`, 2 warmups, and 10 measured samples:
+Reference large-document profile on Apple Silicon (`Mac16,12`), Elixir 1.20.2,
+OTP 29, 10 schedulers, `MIX_ENV=prod`, 3 warmups, and 30 measured samples:
 
 | Input | Output | Median total | Median layout | Peak process memory |
 | ---: | ---: | ---: | ---: | ---: |
-| 5,000 table rows | 179 pages / 616,018 bytes | 766.95 ms | 717.66 ms | approximately 81 MB |
+| 5,000 table rows | 179 pages / 616,174 bytes | 824.77 ms | 773.58 ms | 97.08 MB |
 
 These are reference measurements, not cross-machine guarantees. See
 [Performance Envelope](#performance-envelope) for the runner, methodology,
-p95 values, concurrency profiles, and reproduction commands.
+p95 values, concurrency profiles, and reproduction commands. The readable
+reference results and release-quality checks are also collected in
+[`BENCHMARKS.md`](BENCHMARKS.md).
 
 ## One Engine, Complete Document Lifecycle
 
@@ -87,6 +89,7 @@ for precise drawing. All three paths converge on the same PDF-native engine.
 | Generate many PDFs safely | [Concurrent Rendering](#concurrent-rendering) |
 | Instrument production renders | [Telemetry](#telemetry) |
 | Reproduce performance measurements | [Performance Envelope](#performance-envelope) |
+| Run or compare official workloads | [`BENCHMARKS.md`](BENCHMARKS.md) |
 | Validate, inspect, and diagnose a document | [Diagnostics And Validation](#diagnostics-and-validation) |
 | Understand the internal pipeline | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
 | Review stable public modules | [`API.md`](API.md) |
@@ -177,15 +180,18 @@ For a rendered PDF plus timing and resource measurements, use:
 {:ok, pdf, diagnostics} = PaperForge.render(document)
 
 diagnostics.pages
-diagnostics.serialization_time_us
-diagnostics.peak_memory_bytes
+diagnostics.serialization_us
+diagnostics.memory_delta_bytes
+diagnostics.cache
 diagnostics.output_bytes
 diagnostics.fingerprint
 ```
 
-The current `render/2` diagnostics measure final PDF serialization. Flow
-layout is performed when authoring APIs compile pages, so `layout_time_us` is
-reported as `0` for already-built `PaperForge.Document` values.
+`PaperForge.render/2` returns `%PaperForge.RenderStats{}`. Timing fields are
+microseconds. `memory_before_bytes` and `memory_after_bytes` describe the
+render process only; they deliberately do not claim a VM-wide peak-memory value.
+Flow layout is performed when authoring APIs compile pages, so `layout_us` is
+`0` for already-built `PaperForge.Document` values.
 
 The classic PDF importer also accepts defensive input limits:
 
@@ -1638,13 +1644,21 @@ mix run benchmarks/truetype.exs
 
 ## Performance Envelope
 
-PaperForge 1.1 adds bounded process-local caches for repeated text metrics and
-Flate-compressed streams. Font metrics use stable font identities, and the PDF
-writer accumulates serialized objects linearly before producing the final
-binary. Documents without page-aware contents or references paginate once;
-navigation-aware documents retain bounded multi-pass convergence. Caches
-require no server process, remain isolated between render processes, and
-cannot grow without a fixed limit.
+PaperForge uses bounded process-local caches for repeated text metrics, small
+Flate-compressed streams, parsed TrueType programs, and physical TrueType
+subsets keyed by source and glyph signature. Font metrics use stable font
+identities; the same text, font, and size are measured once per render process.
+Repeated text that introduces no new glyphs skips subset reconstruction. The
+PDF writer retains object commands as iodata until final assembly rather than
+materializing each object as an intermediate binary. Large compressed streams
+bypass the cache so a single large document cannot retain them in the render
+process. The layout engine also accumulates placements in constant time and
+normalizes their render order only after a page is complete, which matters most
+for long tables and report pages with many blocks.
+
+Cache eviction is FIFO and bounded per namespace, preserving useful recent
+entries instead of clearing a full cache at capacity. Caches require no server
+process and remain isolated between render processes.
 
 ### Latency benchmarks
 

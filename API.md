@@ -18,6 +18,7 @@ by the `1.x` compatibility contract:
 - `PaperForge.Concurrent.Result`
 - `PaperForge.Telemetry`
 - `PaperForge.ValidationResult`
+- `PaperForge.RenderStats`
 - `PaperForge.Declarative`
 - `PaperForge.Declarative.Compiled`
 - `PaperForge.Declarative.Error`
@@ -60,9 +61,9 @@ produce deterministic bytes when callers provide deterministic metadata.
 structurally valid document. Its `warnings` field is non-blocking and uses
 stable `PFxxxx` code identifiers for application and Studio diagnostics.
 `PaperForge.inspect_document/1` returns a stable inventory map, and
-`PaperForge.render/2` returns `{:ok, pdf, diagnostics}` for a completed binary
-plus measurements. New diagnostic keys may be added in patch releases; existing
-keys keep their meaning throughout `1.x`.
+`PaperForge.render/2` returns `{:ok, pdf, %PaperForge.RenderStats{}}` for a
+completed binary plus measurements. New statistics fields may be added in patch
+releases; existing fields keep their meaning throughout `1.x`.
 
 ## Supported runtime contract
 

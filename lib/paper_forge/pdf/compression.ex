@@ -8,6 +8,8 @@ defmodule PaperForge.Compression do
 
   alias PaperForge.PerformanceCache
 
+  @cacheable_input_bytes 256 * 1_024
+
   @doc """
   Compresses binary or iodata using zlib.
 
@@ -22,7 +24,11 @@ defmodule PaperForge.Compression do
   def flate(data) do
     binary = IO.iodata_to_binary(data)
 
-    PerformanceCache.fetch(:flate, binary, fn -> :zlib.compress(binary) end, 512)
+    if byte_size(binary) <= @cacheable_input_bytes do
+      PerformanceCache.fetch(:flate, binary, fn -> :zlib.compress(binary) end, 512)
+    else
+      :zlib.compress(binary)
+    end
   end
 
   @doc """

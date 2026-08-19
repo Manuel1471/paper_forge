@@ -4,6 +4,8 @@ defmodule PaperForge.Diagnostics do
   alias PaperForge.Document
   alias PaperForge.Interoperability
   alias PaperForge.Object
+  alias PaperForge.PerformanceCache
+  alias PaperForge.RenderStats
   alias PaperForge.Writer
 
   @spec render(Document.t(), keyword()) :: {:ok, binary(), map()}
@@ -16,7 +18,7 @@ defmodule PaperForge.Diagnostics do
     inventory = Interoperability.resources(document)
 
     {:ok, pdf,
-     %{
+     %RenderStats{
        pages: page_count(document),
        objects: map_size(document.objects),
        fonts: map_size(document.font_registry.fonts),
@@ -26,13 +28,16 @@ defmodule PaperForge.Diagnostics do
        links: annotation_count(document, "Link"),
        bookmarks: document.outline_count,
        resources: Map.new(inventory, fn {kind, references} -> {kind, length(references)} end),
-       render_time_us: elapsed,
-       layout_time_us: 0,
-       serialization_time_us: elapsed,
-       peak_memory_bytes: max(before.memory, after_metrics.memory),
+       duration_us: elapsed,
+       layout_us: 0,
+       serialization_us: elapsed,
+       write_us: 0,
+       memory_before_bytes: before.memory,
+       memory_after_bytes: after_metrics.memory,
        memory_delta_bytes: after_metrics.memory - before.memory,
        reductions: after_metrics.reductions - before.reductions,
-       garbage_collections: max(after_metrics.gc - before.gc, 0),
+       gc_count: max(after_metrics.gc - before.gc, 0),
+       cache: PerformanceCache.stats(),
        output_bytes: byte_size(pdf),
        fingerprint: :crypto.hash(:sha256, pdf) |> Base.encode16(case: :lower)
      }}

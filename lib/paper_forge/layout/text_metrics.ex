@@ -71,14 +71,14 @@ defmodule PaperForge.TextMetrics do
     validate_font!(font)
     validate_size!(size)
 
-    if byte_size(text) <= 16 do
+    if text == "" or byte_size(text) > 4_096 do
       measured_width(text, font, size)
     else
       PerformanceCache.fetch(
         :text_width,
         {font_cache_id(font), size, text},
         fn -> measured_width(text, font, size) end,
-        512
+        2_048
       )
     end
   end

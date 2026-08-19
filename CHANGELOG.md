@@ -5,6 +5,45 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.4] - 2026-08-16
+
+### Added
+
+- Added `PaperForge.RenderStats`, the typed measurement result returned by
+  `PaperForge.render/2`, with pages, objects, resource counts, serialization
+  duration, process memory before and after rendering, reductions, garbage
+  collections, cache statistics, output bytes, and a SHA-256 fingerprint.
+- Added regression coverage for short repeated text, bounded FIFO cache
+  eviction, oversized compression inputs, and TrueType subset reuse when no
+  new glyphs are introduced.
+- Added `BENCHMARKS.md`, defining the official small, medium, large, and
+  concurrent benchmark workloads and comparison methodology.
+- Hardened the render-profile runner so zero warmups run zero warmup samples
+  and invalid sample counts fail explicitly.
+
+### Changed
+
+- Reused repeated text measurements regardless of short string length, using a
+  bounded process-local cache keyed by font identity, size, and text.
+- Cached parsed TrueType programs and physical font subsets per source hash and
+  glyph signature, while skipping subset reconstruction for text that adds no
+  glyphs.
+- Removed quadratic list accumulation while materializing footnotes and
+  endnotes, and reuse a single flattened placement list for the layout report.
+- Accumulate page placements in constant time during pagination and normalize
+  their public render order once per completed page.
+- Cached calculated default table column widths per block and available width,
+  avoiding repeated allocation during large row sets.
+- Replaced full cache resets at capacity with FIFO eviction so useful entries
+  remain available during large table and report renders.
+- Bypassed the compression cache for streams larger than 256 KiB to avoid
+  retaining large source binaries in long-running render processes.
+- Kept serialized PDF objects as iodata while calculating offsets, avoiding an
+  intermediate binary allocation per object before final assembly.
+- Updated performance and diagnostics documentation to define process-memory
+  measurements precisely and describe the current resource-efficiency model.
+- Bumped the package version to `1.4.4`.
+
 ## [1.4.3] - 2026-08-16
 
 ### Added

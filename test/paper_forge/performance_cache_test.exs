@@ -2,6 +2,7 @@ defmodule PaperForge.PerformanceCacheTest do
   use ExUnit.Case, async: true
 
   alias PaperForge.Compression
+  alias PaperForge.Flow
   alias PaperForge.PerformanceCache
   alias PaperForge.TextMetrics
 
@@ -18,10 +19,10 @@ defmodule PaperForge.PerformanceCacheTest do
     assert PerformanceCache.stats().text_width == %{hits: 1, misses: 1}
   end
 
-  test "measures short text without cache bookkeeping" do
+  test "reuses short repeated text measurements" do
     assert TextMetrics.line_width("Q4", font: :helvetica, size: 12) > 0
     assert TextMetrics.line_width("Q4", font: :helvetica, size: 12) > 0
-    refute Map.has_key?(PerformanceCache.stats(), :text_width)
+    assert PerformanceCache.stats().text_width == %{hits: 1, misses: 1}
   end
 
   test "reuses deterministic Flate output" do
@@ -59,14 +60,41 @@ defmodule PaperForge.PerformanceCacheTest do
     assert PerformanceCache.stats().text_width == %{hits: 0, misses: 1}
   end
 
-  test "namespace limits reset only the full namespace" do
+  test "namespace limits evict only the oldest cache entry" do
     assert PerformanceCache.fetch(:tiny, :first, fn -> 1 end, 2) == 1
     assert PerformanceCache.fetch(:tiny, :second, fn -> 2 end, 2) == 2
     assert PerformanceCache.fetch(:other, :kept, fn -> 3 end, 1) == 3
     assert PerformanceCache.fetch(:tiny, :third, fn -> 3 end, 2) == 3
 
     assert PerformanceCache.fetch(:other, :kept, fn -> :miss end, 1) == 3
+    assert PerformanceCache.fetch(:tiny, :second, fn -> :preserved end, 2) == 2
     assert PerformanceCache.fetch(:tiny, :first, fn -> :evicted end, 2) == :evicted
-    assert PerformanceCache.fetch(:tiny, :second, fn -> :evicted end, 2) == :evicted
+  end
+
+  test "does not retain oversized compression input in the process cache" do
+    content = :binary.copy("x", 256 * 1_024 + 1)
+
+    assert is_binary(Compression.flate(content))
+    refute Map.has_key?(PerformanceCache.stats(), :flate)
+  end
+
+  test "reuses default table column widths across large row sets" do
+    rows = List.duplicate(["North", "$42M", "12.4%"], 40)
+
+    {_document, report} =
+      PaperForge.layout(
+        PaperForge.new(),
+        fn flow ->
+          Flow.table(flow, ["Region", "Revenue", "Growth"], rows,
+            size: 9,
+            repeat_header: true
+          )
+        end,
+        page_options: [size: {360, 360}, margins: 24]
+      )
+
+    assert report.pages >= 1
+    assert %{hits: hits, misses: 1} = PerformanceCache.stats().table_column_widths
+    assert hits >= length(rows)
   end
 end

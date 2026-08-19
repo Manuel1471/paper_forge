@@ -193,9 +193,7 @@ defmodule PaperForge.Writer do
            current_offset
          } ->
         encoded_object =
-          object
-          |> encode_object(security)
-          |> IO.iodata_to_binary()
+          encode_object(object, security)
 
         updated_offsets =
           Map.put(
@@ -206,7 +204,7 @@ defmodule PaperForge.Writer do
 
         updated_offset =
           current_offset +
-            byte_size(encoded_object)
+            IO.iodata_length(encoded_object)
 
         {[encoded_object | encoded_objects], updated_offsets, updated_offset}
       end
