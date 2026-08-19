@@ -54,9 +54,11 @@ defmodule PaperForge.PerformanceCache do
 
   defp put_entry(cache, key, value, limit) do
     if map_size(cache.entries) >= limit do
+      {{:value, evicted_key}, remaining_order} = :queue.out(cache.order)
+
       %{
-        entries: %{key => value},
-        order: :queue.in(key, :queue.new())
+        entries: cache.entries |> Map.delete(evicted_key) |> Map.put(key, value),
+        order: :queue.in(key, remaining_order)
       }
     else
       %{

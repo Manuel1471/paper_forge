@@ -19,6 +19,7 @@ defmodule PaperForge.Document do
   alias PaperForge.Images.PNG
   alias PaperForge.Metadata
   alias PaperForge.Object
+  alias PaperForge.PerformanceCache
   alias PaperForge.Reference
   alias PaperForge.Stream
 
@@ -573,18 +574,20 @@ defmodule PaperForge.Document do
             &MapSet.put(&2, &1)
           )
 
-        font =
-          %{font | used_glyphs: used_glyphs}
+        if MapSet.equal?(used_glyphs, font.used_glyphs) do
+          # Repeated text is common in tables and page templates. The subset,
+          # widths, and ToUnicode map are already current in this case.
+          {document, font}
+        else
+          font = %{font | used_glyphs: used_glyphs}
 
-        document =
-          document
-          |> put_font(font)
-          |> update_true_type_subset(font)
+          document =
+            document
+            |> put_font(font)
+            |> update_true_type_subset(font)
 
-        {
-          document,
-          font
-        }
+          {document, font}
+        end
 
       :builtin ->
         {
@@ -1063,8 +1066,31 @@ defmodule PaperForge.Document do
 
   defp update_embedded_font_program(document, font) do
     program_reference = font_program_reference(document, font)
-    parsed = document.font_source_data |> Map.fetch!(font.key) |> TrueType.parse!()
-    subset = Subsetter.subset(parsed, font.used_glyphs)
+    source_data = Map.fetch!(document.font_source_data, font.key)
+    source_hash = Subsetter.binary_hash(source_data)
+
+    glyph_signature =
+      font.used_glyphs
+      |> MapSet.to_list()
+      |> Enum.sort()
+
+    subset =
+      PerformanceCache.fetch(
+        :true_type_subset,
+        {source_hash, glyph_signature},
+        fn ->
+          parsed =
+            PerformanceCache.fetch(
+              :true_type_parsed,
+              source_hash,
+              fn -> TrueType.parse!(source_data) end,
+              8
+            )
+
+          Subsetter.subset(parsed, glyph_signature)
+        end,
+        32
+      )
 
     update_object(document, program_reference, fn stream ->
       %{

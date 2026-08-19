@@ -390,7 +390,7 @@ defmodule PaperForge do
   end
 
   @doc "Renders a PDF and returns timing, memory, resource, and output diagnostics."
-  @spec render(Document.t(), keyword()) :: {:ok, binary(), map()}
+  @spec render(Document.t(), keyword()) :: {:ok, binary(), PaperForge.RenderStats.t()}
   def render(%Document{} = document, options \\ []) when is_list(options) do
     PaperForge.Diagnostics.render(document, options)
   end

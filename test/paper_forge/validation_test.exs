@@ -46,7 +46,8 @@ defmodule PaperForge.ValidationTest do
     assert diagnostics.pages == 1
     assert diagnostics.objects == inspection.objects
     assert diagnostics.output_bytes == byte_size(pdf)
-    assert diagnostics.serialization_time_us >= 0
+    assert diagnostics.serialization_us >= 0
+    assert is_map(diagnostics.cache)
     assert diagnostics.fingerprint =~ ~r/^[0-9a-f]{64}$/
   end
 

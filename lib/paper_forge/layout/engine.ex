@@ -10,6 +10,7 @@ defmodule PaperForge.Layout.Engine do
   alias PaperForge.Page
   alias PaperForge.PageContext
   alias PaperForge.PageTemplateError
+  alias PaperForge.PerformanceCache
   alias PaperForge.TableError
   alias PaperForge.TextWrapper
 
@@ -69,14 +70,16 @@ defmodule PaperForge.Layout.Engine do
         }
       end)
 
+    placements = Enum.flat_map(pages, & &1.placements)
+
     report =
       %{
         pages: total_pages,
         blocks: length(blocks),
-        placements: Enum.flat_map(pages, & &1.placements),
+        placements: placements,
         warnings: [],
         measurements:
-          Enum.map(Enum.flat_map(pages, & &1.placements), fn placement ->
+          Enum.map(placements, fn placement ->
             Map.take(placement, [:id, :type, :page_number, :width, :height, :x, :y])
           end),
         rendered_pages: Enum.reverse(rendered_pages)
@@ -93,7 +96,7 @@ defmodule PaperForge.Layout.Engine do
           assigned = if number == :auto, do: next, else: number
           next = max(next, assigned + 1)
           note = %{number: assigned, text: text}
-          {next, notes ++ [note], acc ++ [%{block | content: note}]}
+          {next, [note | notes], [%{block | content: note} | acc]}
 
         %Block{type: :endnotes} = block, {next, notes, acc} ->
           title =
@@ -102,21 +105,23 @@ defmodule PaperForge.Layout.Engine do
             )
 
           entries =
-            Enum.map(notes, fn note ->
+            notes
+            |> Enum.reverse()
+            |> Enum.map(fn note ->
               Block.new(:paragraph, "#{note.number}. #{note.text}",
                 size: Keyword.get(block.options, :size, 8),
                 line_height: Keyword.get(block.options, :line_height, 10)
               )
             end)
 
-          {next, notes, acc ++ [title | entries]}
+          {next, notes, Enum.reverse([title | entries], acc)}
 
         block, state ->
           {next, notes, acc} = state
-          {next, notes, acc ++ [block]}
+          {next, notes, [block | acc]}
       end)
 
-    materialized
+    Enum.reverse(materialized)
   end
 
   defp materialize_document_numbering(blocks) do
@@ -477,6 +482,7 @@ defmodule PaperForge.Layout.Engine do
     |> Enum.reduce(initial, &place_block/2)
     |> Map.fetch!(:pages)
     |> Enum.reverse()
+    |> Enum.map(fn page -> %{page | placements: Enum.reverse(page.placements)} end)
     |> Enum.reject(&(&1.placements == []))
   end
 
@@ -747,7 +753,7 @@ defmodule PaperForge.Layout.Engine do
 
   defp add_reserved_fragment(state, fragment, new_bottom) do
     [page | remaining_pages] = state.pages
-    page = %{page | placements: page.placements ++ [placement(fragment, state)]}
+    page = %{page | placements: [placement(fragment, state) | page.placements]}
 
     %{state | pages: [page | remaining_pages], bottom_y: new_bottom}
   end
@@ -1032,7 +1038,19 @@ defmodule PaperForge.Layout.Engine do
   defp table_column_widths(block, state) do
     count = max(length(block.content.columns), 1)
     width = fragment_width(%{block: block}, state.page)
-    Keyword.get(block.options, :column_widths, List.duplicate(width / count, count))
+
+    case Keyword.fetch(block.options, :column_widths) do
+      {:ok, widths} ->
+        widths
+
+      :error ->
+        PerformanceCache.fetch(
+          :table_column_widths,
+          {block.id, width, count},
+          fn -> List.duplicate(width / count, count) end,
+          256
+        )
+    end
   end
 
   defp place_children(children, state) do
@@ -1103,7 +1121,7 @@ defmodule PaperForge.Layout.Engine do
 
   defp add_fragment(state, fragment) do
     [page | remaining_pages] = state.pages
-    page = %{page | placements: page.placements ++ [placement(fragment, state)]}
+    page = %{page | placements: [placement(fragment, state) | page.placements]}
 
     %{
       state

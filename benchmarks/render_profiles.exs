@@ -22,6 +22,14 @@ sample_count = String.to_integer(System.get_env("SAMPLES", "10"))
 warmup_count = String.to_integer(System.get_env("WARMUPS", "2"))
 selected_profile = System.get_env("PROFILE", "all")
 
+unless sample_count > 0 do
+  raise "SAMPLES must be greater than zero"
+end
+
+unless warmup_count >= 0 do
+  raise "WARMUPS must be zero or greater"
+end
+
 profiles =
   [
     small: 25,
@@ -182,7 +190,7 @@ sample = fn row_count ->
 end
 
 Enum.each(profiles, fn {name, rows} ->
-  Enum.each(1..warmup_count, fn _ -> sample.(rows) end)
+  Enum.each(List.duplicate(:warmup, warmup_count), fn _ -> sample.(rows) end)
   samples = Enum.map(1..sample_count, fn _ -> sample.(rows) end)
 
   first = hd(samples)
