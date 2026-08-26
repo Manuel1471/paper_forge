@@ -6,8 +6,8 @@ defmodule PaperForge.Document do
   metadata, compression configuration, and indirect-object numbering.
   """
 
-  alias PaperForge.Font
   alias PaperForge.Document.Objects, as: DocumentObjects
+  alias PaperForge.Font
   alias PaperForge.FontError
   alias PaperForge.FontRegistry
   alias PaperForge.Fonts.Builtin
@@ -21,6 +21,7 @@ defmodule PaperForge.Document do
   alias PaperForge.Object
   alias PaperForge.PerformanceCache
   alias PaperForge.Reference
+  alias PaperForge.Runtime.Limits
   alias PaperForge.Stream
 
   @pages_object_id 1
@@ -47,6 +48,7 @@ defmodule PaperForge.Document do
             components: %{},
             image_registry: nil,
             compress: @default_compression,
+            limits: Limits.defaults(),
             named_destinations: %{},
             outlines_reference: nil,
             last_outline_reference: nil,
@@ -70,6 +72,11 @@ defmodule PaperForge.Document do
           components: %{optional(atom()) => function()},
           image_registry: ImageRegistry.t(),
           compress: boolean(),
+          limits: %{
+            max_objects: pos_integer(),
+            max_uncompressed_stream_bytes: pos_integer(),
+            max_recursion_depth: pos_integer()
+          },
           named_destinations: %{optional(binary()) => list()},
           outlines_reference: Reference.t() | nil,
           last_outline_reference: Reference.t() | nil,
@@ -88,6 +95,9 @@ defmodule PaperForge.Document do
   - `:pdf_version` — PDF header version. Defaults to `"1.7"`.
   - `:default_font` — default font key for text operations. Defaults to
     `:helvetica`.
+  - `:limits` — writer limits for object count, source stream bytes, and nested
+    PDF values. Defaults are 500,000 objects, 50 MB of source stream data, and
+    100 nested values.
   """
   @spec new(keyword()) :: t()
   def new(options \\ []) when is_list(options) do
@@ -107,6 +117,8 @@ defmodule PaperForge.Document do
       options
       |> Keyword.get(:default_font, :helvetica)
       |> validate_font_key!(:default_font)
+
+    limits = options |> Keyword.get(:limits, %{}) |> Limits.normalize()
 
     pages_reference = Reference.new(@pages_object_id)
     catalog_reference = Reference.new(@catalog_object_id)
@@ -151,6 +163,7 @@ defmodule PaperForge.Document do
       components: %{},
       image_registry: ImageRegistry.new(),
       compress: compress,
+      limits: limits,
       named_destinations: %{},
       outlines_reference: nil,
       last_outline_reference: nil,
@@ -1437,7 +1450,7 @@ defmodule PaperForge.Document do
   end
 
   defp validate_options!(options) do
-    supported_options = MapSet.new([:compress, :pdf_version, :default_font])
+    supported_options = MapSet.new([:compress, :pdf_version, :default_font, :limits])
 
     invalid_options =
       options

@@ -18,6 +18,8 @@ defmodule PaperForge.PageCompiler do
   alias PaperForge.Graphics.Text
   alias PaperForge.Graphics.TextBox
   alias PaperForge.Image
+  alias PaperForge.Images.JPEG
+  alias PaperForge.Images.PNG
   alias PaperForge.Page
   alias PaperForge.PageResources
 
@@ -616,10 +618,10 @@ defmodule PaperForge.PageCompiler do
 
   defp read_image_source!(source) when is_binary(source) do
     cond do
-      PaperForge.Images.JPEG.jpeg?(source) ->
+      JPEG.jpeg?(source) ->
         source
 
-      PaperForge.Images.PNG.png?(source) ->
+      PNG.png?(source) ->
         source
 
       File.regular?(source) ->

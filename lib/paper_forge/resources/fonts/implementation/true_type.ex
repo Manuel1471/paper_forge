@@ -423,27 +423,29 @@ defmodule PaperForge.Fonts.TrueType do
     seg_count = div(seg_count_x2, 2)
     array_size = seg_count * 2
 
-    with true <- byte_size(data) >= array_size * 4 + 2 do
-      <<end_codes::binary-size(^array_size), _reserved_pad::16, rest::binary>> = data
-      <<start_codes::binary-size(^array_size), rest::binary>> = rest
-      <<id_deltas::binary-size(^array_size), rest::binary>> = rest
-      <<id_range_offsets::binary-size(^array_size), glyph_id_array::binary>> = rest
+    if byte_size(data) >= array_size * 4 + 2,
+      do: parse_format4_segments(data, seg_count, array_size),
+      else: {:error, :invalid_cmap}
+  end
 
-      segments =
-        for index <- 0..(seg_count - 1) do
-          %{
-            index: index,
-            start_code: uint16_at(start_codes, index),
-            end_code: uint16_at(end_codes, index),
-            id_delta: int16_at(id_deltas, index),
-            id_range_offset: uint16_at(id_range_offsets, index)
-          }
-        end
+  defp parse_format4_segments(data, seg_count, array_size) do
+    <<end_codes::binary-size(^array_size), _reserved_pad::16, rest::binary>> = data
+    <<start_codes::binary-size(^array_size), rest::binary>> = rest
+    <<id_deltas::binary-size(^array_size), rest::binary>> = rest
+    <<id_range_offsets::binary-size(^array_size), glyph_id_array::binary>> = rest
 
-      {:ok, format4_map(segments, id_range_offsets, glyph_id_array)}
-    else
-      _ -> {:error, :invalid_cmap}
-    end
+    segments =
+      for index <- 0..(seg_count - 1) do
+        %{
+          index: index,
+          start_code: uint16_at(start_codes, index),
+          end_code: uint16_at(end_codes, index),
+          id_delta: int16_at(id_deltas, index),
+          id_range_offset: uint16_at(id_range_offsets, index)
+        }
+      end
+
+    {:ok, format4_map(segments, id_range_offsets, glyph_id_array)}
   end
 
   defp parse_format12(<<num_groups::32, groups::binary>>) do

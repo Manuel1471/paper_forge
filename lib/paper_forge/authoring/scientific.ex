@@ -95,7 +95,6 @@ defmodule PaperForge.Scientific do
       entry[:url] || entry["url"]
     ]
     |> Enum.reject(&is_nil/1)
-    |> Enum.map(&to_string/1)
-    |> Enum.join(". ")
+    |> Enum.map_join(". ", &to_string/1)
   end
 end

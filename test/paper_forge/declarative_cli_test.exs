@@ -3,6 +3,8 @@ defmodule PaperForge.DeclarativeCliTest do
 
   import ExUnit.CaptureIO
 
+  alias Mix.Tasks.PaperForge.Validate
+
   test "validates a template and data without rendering a PDF" do
     root = temporary_directory!()
     template = Path.join(root, "invoice.paperforge")
@@ -21,7 +23,7 @@ defmodule PaperForge.DeclarativeCliTest do
     Mix.Task.reenable("paper_forge.validate")
 
     assert capture_io(fn ->
-             Mix.Tasks.PaperForge.Validate.run([template, data])
+             Validate.run([template, data])
            end) =~ "Valid .paperforge template"
   end
 
@@ -45,7 +47,7 @@ defmodule PaperForge.DeclarativeCliTest do
     output =
       capture_io(:stderr, fn ->
         assert_raise Mix.Error, fn ->
-          Mix.Tasks.PaperForge.Validate.run([template, data])
+          Validate.run([template, data])
         end
       end)
 
@@ -71,7 +73,7 @@ defmodule PaperForge.DeclarativeCliTest do
     Mix.Task.reenable("paper_forge.validate")
 
     assert capture_io(fn ->
-             Mix.Tasks.PaperForge.Validate.run([component])
+             Validate.run([component])
            end) =~ "Valid .paperforge template"
   end
 
@@ -95,7 +97,7 @@ defmodule PaperForge.DeclarativeCliTest do
     output =
       capture_io(:stderr, fn ->
         assert_raise Mix.Error, fn ->
-          Mix.Tasks.PaperForge.Validate.run([template, data])
+          Validate.run([template, data])
         end
       end)
 

@@ -335,12 +335,7 @@ defmodule PaperForge.DeclarativeTest do
   end
 
   defp refute_existing_atom(value) do
-    try do
-      String.to_existing_atom(value)
-      flunk("expected #{inspect(value)} not to exist as an atom")
-    rescue
-      ArgumentError -> :ok
-    end
+    assert_raise ArgumentError, fn -> String.to_existing_atom(value) end
   end
 
   test "renders declarative chart variants and palettes" do

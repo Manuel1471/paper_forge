@@ -160,6 +160,45 @@ defmodule PaperForge.DocumentLayoutTest do
     assert content =~ "(Ana) Tj"
   end
 
+  test "table keeps text baselines inside rows with a top-left origin" do
+    content =
+      Page.new(origin: :top_left, size: {200, 200})
+      |> Page.table(
+        [["Column"], ["Row 1"], ["Row 2"]],
+        x: 20,
+        y: 20,
+        width: 100,
+        row_height: 24,
+        padding: 6,
+        size: 10,
+        header: true
+      )
+      |> Page.content()
+
+    assert content =~ "1 0 0 1 26 164 Tm"
+    assert content =~ "1 0 0 1 26 140 Tm"
+    assert content =~ "1 0 0 1 26 116 Tm"
+  end
+
+  test "table keeps text baselines inside rows with a bottom-left origin" do
+    content =
+      Page.new(origin: :bottom_left, size: {200, 200})
+      |> Page.table(
+        [["Column"], ["Row 1"]],
+        x: 20,
+        y: 20,
+        width: 100,
+        row_height: 24,
+        padding: 6,
+        size: 10,
+        header: true
+      )
+      |> Page.content()
+
+    assert content =~ "1 0 0 1 26 28 Tm"
+    assert content =~ "1 0 0 1 26 52 Tm"
+  end
+
   test "page lists expand into ordered and unordered text operations" do
     content =
       Page.new(origin: :top_left)

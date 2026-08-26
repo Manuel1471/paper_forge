@@ -92,44 +92,32 @@ defmodule Mix.Tasks.PaperForge.Validate do
 
   defp sample_value(schema) when is_binary(schema), do: sample_value(%{"type" => schema})
 
-  defp sample_value(schema) do
-    cond do
-      Map.has_key?(schema, "default") ->
-        schema["default"]
+  defp sample_value(%{"default" => default}), do: default
+  defp sample_value(%{"enum" => [first | _]}), do: first
 
-      is_list(schema["enum"]) and schema["enum"] != [] ->
-        List.first(schema["enum"])
+  defp sample_value(%{"type" => "string"} = schema),
+    do: String.duplicate("X", max(Map.get(schema, "min_length", 1), 1))
 
-      schema["type"] == "string" ->
-        String.duplicate("X", max(Map.get(schema, "min_length", 1), 1))
+  defp sample_value(%{"type" => "number"} = schema), do: Map.get(schema, "min", 0)
+  defp sample_value(%{"type" => "integer"} = schema), do: ceil(Map.get(schema, "min", 0))
+  defp sample_value(%{"type" => "boolean"}), do: true
 
-      schema["type"] == "number" ->
-        Map.get(schema, "min", 0)
-
-      schema["type"] == "integer" ->
-        schema |> Map.get("min", 0) |> ceil()
-
-      schema["type"] == "boolean" ->
-        true
-
-      schema["type"] == "list" ->
-        List.duplicate(
-          sample_value(Map.get(schema, "items", %{"type" => "any"})),
-          Map.get(schema, "min_length", 0)
-        )
-
-      schema["type"] == "map" ->
-        required = Map.get(schema, "required_properties", [])
-        properties = Map.get(schema, "properties", %{})
-
-        Map.new(required, fn name ->
-          {name, sample_value(Map.get(properties, name, %{"type" => "any"}))}
-        end)
-
-      true ->
-        nil
-    end
+  defp sample_value(%{"type" => "list"} = schema) do
+    item = sample_value(Map.get(schema, "items", %{"type" => "any"}))
+    List.duplicate(item, Map.get(schema, "min_length", 0))
   end
+
+  defp sample_value(%{"type" => "map"} = schema) do
+    properties = Map.get(schema, "properties", %{})
+
+    schema
+    |> Map.get("required_properties", [])
+    |> Map.new(fn name ->
+      {name, sample_value(Map.get(properties, name, %{"type" => "any"}))}
+    end)
+  end
+
+  defp sample_value(_schema), do: nil
 
   defp format_error(error) do
     location =

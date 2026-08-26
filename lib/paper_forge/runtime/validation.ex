@@ -7,6 +7,7 @@ defmodule PaperForge.Validation do
   """
 
   alias PaperForge.Document
+  alias PaperForge.Fonts.Builtin
   alias PaperForge.Object
   alias PaperForge.Reference
   alias PaperForge.Stream
@@ -96,18 +97,19 @@ defmodule PaperForge.Validation do
       {object_id, %Object{value: value}}, acc ->
         value
         |> references()
-        |> Enum.reduce(acc, fn reference, current ->
-          if Map.has_key?(document.objects, reference),
-            do: current,
-            else: [
-              %{code: :dangling_reference, object_id: object_id, reference: reference}
-              | current
-            ]
-        end)
+        |> Enum.reduce(acc, &validate_reference(&1, &2, object_id, document.objects))
 
       _entry, acc ->
         acc
     end)
+  end
+
+  defp validate_reference(reference, issues, object_id, objects) do
+    if Map.has_key?(objects, reference) do
+      issues
+    else
+      [%{code: :dangling_reference, object_id: object_id, reference: reference} | issues]
+    end
   end
 
   defp validate_page_tree(issues, document) do
@@ -149,7 +151,7 @@ defmodule PaperForge.Validation do
   end
 
   defp warn_unregistered_default_font(warnings, document) do
-    builtins = PaperForge.Fonts.Builtin.keys()
+    builtins = Builtin.keys()
 
     if document.default_font in builtins or
          Map.has_key?(document.font_registry.fonts, document.default_font) do

@@ -1,5 +1,7 @@
 # PaperForge
 
+[![CI](https://github.com/Manuel1471/paper_forge/actions/workflows/ci.yml/badge.svg)](https://github.com/Manuel1471/paper_forge/actions/workflows/ci.yml)
+
 > **Document engineering for the BEAM.**
 >
 > Build, secure, validate, and transform documents entirely in Elixir.
@@ -12,7 +14,7 @@
 | Production use | Ready within the [documented scope](#scope-boundaries) |
 | Package | Published on [Hex](https://hex.pm/packages/paper_forge) |
 | Documentation | Published on [HexDocs](https://paper-forge.hexdocs.pm/) |
-| Continuous integration | Formatting, strict compilation, and the full test suite on [GitHub Actions](https://github.com/Manuel1471/paper_forge/actions) |
+| Continuous integration | Formatting, strict compilation, unit/property/fuzz test profiles, and differential Credo reporting on [GitHub Actions](https://github.com/Manuel1471/paper_forge/actions) |
 | Performance | Reproducible latency, memory, and concurrency benchmarks |
 | Runtime | Pure Elixir; no installation-time native compilation |
 
@@ -79,8 +81,8 @@ for precise drawing. All three paths converge on the same PDF-native engine.
 | Use PaperForge in a Phoenix application | [Phoenix Quick Start](#phoenix-quick-start) and [`PHOENIX.md`](PHOENIX.md) |
 | Build reports, invoices, or contracts | [Document Authoring](#document-authoring) |
 | Build PDFs from reusable data templates | [Declarative Documents](#declarative-documents) |
-| Import HTML, Markdown, or PDF pages | [Import, Science, Forms, And Review](#import-science-forms-and-review) and [`INTEROPERABILITY.md`](INTEROPERABILITY.md) |
-| Build formulas and scientific reports | [`SCIENTIFIC.md`](SCIENTIFIC.md) |
+| Import HTML, Markdown, or PDF pages | [Import, Science, Forms, And Review](#import-science-forms-and-review) |
+| Build formulas and scientific reports | [Import, Science, Forms, And Review](#import-science-forms-and-review) |
 | Encrypt, sign, or protect documents | [Security And Protection](#security-and-protection) |
 | Prepare accessible or archival PDFs | [Compliance And Accessibility](#compliance-and-accessibility) |
 | Draw at exact coordinates | [Low-level Page API](#low-level-page-api) |
@@ -90,9 +92,10 @@ for precise drawing. All three paths converge on the same PDF-native engine.
 | Instrument production renders | [Telemetry](#telemetry) |
 | Reproduce performance measurements | [Performance Envelope](#performance-envelope) |
 | Run or compare official workloads | [`BENCHMARKS.md`](BENCHMARKS.md) |
+| Run bounded parser fuzzing | [Hardening And Fuzzing](#hardening-and-fuzzing) |
 | Validate, inspect, and diagnose a document | [Diagnostics And Validation](#diagnostics-and-validation) |
-| Understand the internal pipeline | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
-| Review stable public modules | [`API.md`](API.md) |
+| Understand the internal pipeline | [Architecture](#architecture) |
+| Review stable public modules | [Public API And Compatibility](#public-api-and-compatibility) |
 | Upgrade an existing application | [`MIGRATING.md`](MIGRATING.md) |
 | Deploy and size production workloads | [`PRODUCTION.md`](PRODUCTION.md) |
 
@@ -110,6 +113,45 @@ operate inside an Elixir system.
 
 PaperForge exists because generating professional PDF documents should not
 require browsers, external rendering engines, or native compilation.
+
+## Hardening And Fuzzing
+
+The default test suite covers unit, integration, and property-based invariants.
+The opt-in parser fuzz profile mutates known-good PDFs and verifies that the
+classic importer either returns a document or a structured error without
+raising or allocating atoms:
+
+```bash
+MIX_ENV=test mix test.fuzz
+```
+
+All document writers and classic-PDF imports support bounded resource use.
+Document-level limits apply by default and can be tightened for one writer
+call; parser aliases preserve the original `:max_depth` and `:max_stream_size`
+options while exposing more descriptive names:
+
+```elixir
+document = PaperForge.new(
+  limits: [
+    max_objects: 50_000,
+    max_uncompressed_stream_bytes: 10_000_000,
+    max_recursion_depth: 64
+  ]
+)
+
+pdf = PaperForge.to_binary(document, max_objects: 40_000)
+
+PaperForge.Interoperability.parse_pdf(pdf,
+  max_objects: 40_000,
+  max_uncompressed_stream_bytes: 10_000_000,
+  max_recursion_depth: 64
+)
+```
+
+Writer stream limits measure source stream data before PaperForge applies PDF
+filters. The classic parser applies the same bound to raw source stream bytes;
+compressed third-party stream payloads remain bounded by `:max_file_size`.
+See [Production Hardening](#production-hardening) for operational guidance.
 
 ## Design Principles
 
@@ -135,7 +177,7 @@ documents that need repeatable layout or PDF-native behavior.
 | Surface | Supported or tested range |
 | --- | --- |
 | Elixir | `~> 1.20` |
-| Erlang/OTP | OTP 29 in CI |
+| Erlang/OTP | OTP 28 and OTP 29 in CI |
 | PDF headers | PDF 1.4 through PDF 1.7 |
 | Runtime installation | BEAM dependencies only by default |
 
@@ -193,6 +235,15 @@ render process only; they deliberately do not claim a VM-wide peak-memory value.
 Flow layout is performed when authoring APIs compile pages, so `layout_us` is
 `0` for already-built `PaperForge.Document` values.
 
+Production callers can bound import, render, and export work with `:timeout`.
+An expired operation returns `%PaperForge.Error{code: "PF8101"}` and an
+expired export removes its temporary PaperForge artifact:
+
+```elixir
+PaperForge.render(document, timeout: 30_000)
+PaperForge.write(document, "report.pdf", timeout: 30_000)
+```
+
 The classic PDF importer also accepts defensive input limits:
 
 ```elixir
@@ -200,12 +251,16 @@ PaperForge.Interoperability.parse_pdf(binary,
   max_file_size: 100_000_000,
   max_objects: 500_000,
   max_depth: 100,
-  max_stream_size: 50_000_000
+  max_stream_size: 50_000_000,
+  timeout: 15_000
 )
 ```
 
 Limits are enforced before importing objects. Encrypted PDFs and object streams
 remain explicitly unsupported by the pure-Elixir classic parser.
+See [Production Hardening](#production-hardening) for the `PF8xxx` error
+taxonomy, parser circuit breaker, long-running soak profile, and production
+guidance.
 
 ## Ecosystem
 
@@ -241,7 +296,7 @@ Future directions
 | PDF features | AcroForm fields and data workflows, review annotations, metadata, links, attachments, footnotes, endnotes, compression, and PDF 1.4 through 1.7 headers |
 | Security | AES-256 passwords and permissions, provider-backed PAdES signatures, watermarks, fingerprints, identifiers, and link/attachment policies |
 | Accessibility and archive preparation | Tagged PDF structure, logical page reading order, language, alternate text metadata, XMP, PDF/UA-1 preparation, ICC output intents, and PDF/A-2b/3b preparation |
-| Production | Structured validation, deterministic output, incremental file writing, bounded concurrency, retries, resource limits, cancellation, and Telemetry |
+| Production | Structured validation, deterministic output, bounded import/render/export timeouts, incremental file writing, bounded concurrency, retries, circuit breaking, resource limits, cancellation, and Telemetry |
 | Declarative authoring | Versioned `.paperforge` templates, typed variables, conditions, loops, components, Layout IR compilation, themes, tokens, and shared design libraries |
 
 ## Choose An API
@@ -344,8 +399,8 @@ import/export, and flattening. XFA is intentionally unsupported.
 
 Review workflows can add text notes, highlights, underline and strikeout
 markup, stamps, free text, shapes, ink, file attachments, links, authorship,
-subjects, and reply relationships. See [`INTEROPERABILITY.md`](INTEROPERABILITY.md)
-and [`SCIENTIFIC.md`](SCIENTIFIC.md) for complete examples and supported limits.
+subjects, and reply relationships. The examples below cover the supported
+interoperability and scientific-document limits.
 
 ## Installation
 
@@ -481,9 +536,9 @@ Start with one template, declare its variables, arrange blocks, and move any
 repeated section into `kind: "component"` files. Validate everything with
 `mix paper_forge.validate` before generating PDFs.
 
-For a complete plain-language walkthrough, read
-[`PAPERFORGE_TEMPLATES.md`](PAPERFORGE_TEMPLATES.md). The exhaustive format and
-security reference remains in [`DECLARATIVE.md`](DECLARATIVE.md).
+The maintained [`DECLARATIVE.md`](DECLARATIVE.md) guide covers both the
+plain-language workflow and the complete format, safety, and security
+reference.
 
 ```json
 {
@@ -1903,8 +1958,19 @@ and keep the same `JOBS` and `CONCURRENCY` matrix. Report both categories:
 - **Concurrent scalability:** elapsed batch time, throughput, per-job median
   and p95, failures, and timeouts at each worker limit.
 
-See [`API.md`](API.md) for the public compatibility policy and
-[`MIGRATING.md`](MIGRATING.md) for the 0.6-to-1.0 upgrade guide.
+## Public API And Compatibility
+
+Documented public functions, structs, options, and return values follow the
+PaperForge `1.x` compatibility contract. Internal modules with `@moduledoc
+false` are implementation details. Patch releases preserve document semantics;
+identical deterministic input produces reproducible output within the same
+PaperForge version. Public APIs are deprecated with a replacement before any
+next-major removal.
+
+`PaperForge.validate/1`, `PaperForge.inspect_document/1`, `PaperForge.render/2`,
+`PaperForge.Concurrent`, `PaperForge.Declarative`, `PaperForge.Security`, and
+the documented Flow, Page, Document, Import, Math, and AcroForm APIs are part
+of that contract. See [`MIGRATING.md`](MIGRATING.md) for upgrade guidance.
 
 ## Production Hardening
 
@@ -1918,6 +1984,7 @@ See [`API.md`](API.md) for the public compatibility policy and
 | Reader compatibility | The compatibility test invokes `pdfinfo` when it is installed |
 | File safety | `write/2` serializes to a temporary file and atomically renames successful output |
 | Runtime isolation | Concurrent failures, timeouts, retries, and resource-limit violations remain scoped to their originating job |
+| Long-running safety | Bounded operations, resource circuit breaking, opt-in soak testing, and temporary export cleanup |
 
 See [`MIGRATING.md`](MIGRATING.md) for the stable 1.0 compatibility contract.
 

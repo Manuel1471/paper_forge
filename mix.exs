@@ -1,7 +1,7 @@
 defmodule PaperForge.MixProject do
   use Mix.Project
 
-  @version "1.4.4"
+  @version "1.4.5"
   @source_url "https://github.com/Manuel1471/paper_forge"
 
   def project do
@@ -25,6 +25,10 @@ defmodule PaperForge.MixProject do
     ]
   end
 
+  def cli do
+    [preferred_envs: ["test.fuzz": :test]]
+  end
+
   defp deps do
     [
       {:qiroex, "~> 1.0"},
@@ -34,6 +38,7 @@ defmodule PaperForge.MixProject do
       {:sign_core, "~> 0.1.4"},
       {:soft_signer, "~> 0.1.0"},
       {:stream_data, "~> 1.2", only: :test},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false}
     ]
   end
@@ -63,14 +68,9 @@ defmodule PaperForge.MixProject do
         "CHANGELOG.md",
         "CONTRIBUTING.md",
         "CODE_OF_CONDUCT.md",
-        "API.md",
-        "ARCHITECTURE.md",
         "BENCHMARKS.md",
         "DECLARATIVE.md",
-        "PAPERFORGE_TEMPLATES.md",
         "PHOENIX.md",
-        "INTEROPERABILITY.md",
-        "SCIENTIFIC.md",
         "MIGRATING.md",
         "PRODUCTION.md",
         "LICENSE"
@@ -90,14 +90,9 @@ defmodule PaperForge.MixProject do
         "CHANGELOG.md",
         "CONTRIBUTING.md",
         "CODE_OF_CONDUCT.md",
-        "API.md",
-        "ARCHITECTURE.md",
         "BENCHMARKS.md",
         "DECLARATIVE.md",
-        "PAPERFORGE_TEMPLATES.md",
         "PHOENIX.md",
-        "INTEROPERABILITY.md",
-        "SCIENTIFIC.md",
         "MIGRATING.md",
         "PRODUCTION.md",
         "LICENSE"

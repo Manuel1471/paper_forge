@@ -7,6 +7,7 @@ defmodule PaperForge.Concurrent do
   `run/3`.
   """
 
+  alias PaperForge.Error
   alias PaperForge.Telemetry
 
   defmodule Result do
@@ -37,7 +38,7 @@ defmodule PaperForge.Concurrent do
       :peak_memory_bytes
     ]
 
-    @type status :: :ok | :error | :timeout | :resource_limit
+    @type status :: :ok | :error | :timeout | :resource_limit | :cancelled
 
     @type t :: %__MODULE__{
             id: term(),
@@ -148,7 +149,7 @@ defmodule PaperForge.Concurrent do
           id: nil,
           index: 0,
           status: :error,
-          error: %{kind: :task_exit, reason: reason},
+          error: %{kind: :task_exit, reason: reason, code: "PF8105"},
           duration_us: 0,
           reductions: 0,
           garbage_collections: 0,
@@ -228,12 +229,14 @@ defmodule PaperForge.Concurrent do
                 {:error,
                  %{
                    kind: :exception,
+                   code: "PF8105",
                    exception: exception,
                    stacktrace: __STACKTRACE__
                  }}
             catch
               kind, reason ->
-                {:error, %{kind: kind, reason: reason, stacktrace: __STACKTRACE__}}
+                {:error,
+                 %{kind: kind, code: "PF8105", reason: reason, stacktrace: __STACKTRACE__}}
             end
 
           {:garbage_collection, gc_after} = Process.info(self(), :garbage_collection)
@@ -296,7 +299,7 @@ defmodule PaperForge.Concurrent do
         result(
           id,
           index,
-          {:error, %{kind: :process_exit, reason: reason}},
+          {:error, %{kind: :process_exit, code: "PF8105", reason: reason}},
           started_at,
           0,
           0,
@@ -345,7 +348,11 @@ defmodule PaperForge.Concurrent do
               id: id,
               index: index,
               status: :timeout,
-              error: %{kind: :timeout, timeout: timeout},
+              error: %{
+                kind: :timeout,
+                timeout: timeout,
+                code: Error.timeout(:render, timeout).code
+              },
               duration_us: elapsed_us(started_at),
               reductions: reductions,
               garbage_collections: 0,
@@ -485,7 +492,13 @@ defmodule PaperForge.Concurrent do
       id: id,
       index: index,
       status: :resource_limit,
-      error: %{kind: :resource_limit, resource: resource, value: value, limit: limit},
+      error: %{
+        kind: :resource_limit,
+        resource: resource,
+        value: value,
+        limit: limit,
+        code: Error.resource_limit(resource, value, limit).code
+      },
       duration_us: elapsed_us(started_at),
       reductions: if(resource == :reductions, do: value, else: 0),
       garbage_collections: 0,

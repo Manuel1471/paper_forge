@@ -2,6 +2,8 @@ defmodule PaperForge.PDF.Parser do
   @moduledoc false
 
   alias PaperForge.{Document, FontRegistry, ImageRegistry, Object, Reference, Stream}
+  alias PaperForge.Runtime.CircuitBreaker
+  alias PaperForge.Runtime.Guard
 
   @default_max_file_size 100_000_000
   @default_max_objects 500_000
@@ -12,10 +14,40 @@ defmodule PaperForge.PDF.Parser do
   def parse(pdf, options \\ [])
 
   def parse(pdf, options) when is_binary(pdf) and is_list(options) do
+    timeout = Keyword.get(options, :timeout, :infinity)
+
+    CircuitBreaker.protect(
+      {:pdf_parser, :crypto.hash(:sha256, pdf)},
+      fn ->
+        Guard.run(:import, fn -> parse_with_limits(pdf, options) end, timeout: timeout)
+        |> unwrap_guard_result()
+      end,
+      Keyword.take(options, [:failure_threshold, :reset_after_ms]) ++ [trip_on: :runtime]
+    )
+  end
+
+  def parse(_, _options), do: {:error, :invalid_pdf_header}
+
+  defp unwrap_guard_result({:ok, result}), do: result
+  defp unwrap_guard_result({:error, error}), do: {:error, error}
+
+  defp parse_with_limits(pdf, options) do
     max_file_size = Keyword.get(options, :max_file_size, @default_max_file_size)
     max_objects = Keyword.get(options, :max_objects, @default_max_objects)
-    max_depth = Keyword.get(options, :max_depth, @default_max_depth)
-    max_stream_size = Keyword.get(options, :max_stream_size, @default_max_stream_size)
+
+    max_depth =
+      Keyword.get(
+        options,
+        :max_recursion_depth,
+        Keyword.get(options, :max_depth, @default_max_depth)
+      )
+
+    max_stream_size =
+      Keyword.get(
+        options,
+        :max_uncompressed_stream_bytes,
+        Keyword.get(options, :max_stream_size, @default_max_stream_size)
+      )
 
     cond do
       not Enum.all?([max_file_size, max_objects, max_depth, max_stream_size], &valid_limit?/1) ->
@@ -44,58 +76,77 @@ defmodule PaperForge.PDF.Parser do
     end
   end
 
-  def parse(_, _options), do: {:error, :invalid_pdf_header}
-
   defp parse_objects(pdf, max_objects) do
-    matches =
-      Regex.scan(~r/(?ms)(\d+)\s+(\d+)\s+obj\s*(.*?)\s*endobj/, pdf, capture: :all_but_first)
+    pdf
+    |> object_matches()
+    |> enforce_object_limit(max_objects)
+    |> parse_matched_objects()
+    |> build_document(pdf)
+  end
 
-    if length(matches) > max_objects do
-      {:error, {:max_objects_exceeded, max_objects}}
-    else
-      objects =
-        matches
-        |> Enum.reduce_while({:ok, %{}}, fn [id, generation, body], {:ok, objects} ->
-          with {:ok, value} <- parse_object_body(body) do
-            id = String.to_integer(id)
-            object = %Object{id: id, generation: String.to_integer(generation), value: value}
-            {:cont, {:ok, Map.put(objects, id, object)}}
-          else
-            error -> {:halt, error}
-          end
-        end)
+  defp object_matches(pdf) do
+    Regex.scan(~r/(?ms)(\d+)\s+(\d+)\s+obj\s*(.*?)\s*endobj/, pdf, capture: :all_but_first)
+  end
 
-      with {:ok, objects} <- objects,
-           {:ok, root_reference, pages_reference} <- locate_catalog(objects) do
-        version =
-          Regex.run(~r/^%PDF-(1\.[4-7])/, pdf, capture: :all_but_first) |> List.first() || "1.7"
+  defp enforce_object_limit(matches, max_objects) when length(matches) > max_objects,
+    do: {:error, {:max_objects_exceeded, max_objects}}
 
-        {:ok,
-         %Document{
-           objects: objects,
-           next_object_id: (objects |> Map.keys() |> Enum.max(fn -> 2 end)) + 1,
-           root_reference: root_reference,
-           pages_reference: pages_reference,
-           info_reference: nil,
-           pdf_version: version,
-           font_registry: FontRegistry.new(),
-           font_families: %{},
-           font_fallbacks: %{},
-           font_program_registry: %{},
-           font_source_data: %{},
-           default_font: :helvetica,
-           page_templates: %{},
-           styles: %{},
-           components: %{},
-           image_registry: ImageRegistry.new(),
-           compress: true,
-           named_destinations: %{},
-           outlines_reference: nil,
-           last_outline_reference: nil,
-           outline_count: 0
-         }}
-      end
+  defp enforce_object_limit(matches, _max_objects), do: {:ok, matches}
+
+  defp parse_matched_objects({:error, _reason} = error), do: error
+
+  defp parse_matched_objects({:ok, matches}) do
+    Enum.reduce_while(matches, {:ok, %{}}, &parse_matched_object/2)
+  end
+
+  defp parse_matched_object([id, generation, body], {:ok, objects}) do
+    case parse_object_body(body) do
+      {:ok, value} ->
+        object_id = String.to_integer(id)
+        object = %Object{id: object_id, generation: String.to_integer(generation), value: value}
+        {:cont, {:ok, Map.put(objects, object_id, object)}}
+
+      error ->
+        {:halt, error}
     end
+  end
+
+  defp build_document({:error, _reason} = error, _pdf), do: error
+
+  defp build_document({:ok, objects}, pdf) do
+    with {:ok, root_reference, pages_reference} <- locate_catalog(objects) do
+      {:ok, document_from_objects(objects, root_reference, pages_reference, pdf)}
+    end
+  end
+
+  defp document_from_objects(objects, root_reference, pages_reference, pdf) do
+    %Document{
+      objects: objects,
+      next_object_id: (objects |> Map.keys() |> Enum.max(fn -> 2 end)) + 1,
+      root_reference: root_reference,
+      pages_reference: pages_reference,
+      info_reference: nil,
+      pdf_version: pdf_version(pdf),
+      font_registry: FontRegistry.new(),
+      font_families: %{},
+      font_fallbacks: %{},
+      font_program_registry: %{},
+      font_source_data: %{},
+      default_font: :helvetica,
+      page_templates: %{},
+      styles: %{},
+      components: %{},
+      image_registry: ImageRegistry.new(),
+      compress: true,
+      named_destinations: %{},
+      outlines_reference: nil,
+      last_outline_reference: nil,
+      outline_count: 0
+    }
+  end
+
+  defp pdf_version(pdf) do
+    Regex.run(~r/^%PDF-(1\.[4-7])/, pdf, capture: :all_but_first) |> List.first() || "1.7"
   end
 
   defp valid_limit?(value), do: is_integer(value) and value > 0
@@ -124,24 +175,33 @@ defmodule PaperForge.PDF.Parser do
   defp parse_object_body(body) do
     case :binary.match(body, ["\nstream\n", "\nstream\r\n", "\r\nstream\r\n"]) do
       {position, marker_length} ->
-        dictionary_source = binary_part(body, 0, position)
-        data_start = position + marker_length
-
-        with {:ok, dictionary} <- parse_value(dictionary_source) do
-          length = dictionary["Length"]
-
-          data =
-            if is_integer(length) and data_start + length <= byte_size(body),
-              do: binary_part(body, data_start, length),
-              else:
-                body |> binary_part(data_start, byte_size(body) - data_start) |> trim_endstream()
-
-          {:ok, Stream.new(data, dictionary: Map.delete(dictionary, "Length"))}
-        end
+        parse_stream_object(body, position, marker_length)
 
       :nomatch ->
         parse_value(body)
     end
+  end
+
+  defp parse_stream_object(body, position, marker_length) do
+    dictionary_source = binary_part(body, 0, position)
+    data_start = position + marker_length
+
+    case parse_value(dictionary_source) do
+      {:ok, dictionary} ->
+        data = stream_data(body, data_start, dictionary["Length"])
+        {:ok, Stream.new(data, dictionary: Map.delete(dictionary, "Length"))}
+
+      error ->
+        error
+    end
+  end
+
+  defp stream_data(body, data_start, length)
+       when is_integer(length) and data_start + length <= byte_size(body),
+       do: binary_part(body, data_start, length)
+
+  defp stream_data(body, data_start, _length) do
+    body |> binary_part(data_start, byte_size(body) - data_start) |> trim_endstream()
   end
 
   defp trim_endstream(data) do

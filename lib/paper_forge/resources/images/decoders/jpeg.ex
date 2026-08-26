@@ -145,23 +145,31 @@ defmodule PaperForge.Images.JPEG do
     with {:ok, endian} <- tiff_endian(tiff),
          {:ok, ifd_offset} <- read_u32(tiff, 4, endian),
          {:ok, count} <- read_u16(tiff, ifd_offset, endian) do
-      Enum.find_value(0..max(count - 1, 0), 1, fn index ->
-        offset = ifd_offset + 2 + index * 12
-
-        with {:ok, 0x0112} <- read_u16(tiff, offset, endian),
-             {:ok, 3} <- read_u16(tiff, offset + 2, endian),
-             {:ok, orientation} <- read_u16(tiff, offset + 8, endian) do
-          orientation
-        else
-          _ -> nil
-        end
-      end)
+      find_orientation_tag(tiff, ifd_offset, count, endian)
     else
       _ -> 1
     end
   end
 
   defp parse_exif_orientation(_payload), do: 1
+
+  defp find_orientation_tag(tiff, ifd_offset, count, endian) do
+    Enum.find_value(0..max(count - 1, 0), 1, fn index ->
+      tiff
+      |> read_orientation_tag(ifd_offset + 2 + index * 12, endian)
+      |> orientation_value()
+    end)
+  end
+
+  defp read_orientation_tag(tiff, offset, endian) do
+    case {read_u16(tiff, offset, endian), read_u16(tiff, offset + 2, endian)} do
+      {{:ok, 0x0112}, {:ok, 3}} -> read_u16(tiff, offset + 8, endian)
+      _ -> :error
+    end
+  end
+
+  defp orientation_value({:ok, orientation}), do: orientation
+  defp orientation_value(:error), do: nil
 
   defp tiff_endian(<<"II", 42::16-little, _rest::binary>>), do: {:ok, :little}
   defp tiff_endian(<<"MM", 42::16-big, _rest::binary>>), do: {:ok, :big}

@@ -8,8 +8,8 @@ defmodule PaperForge.Declarative do
   IR used by the existing pagination engine.
   """
 
-  alias PaperForge.Color
   alias PaperForge.AcroForm
+  alias PaperForge.Color
   alias PaperForge.Declarative.Cache
   alias PaperForge.Declarative.Compiled
   alias PaperForge.Declarative.Error
@@ -217,33 +217,42 @@ defmodule PaperForge.Declarative do
 
   defp locate_error(issue, template_locations, data_locations, template_source, data_source) do
     {locations, lookup_path, fallback_source} =
-      if String.starts_with?(issue.path, "$.data") do
-        data_path = String.replace_prefix(issue.path, "$.data", "$")
-
-        if map_size(data_locations) > 0 do
-          {data_locations, data_path, data_source}
-        else
-          variable_path = String.replace_prefix(issue.path, "$.data", "$.variables")
-          {template_locations, variable_path, template_source}
-        end
-      else
-        {template_locations, issue.path, template_source}
-      end
+      location_context(
+        issue.path,
+        template_locations,
+        data_locations,
+        template_source,
+        data_source
+      )
 
     case nearest_location(locations, lookup_path) do
       nil ->
         %{issue | source: issue.source || fallback_source}
 
       location ->
-        %{
-          issue
-          | source:
-              issue.source || Map.get(location, :source) || Map.get(location, "source") ||
-                fallback_source,
-            line: Map.get(location, :line) || Map.get(location, "line"),
-            column: Map.get(location, :column) || Map.get(location, "column")
-        }
+        locate_issue(issue, location, fallback_source)
     end
+  end
+
+  defp location_context("$.data" <> _ = path, _template, data, _template_source, data_source)
+       when map_size(data) > 0,
+       do: {data, String.replace_prefix(path, "$.data", "$"), data_source}
+
+  defp location_context("$.data" <> _ = path, template, _data, template_source, _data_source),
+    do: {template, String.replace_prefix(path, "$.data", "$.variables"), template_source}
+
+  defp location_context(path, template, _data, template_source, _data_source),
+    do: {template, path, template_source}
+
+  defp locate_issue(issue, location, fallback_source) do
+    %{
+      issue
+      | source:
+          issue.source || Map.get(location, :source) || Map.get(location, "source") ||
+            fallback_source,
+        line: Map.get(location, :line) || Map.get(location, "line"),
+        column: Map.get(location, :column) || Map.get(location, "column")
+    }
   end
 
   defp nearest_location(locations, path) do
@@ -269,16 +278,21 @@ defmodule PaperForge.Declarative do
       cache_options = Keyword.drop(options, [:registry])
       key = Cache.hash({source, Map.new(data), cache_options})
 
-      case Cache.fetch(key) do
-        {:ok, compiled} ->
-          {:ok, compiled}
+      fetch_or_compile(key, source, data, options)
+    end
+  end
 
-        :error ->
-          case compile(source, data, options) do
-            {:ok, compiled} -> {:ok, Cache.put(key, compiled)}
-            error -> error
-          end
-      end
+  defp fetch_or_compile(key, source, data, options) do
+    case Cache.fetch(key) do
+      {:ok, compiled} -> {:ok, compiled}
+      :error -> compile_and_cache(key, source, data, options)
+    end
+  end
+
+  defp compile_and_cache(key, source, data, options) do
+    case compile(source, data, options) do
+      {:ok, compiled} -> {:ok, Cache.put(key, compiled)}
+      error -> error
     end
   end
 
@@ -445,30 +459,39 @@ defmodule PaperForge.Declarative do
     do: {:error, error(:maximum_depth, "$.blocks", "maximum expansion depth exceeded")}
 
   defp compile_blocks(blocks, context, state, depth) when is_list(blocks) do
-    Enum.reduce_while(blocks, {:ok, Flow.new(), state}, fn block, {:ok, flow, current_state} ->
-      next_count = current_state.blocks + 1
-
-      if next_count > current_state.limits.max_blocks do
-        {:halt, {:error, error(:block_limit, "$.blocks", "maximum block count exceeded")}}
-      else
-        current_state = %{current_state | blocks: next_count}
-
-        case compile_node(flow, block, context, current_state, depth) do
-          {:ok, next_flow, next_state} -> {:cont, {:ok, next_flow, next_state}}
-          {:error, issue} -> {:halt, {:error, issue}}
-        end
-      end
-    end)
+    Enum.reduce_while(blocks, {:ok, Flow.new(), state}, &compile_block(&1, &2, context, depth))
   end
 
   defp compile_blocks(_blocks, _context, _state, _depth),
     do: {:error, error(:invalid_blocks, "$.blocks", "blocks must be a list")}
 
+  defp compile_block(block, {:ok, flow, state}, context, depth) do
+    case increment_block_count(state) do
+      {:ok, next_state} ->
+        compile_node_result(compile_node(flow, block, context, next_state, depth))
+
+      error ->
+        {:halt, error}
+    end
+  end
+
+  defp increment_block_count(state) do
+    next_count = state.blocks + 1
+
+    if next_count > state.limits.max_blocks,
+      do: {:error, error(:block_limit, "$.blocks", "maximum block count exceeded")},
+      else: {:ok, %{state | blocks: next_count}}
+  end
+
+  defp compile_node_result({:ok, flow, state}), do: {:cont, {:ok, flow, state}}
+  defp compile_node_result({:error, issue}), do: {:halt, {:error, issue}}
+
   defp compile_node(flow, %{"if" => condition} = node, context, state, depth) do
-    with {:ok, result} <- Expression.evaluate(condition, context, &lookup/2) do
-      selected = if result, do: Map.get(node, "then", []), else: Map.get(node, "else", [])
-      append_compiled(flow, selected, context, state, depth + 1)
-    else
+    case Expression.evaluate(condition, context, &lookup/2) do
+      {:ok, result} ->
+        selected = if result, do: Map.get(node, "then", []), else: Map.get(node, "else", [])
+        append_compiled(flow, selected, context, state, depth + 1)
+
       {:error, reason} ->
         {:error, error(:invalid_expression, "$.if", "invalid condition", reason)}
     end
@@ -478,20 +501,7 @@ defmodule PaperForge.Declarative do
     with {:ok, path, binding} <- parse_loop(loop),
          values when is_list(values) <- lookup(context, path),
          true <- length(values) <= state.limits.max_loop_iterations do
-      Enum.reduce_while(values, {:ok, flow, state}, fn value, {:ok, current, current_state} ->
-        loop_context = Map.put(context, binding, value)
-
-        case append_compiled(
-               current,
-               Map.get(node, "blocks", []),
-               loop_context,
-               current_state,
-               depth + 1
-             ) do
-          {:ok, next, next_state} -> {:cont, {:ok, next, next_state}}
-          {:error, issue} -> {:halt, {:error, issue}}
-        end
-      end)
+      compile_loop(values, flow, state, node, context, binding, depth)
     else
       nil ->
         {:error, error(:unknown_variable, "$.for", "loop collection was not found")}
@@ -556,6 +566,24 @@ defmodule PaperForge.Declarative do
          "block must define type, component, slot, if, or for",
          node
        )}
+
+  defp compile_loop(values, flow, state, node, context, binding, depth) do
+    Enum.reduce_while(values, {:ok, flow, state}, fn value, {:ok, current, current_state} ->
+      result =
+        append_compiled(
+          current,
+          Map.get(node, "blocks", []),
+          Map.put(context, binding, value),
+          current_state,
+          depth + 1
+        )
+
+      continue_loop(result)
+    end)
+  end
+
+  defp continue_loop({:ok, next, next_state}), do: {:cont, {:ok, next, next_state}}
+  defp continue_loop({:error, issue}), do: {:halt, {:error, issue}}
 
   defp compile_component(flow, name, node, context, state, depth) do
     case Registry.fetch_component(state.registry, name) do
