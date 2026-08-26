@@ -25,7 +25,7 @@ defmodule PaperForge.InteroperabilityTest do
     assert %{fonts: fonts, xobjects: [], embedded_files: [], appearances: []} =
              Interoperability.resources(composed)
 
-    assert length(fonts) >= 1
+    assert fonts != []
   end
 
   test "rejects unsupported PDF sources predictably" do
@@ -47,10 +47,16 @@ defmodule PaperForge.InteroperabilityTest do
     nested = "%PDF-1.7\n" <> String.duplicate("[", 4)
     assert {:error, {:max_depth_exceeded, 3}} = Interoperability.parse_pdf(nested, max_depth: 3)
 
+    assert {:error, {:max_depth_exceeded, 3}} =
+             Interoperability.parse_pdf(nested, max_recursion_depth: 3)
+
     stream = "%PDF-1.7\n1 0 obj\n<<>>\nstream\n12345\nendstream\nendobj\n"
 
     assert {:error, {:max_stream_size_exceeded, 4}} =
              Interoperability.parse_pdf(stream, max_stream_size: 4)
+
+    assert {:error, {:max_stream_size_exceeded, 4}} =
+             Interoperability.parse_pdf(stream, max_uncompressed_stream_bytes: 4)
   end
 
   test "rejects zero, negative, and malformed page selections" do

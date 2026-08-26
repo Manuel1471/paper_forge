@@ -68,17 +68,23 @@ defmodule PaperForge.Declarative.LocationMap do
       _ ->
         child_path = "#{path}[#{index}]"
 
-        with {:ok, state} <- value(state, child_path) do
-          state = skip_space(state)
-
-          case state.rest do
-            <<",", _::binary>> -> array(state |> advance() |> skip_space(), path, index + 1)
-            <<"]", _::binary>> -> {:ok, advance(state)}
-            _ -> :error
-          end
-        end
+        state
+        |> value(child_path)
+        |> continue_array(path, index)
     end
   end
+
+  defp continue_array({:ok, state}, path, index) do
+    state = skip_space(state)
+
+    case state.rest do
+      <<",", _::binary>> -> array(state |> advance() |> skip_space(), path, index + 1)
+      <<"]", _::binary>> -> {:ok, advance(state)}
+      _ -> :error
+    end
+  end
+
+  defp continue_array(:error, _path, _index), do: :error
 
   defp string(%{rest: <<"\"", _::binary>>} = state) do
     scan_string(advance(state), "")

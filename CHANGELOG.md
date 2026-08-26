@@ -5,6 +5,82 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2026-08-26
+
+### Added
+
+- Added document, writer, and classic-PDF parser resource-limit controls for
+  maximum objects, raw source stream bytes, and nested PDF value depth.
+  `PaperForge.LimitError` stops writer work before final binary assembly, and
+  parser aliases preserve `:max_depth` and `:max_stream_size` compatibility.
+- Added writer-to-binary-to-parser round-trip coverage, validation contract
+  tests, StreamData round-trip properties, mutated-PDF parser fuzz properties,
+  and `mix test.fuzz` for the opt-in bounded fuzz profile.
+- Added differential Credo and strict compiler checks to GitHub Actions and a
+  CI badge plus hardening/fuzzing instructions in the README.
+- Added bounded execution for PDF import, diagnostic render, and file export.
+  `:timeout` returns a stable `PaperForge.Error` instead of leaving an
+  unbounded production operation running.
+- Added the stable `PF8xxx` runtime error taxonomy for timeouts, circuit-open
+  resources, job resource limits, cancellation, and isolated worker exits.
+- Added a pure-Elixir circuit breaker for repeatedly failing PDF resources.
+  Parser callers can configure its failure threshold and reset window.
+- Added focused timeout, hostile-input, circuit-breaker, temporary-file,
+  concurrent determinism, isolation, and declarative atom-safety coverage,
+  plus an opt-in repeated-batch soak profile.
+- Added hardening guidance to the consolidated README and production guide,
+  covering runtime limits, stable failures, circuit behavior, soak testing,
+  compatibility checks, and deployment guidance.
+- Added OTP 28 alongside OTP 29 to the supported Elixir 1.20.2 CI matrix.
+
+### Changed
+
+- Refactored the classic-PDF parser into explicit matching, limit enforcement,
+  object decoding, catalog resolution, stream extraction, and document
+  construction steps. The supported PDF subset and structured error contract
+  remain unchanged.
+- Simplified PDF writer finalization by separating cross-reference and trailer
+  emission from object serialization, making the write sequence easier to
+  audit without altering generated PDF bytes.
+- Refactored the CSS importer into focused rule, selector, and declaration
+  parsing helpers. Strict-property validation remains identical while the
+  implementation avoids nested control flow.
+- Simplified declarative block expansion, conditional evaluation, JSON location
+  array traversal, and inherited-theme resolution into smaller helpers with
+  the same validation and expansion limits.
+- Simplified TrueType cmap format-4 parsing, EXIF orientation discovery, and
+  dangling-reference validation into independently testable steps.
+- Bounded circuit-breaker state, expired idle failure entries, and made healthy
+  outcomes clear prior failures before later retry decisions.
+- Scoped timeout cleanup to the exact temporary export owned by the timed-out
+  operation, preventing interference with concurrent exports to the same
+  destination.
+- Restored xref, EOF, corrupted-image, pdfinfo, qpdf, and VeraPDF compatibility
+  coverage alongside the new production-hardening tests.
+- Made differential strict Credo findings fail CI instead of reporting with a
+  muted exit status, and removed the duplicate strict compilation step.
+- Replaced nested image-format module references with local aliases and
+  clarified the affected authoring test dependency.
+- Reduced strict Credo findings from 58 to 31 through source refactoring only;
+  no checks were disabled or suppressed. Remaining findings are isolated to
+  the largest layout, renderer, form, concurrency, image-decoder, and
+  declarative-validation functions for follow-up extraction work.
+- Consolidated the documentation set around the README and five focused guides:
+  declarative authoring, Phoenix integration, production operations,
+  benchmarks, and migration. Removed duplicate standalone API, architecture,
+  hardening, interoperability, scientific, and plain-language template files.
+- Made parser circuit breaking count runtime failures such as bounded timeouts,
+  rather than expected validation errors from malformed documents.
+- Export timeout cleanup now removes PaperForge temporary artifacts before a
+  timeout result is returned.
+- Bumped the package version to `1.4.5` for the Production Hardening release.
+
+### Fixed
+
+- Corrected table-cell baseline placement for both top-left and bottom-left
+  page origins. Text now respects cell padding and vertical alignment instead
+  of leaking across the upper row border.
+
 ## [1.4.4] - 2026-08-18
 
 ### Added

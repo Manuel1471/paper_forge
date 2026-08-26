@@ -321,15 +321,19 @@ defmodule PaperForge.Page do
         options
       )
       when is_list(rows) and is_list(options) do
+    layout = table_layout(page, rows, options)
+
+    rows
+    |> Enum.with_index()
+    |> Enum.reduce(page, &draw_table_row(&1, &2, layout))
+  end
+
+  defp table_layout(page, rows, options) do
     x = Keyword.get(options, :x, content_left(page))
     y = Keyword.fetch!(options, :y)
     width = Keyword.get(options, :width, content_width(page))
     row_height = Keyword.get(options, :row_height, 24)
     row_heights = Keyword.get(options, :row_heights, List.duplicate(row_height, length(rows)))
-    padding = Keyword.get(options, :padding, 6)
-    font = Keyword.get(options, :font)
-    size = Keyword.get(options, :size, 10)
-    header? = Keyword.get(options, :header, false)
 
     column_count =
       rows
@@ -343,95 +347,131 @@ defmodule PaperForge.Page do
         List.duplicate(width / column_count, column_count)
       )
 
-    rows
-    |> Enum.with_index()
-    |> Enum.reduce(page, fn {row, row_index}, current_page ->
-      row_y = y + Enum.sum(Enum.take(row_heights, row_index))
-      fill? = header? and row_index == 0
-
-      stripe? =
-        not fill? and rem(row_index, 2) == 1 and Keyword.has_key?(options, :stripe_fill_color)
-
-      row
-      |> Enum.reduce({current_page, 0}, fn raw_cell, {row_page, next_column} ->
-        cell = normalize_page_table_cell(raw_cell)
-        column = cell.column || next_column
-        colspan = min(cell.colspan, max(length(column_widths) - column, 1))
-        cell_x = x + Enum.sum(Enum.take(column_widths, column))
-        cell_width = column_widths |> Enum.slice(column, colspan) |> Enum.sum()
-        cell_height = row_heights |> Enum.slice(row_index, cell.rowspan) |> Enum.sum()
-        fill_color = cell.fill_color || table_cell_fill(fill?, stripe?, options)
-
-        cell_options =
-          [
-            x: cell_x,
-            y: row_y,
-            width: cell_width,
-            height: cell_height,
-            stroke: false,
-            fill: fill? or stripe? or not is_nil(cell.fill_color),
-            fill_color: fill_color,
-            stroke_color: Keyword.get(options, :stroke_color, PaperForge.Color.gray(0.65)),
-            line_width: Keyword.get(options, :line_width, 0.5)
-          ]
-
-        line_height = Keyword.get(options, :line_height, size * 1.3)
-        cell_text = to_string(cell.content)
-        line_count = max(length(String.split(cell_text, "\n")), 1)
-        text_height = line_count * line_height
-
-        text_y =
-          case cell.valign || Keyword.get(options, :cell_valign, :top) do
-            :middle -> row_y + max((cell_height - text_height) / 2, padding)
-            :bottom -> row_y + max(cell_height - text_height - padding, padding)
-            _top -> row_y + padding
-          end
-
-        text_options =
-          [
-            x: cell_x + padding,
-            y: text_y,
-            width: max(cell_width - padding * 2, 1),
-            height: max(cell_height - (text_y - row_y) - padding, line_height),
-            font: font,
-            size: size,
-            line_height: line_height,
-            color:
-              if(cell.color,
-                do: cell.color,
-                else:
-                  if(fill?,
-                    do:
-                      Keyword.get(
-                        options,
-                        :header_color,
-                        Keyword.get(options, :color, PaperForge.Color.black())
-                      ),
-                    else: Keyword.get(options, :color, PaperForge.Color.black())
-                  )
-              ),
-            align: cell.align || Keyword.get(options, :cell_align, :left)
-          ]
-          |> Enum.reject(fn {_key, value} -> is_nil(value) end)
-
-        row_page =
-          row_page
-          |> rectangle(cell_options)
-          |> draw_table_cell_borders(
-            cell_x,
-            row_y,
-            cell_width,
-            cell_height,
-            cell.borders,
-            options
-          )
-          |> text_box(cell_text, text_options)
-
-        {row_page, column + colspan}
-      end)
-      |> elem(0)
-    end)
+    %{
+      x: x,
+      y: y,
+      row_heights: row_heights,
+      column_widths: column_widths,
+      padding: Keyword.get(options, :padding, 6),
+      font: Keyword.get(options, :font),
+      size: Keyword.get(options, :size, 10),
+      header?: Keyword.get(options, :header, false),
+      origin: page.origin,
+      options: options
+    }
   end
+
+  defp draw_table_row({row, row_index}, page, layout) do
+    row_y = layout.y + Enum.sum(Enum.take(layout.row_heights, row_index))
+    fill? = layout.header? and row_index == 0
+
+    stripe? =
+      not fill? and rem(row_index, 2) == 1 and
+        Keyword.has_key?(layout.options, :stripe_fill_color)
+
+    row_layout =
+      Map.merge(layout, %{row_index: row_index, row_y: row_y, fill?: fill?, stripe?: stripe?})
+
+    row
+    |> Enum.reduce({page, 0}, &draw_table_cell(&1, &2, row_layout))
+    |> elem(0)
+  end
+
+  defp draw_table_cell(raw_cell, {page, next_column}, layout) do
+    cell = normalize_page_table_cell(raw_cell)
+    column = cell.column || next_column
+    colspan = min(cell.colspan, max(length(layout.column_widths) - column, 1))
+    cell_x = layout.x + Enum.sum(Enum.take(layout.column_widths, column))
+    cell_width = layout.column_widths |> Enum.slice(column, colspan) |> Enum.sum()
+    cell_height = layout.row_heights |> Enum.slice(layout.row_index, cell.rowspan) |> Enum.sum()
+    cell_text = to_string(cell.content)
+    line_height = Keyword.get(layout.options, :line_height, layout.size * 1.3)
+    text_height = max(length(String.split(cell_text, "\n")), 1) * line_height
+
+    text_y =
+      table_text_baseline(
+        layout.origin,
+        layout.row_y,
+        cell_height,
+        text_height,
+        layout.padding,
+        layout.size,
+        cell.valign || Keyword.get(layout.options, :cell_valign, :top)
+      )
+
+    page =
+      page
+      |> rectangle(table_cell_rectangle(cell, cell_x, cell_width, cell_height, layout))
+      |> draw_table_cell_borders(
+        cell_x,
+        layout.row_y,
+        cell_width,
+        cell_height,
+        cell.borders,
+        layout.options
+      )
+      |> text_box(
+        cell_text,
+        table_cell_text_options(
+          cell,
+          cell_x,
+          cell_width,
+          cell_height,
+          text_y,
+          line_height,
+          layout
+        )
+      )
+
+    {page, column + colspan}
+  end
+
+  defp table_cell_rectangle(cell, cell_x, cell_width, cell_height, layout) do
+    [
+      x: cell_x,
+      y: layout.row_y,
+      width: cell_width,
+      height: cell_height,
+      stroke: false,
+      fill: layout.fill? or layout.stripe? or not is_nil(cell.fill_color),
+      fill_color:
+        cell.fill_color || table_cell_fill(layout.fill?, layout.stripe?, layout.options),
+      stroke_color: Keyword.get(layout.options, :stroke_color, PaperForge.Color.gray(0.65)),
+      line_width: Keyword.get(layout.options, :line_width, 0.5)
+    ]
+  end
+
+  defp table_cell_text_options(
+         cell,
+         cell_x,
+         cell_width,
+         cell_height,
+         text_y,
+         line_height,
+         layout
+       ) do
+    [
+      x: cell_x + layout.padding,
+      y: text_y,
+      width: max(cell_width - layout.padding * 2, 1),
+      height: max(cell_height - layout.padding * 2, line_height),
+      font: layout.font,
+      size: layout.size,
+      line_height: line_height,
+      color: table_cell_text_color(cell, layout),
+      align: cell.align || Keyword.get(layout.options, :cell_align, :left)
+    ]
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+  end
+
+  defp table_cell_text_color(%{color: color}, _layout) when not is_nil(color), do: color
+
+  defp table_cell_text_color(_cell, %{fill?: true, options: options}) do
+    Keyword.get(options, :header_color, Keyword.get(options, :color, PaperForge.Color.black()))
+  end
+
+  defp table_cell_text_color(_cell, layout),
+    do: Keyword.get(layout.options, :color, PaperForge.Color.black())
 
   defp table_cell_fill(true, _stripe?, options),
     do: Keyword.get(options, :header_fill_color, PaperForge.Color.gray(0.92))
@@ -441,6 +481,40 @@ defmodule PaperForge.Page do
 
   defp table_cell_fill(false, false, options),
     do: Keyword.get(options, :body_fill_color, PaperForge.Color.white())
+
+  defp table_text_baseline(
+         :top_left,
+         row_y,
+         cell_height,
+         text_height,
+         padding,
+         size,
+         valign
+       ) do
+    row_y + table_text_top_offset(cell_height, text_height, padding, valign) + size
+  end
+
+  defp table_text_baseline(
+         :bottom_left,
+         row_y,
+         cell_height,
+         text_height,
+         padding,
+         size,
+         valign
+       ) do
+    row_y + cell_height - table_text_top_offset(cell_height, text_height, padding, valign) - size
+  end
+
+  defp table_text_top_offset(_cell_height, _text_height, padding, :top), do: padding
+
+  defp table_text_top_offset(cell_height, text_height, padding, :middle),
+    do: max((cell_height - text_height) / 2, padding)
+
+  defp table_text_top_offset(cell_height, text_height, padding, :bottom),
+    do: max(cell_height - text_height - padding, padding)
+
+  defp table_text_top_offset(_cell_height, _text_height, padding, _valign), do: padding
 
   defp normalize_page_table_cell(%{content: _content} = cell) do
     %{

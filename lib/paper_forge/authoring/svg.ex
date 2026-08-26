@@ -28,7 +28,7 @@ defmodule PaperForge.SVG do
     end)
   rescue
     error ->
-      raise ArgumentError, "invalid SVG input: #{Exception.message(error)}"
+      reraise error, __STACKTRACE__
   end
 
   defp render_node(page, node, inherited_style, inherited_matrix, inherited_clip, clips) do
@@ -87,12 +87,11 @@ defmodule PaperForge.SVG do
 
   defp node_text({:xmlElement, _, _, _, _, _, _, _, content, _, _, _}) do
     content
-    |> Enum.map(fn
+    |> Enum.map_join("", fn
       {:xmlText, _, _, _, value, _} -> to_string(value)
       child = {:xmlElement, _, _, _, _, _, _, _, _, _, _, _} -> node_text(child)
       _ -> ""
     end)
-    |> Enum.join("")
   end
 
   defp matrix_scale({a, b, c, d, _e, _f}),

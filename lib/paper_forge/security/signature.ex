@@ -26,7 +26,7 @@ defmodule PaperForge.Signature do
   def capabilities(options \\ []) do
     provider = provider(options)
     Code.ensure_loaded?(provider)
-    apply(provider, :capabilities, [])
+    provider.capabilities()
   end
 
   @doc "Signs a PDF binary without rewriting its original revision."

@@ -28,8 +28,7 @@ defmodule PaperForge.Import.HTML do
       root
       |> element_content()
       |> collect_elements(:style)
-      |> Enum.map(&element_text/1)
-      |> Enum.join("\n")
+      |> Enum.map_join("\n", &element_text/1)
 
     external = Keyword.get(options, :css, "")
     CSS.parse(embedded <> "\n" <> external, strict: Keyword.get(options, :strict_css, true))
@@ -39,7 +38,7 @@ defmodule PaperForge.Import.HTML do
     %{tag: "#text", attrs: %{}, children: [], text: to_string(value), raw: nil}
   end
 
-  defp normalize(element = {:xmlElement, name, _, _, _, _, _, _, _, _, _, _}) do
+  defp normalize({:xmlElement, name, _, _, _, _, _, _, _, _, _, _} = element) do
     tag = name |> Atom.to_string() |> String.downcase()
 
     %{
@@ -78,11 +77,10 @@ defmodule PaperForge.Import.HTML do
   defp element_text(element) do
     element
     |> element_content()
-    |> Enum.map(fn
+    |> Enum.map_join("", fn
       {:xmlText, _, _, _, value, _} -> to_string(value)
       child -> element_text(child)
     end)
-    |> Enum.join("")
   end
 
   defp serialize_element(element) do

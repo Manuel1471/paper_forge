@@ -49,15 +49,16 @@ defmodule PaperForge do
 
   alias PaperForge.Document
   alias PaperForge.Flow
+  alias PaperForge.Layout.Engine
   alias PaperForge.Legacy.Flow, as: LegacyFlow
   alias PaperForge.Legacy.Table, as: LegacyTable
-  alias PaperForge.Layout.Engine
   alias PaperForge.Metadata
   alias PaperForge.Page
   alias PaperForge.PageTemplateError
+  alias PaperForge.Runtime.Guard
   alias PaperForge.Telemetry
-  alias PaperForge.Writer
   alias PaperForge.Validation
+  alias PaperForge.Writer
 
   @doc """
   Creates a new empty PDF document.
@@ -390,9 +391,10 @@ defmodule PaperForge do
   end
 
   @doc "Renders a PDF and returns timing, memory, resource, and output diagnostics."
-  @spec render(Document.t(), keyword()) :: {:ok, binary(), PaperForge.RenderStats.t()}
+  @spec render(Document.t(), keyword()) ::
+          {:ok, binary(), PaperForge.RenderStats.t()} | {:error, PaperForge.Error.t()}
   def render(%Document{} = document, options \\ []) when is_list(options) do
-    PaperForge.Diagnostics.render(document, options)
+    with_timeout(:render, options, fn -> PaperForge.Diagnostics.render(document, options) end)
   end
 
   @doc "Applies structural PDF/A and PDF/UA conformance profiles."
@@ -421,17 +423,25 @@ defmodule PaperForge do
   Writes a document to a file.
   """
   @spec write(Document.t(), Path.t(), keyword()) ::
-          :ok | {:error, File.posix()}
+          :ok | {:error, File.posix() | PaperForge.Error.t()}
   def write(
         %Document{} = document,
         path,
         options \\ []
       ) do
     path = validate_path!(path)
+    temporary_path = Writer.temporary_path(path)
 
-    Telemetry.render(document, {:file, path}, fn ->
-      Writer.write_to_file(document, path, options)
-    end)
+    with_timeout(
+      :export,
+      options,
+      fn ->
+        Telemetry.render(document, {:file, path}, fn ->
+          Writer.write_to_file(document, path, options, temporary_path)
+        end)
+      end,
+      fn -> Writer.cleanup_temporary_file(temporary_path) end
+    )
   end
 
   @doc """
@@ -471,6 +481,19 @@ defmodule PaperForge do
 
       _ ->
         :none
+    end
+  end
+
+  defp with_timeout(operation, options, function, on_timeout \\ fn -> :ok end) do
+    case Keyword.fetch(options, :timeout) do
+      :error ->
+        function.()
+
+      {:ok, timeout} ->
+        case Guard.run(operation, function, timeout: timeout, on_timeout: on_timeout) do
+          {:ok, value} -> value
+          {:error, error} -> {:error, error}
+        end
     end
   end
 

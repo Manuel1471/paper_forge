@@ -37,11 +37,6 @@ defmodule PaperForge.DeclarativeFuzzTest do
   end
 
   defp refute_existing_atom(value) do
-    try do
-      String.to_existing_atom(value)
-      flunk("unexpected atom allocation for #{inspect(value)}")
-    rescue
-      ArgumentError -> :ok
-    end
+    assert_raise ArgumentError, fn -> String.to_existing_atom(value) end
   end
 end

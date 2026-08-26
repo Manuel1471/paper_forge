@@ -19,18 +19,23 @@ defmodule PaperForge.Import.CSS do
     source
     |> String.replace(~r{/\*.*?\*/}s, "")
     |> then(&Regex.scan(~r/([^{}]+)\{([^{}]*)\}/, &1, capture: :all_but_first))
-    |> Enum.reduce_while({:ok, []}, fn [selectors, body], {:ok, rules} ->
-      with {:ok, declarations} <- declarations(body, strict?) do
-        parsed =
-          selectors
-          |> String.split(",", trim: true)
-          |> Enum.map(&{String.trim(&1), declarations})
+    |> Enum.reduce_while({:ok, []}, &parse_rule(&1, &2, strict?))
+  end
 
-        {:cont, {:ok, rules ++ parsed}}
-      else
-        error -> {:halt, error}
-      end
-    end)
+  defp parse_rule([selectors, body], {:ok, rules}, strict?) do
+    case declarations(body, strict?) do
+      {:ok, declarations} ->
+        {:cont, {:ok, rules ++ selectors_with_declarations(selectors, declarations)}}
+
+      error ->
+        {:halt, error}
+    end
+  end
+
+  defp selectors_with_declarations(selectors, declarations) do
+    selectors
+    |> String.split(",", trim: true)
+    |> Enum.map(&{String.trim(&1), declarations})
   end
 
   @spec declarations(binary(), boolean()) :: {:ok, map()} | {:error, term()}
@@ -39,26 +44,30 @@ defmodule PaperForge.Import.CSS do
     |> String.split(";")
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
-    |> Enum.reduce_while({:ok, %{}}, fn declaration, {:ok, styles} ->
-      case String.split(declaration, ":", parts: 2) do
-        [name, value] ->
-          name = name |> String.trim() |> String.downcase()
+    |> Enum.reduce_while({:ok, %{}}, &apply_declaration(&1, &2, strict?))
+  end
 
-          cond do
-            name in @properties ->
-              {:cont, {:ok, Map.put(styles, name, String.trim(value))}}
+  defp apply_declaration(declaration, {:ok, styles}, strict?) do
+    case parse_declaration(declaration) do
+      {:ok, name, value} when name in @properties ->
+        {:cont, {:ok, Map.put(styles, name, value)}}
 
-            strict? ->
-              {:halt, {:error, {:unsupported_css_property, name}}}
+      {:ok, name, _value} when strict? ->
+        {:halt, {:error, {:unsupported_css_property, name}}}
 
-            true ->
-              {:cont, {:ok, styles}}
-          end
+      {:ok, _name, _value} ->
+        {:cont, {:ok, styles}}
 
-        _ ->
-          {:halt, {:error, {:invalid_css_declaration, String.trim(declaration)}}}
-      end
-    end)
+      error ->
+        {:halt, error}
+    end
+  end
+
+  defp parse_declaration(declaration) do
+    case String.split(declaration, ":", parts: 2) do
+      [name, value] -> {:ok, name |> String.trim() |> String.downcase(), String.trim(value)}
+      _ -> {:error, {:invalid_css_declaration, String.trim(declaration)}}
+    end
   end
 
   @spec styles_for(map(), list(), map()) :: map()

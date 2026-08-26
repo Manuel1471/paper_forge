@@ -177,8 +177,7 @@ defmodule PaperForge.Import.Markup do
 
   defp text(node) do
     node.children
-    |> Enum.map(&text/1)
-    |> Enum.join("")
+    |> Enum.map_join("", &text/1)
     |> String.replace(~r/\s+/, " ")
     |> String.trim()
   end

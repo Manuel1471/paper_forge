@@ -103,11 +103,15 @@ defmodule PaperForge.DesignSystem do
             {:ok, Map.delete(theme, "extends")}
 
           parent ->
-            with {:ok, inherited} <-
-                   resolve_theme(themes, to_string(parent), MapSet.put(seen, name)) do
-              {:ok, deep_merge(inherited, Map.delete(theme, "extends"))}
-            end
+            inherit_theme(themes, parent, seen, name, theme)
         end
+    end
+  end
+
+  defp inherit_theme(themes, parent, seen, name, theme) do
+    case resolve_theme(themes, to_string(parent), MapSet.put(seen, name)) do
+      {:ok, inherited} -> {:ok, deep_merge(inherited, Map.delete(theme, "extends"))}
+      error -> error
     end
   end
 

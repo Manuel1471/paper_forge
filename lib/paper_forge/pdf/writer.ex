@@ -15,6 +15,7 @@ defmodule PaperForge.Writer do
   alias PaperForge.Document
   alias PaperForge.Object
   alias PaperForge.Reference
+  alias PaperForge.Runtime.Limits
   alias PaperForge.Security
   alias PaperForge.Serializer
   alias PaperForge.Validation
@@ -34,6 +35,7 @@ defmodule PaperForge.Writer do
   """
   @spec to_binary(Document.t(), keyword()) :: binary()
   def to_binary(%Document{} = document, options \\ []) do
+    Limits.validate_document!(document, options)
     Validation.validate!(document)
 
     header =
@@ -87,8 +89,16 @@ defmodule PaperForge.Writer do
   """
   @spec write_to_file(Document.t(), Path.t(), keyword()) :: :ok | {:error, File.posix() | term()}
   def write_to_file(%Document{} = document, path, options \\ []) when is_binary(path) do
+    write_to_file(document, path, options, temporary_path(path))
+  end
+
+  @doc false
+  @spec write_to_file(Document.t(), Path.t(), keyword(), Path.t()) ::
+          :ok | {:error, File.posix() | term()}
+  def write_to_file(%Document{} = document, path, options, temporary_path)
+      when is_binary(path) and is_binary(temporary_path) do
+    Limits.validate_document!(document, options)
     Validation.validate!(document)
-    temporary_path = temporary_path(path)
 
     try do
       do_write_to_file(document, path, temporary_path, options)
@@ -97,6 +107,19 @@ defmodule PaperForge.Writer do
         File.rm(temporary_path)
         reraise exception, __STACKTRACE__
     end
+  end
+
+  @doc false
+  @spec cleanup_temporary_file(Path.t()) :: :ok
+  def cleanup_temporary_file(path) when is_binary(path) do
+    File.rm(path)
+    :ok
+  end
+
+  @doc false
+  @spec temporary_path(Path.t()) :: Path.t()
+  def temporary_path(path) when is_binary(path) do
+    path <> ".paperforge-" <> Integer.to_string(System.unique_integer([:positive]))
   end
 
   defp do_write_to_file(document, path, temporary_path, options) do
@@ -128,18 +151,35 @@ defmodule PaperForge.Writer do
   defp write_document(io, document, options) do
     header = pdf_header(document)
     {objects, security} = prepare_objects(Document.objects(document), options)
+    maximum_object_id = maximum_object_id(objects)
 
     with :ok <- IO.binwrite(io, header),
          {:ok, offsets, next_offset} <-
-           write_objects(io, objects, byte_size(header), security),
-         maximum_object_id = maximum_object_id(objects),
-         :ok <- IO.binwrite(io, encode_cross_reference(maximum_object_id, offsets)),
-         :ok <-
-           IO.binwrite(
-             io,
-             encode_trailer(document, maximum_object_id + 1, next_offset, security)
-           ) do
-      :ok
+           write_objects(io, objects, byte_size(header), security) do
+      write_cross_reference_and_trailer(
+        io,
+        document,
+        maximum_object_id,
+        offsets,
+        next_offset,
+        security
+      )
+    end
+  end
+
+  defp write_cross_reference_and_trailer(
+         io,
+         document,
+         maximum_object_id,
+         offsets,
+         next_offset,
+         security
+       ) do
+    with :ok <- IO.binwrite(io, encode_cross_reference(maximum_object_id, offsets)) do
+      IO.binwrite(
+        io,
+        encode_trailer(document, maximum_object_id + 1, next_offset, security)
+      )
     end
   end
 
@@ -154,10 +194,6 @@ defmodule PaperForge.Writer do
       end)
 
     {:ok, offsets, next_offset}
-  end
-
-  defp temporary_path(path) do
-    path <> ".paperforge-" <> Integer.to_string(System.unique_integer([:positive]))
   end
 
   defp cleanup_error(path, reason) do

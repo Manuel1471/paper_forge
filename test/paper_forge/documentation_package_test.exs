@@ -1,23 +1,19 @@
 defmodule PaperForge.DocumentationPackageTest do
   use ExUnit.Case, async: true
 
-  test "ships declarative guides, schema, and maintained release examples" do
+  test "ships consolidated guides, schema, and maintained release examples" do
     project = PaperForge.MixProject.project()
     package_files = project |> Keyword.fetch!(:package) |> Keyword.fetch!(:files)
     docs_extras = project |> Keyword.fetch!(:docs) |> Keyword.fetch!(:extras)
 
     assert "priv" in package_files
     assert "examples" in package_files
-    assert "PAPERFORGE_TEMPLATES.md" in package_files
-    assert "PAPERFORGE_TEMPLATES.md" in docs_extras
     assert "PHOENIX.md" in package_files
     assert "PHOENIX.md" in docs_extras
-    assert "INTEROPERABILITY.md" in package_files
-    assert "INTEROPERABILITY.md" in docs_extras
-    assert "SCIENTIFIC.md" in package_files
-    assert "SCIENTIFIC.md" in docs_extras
-    assert "ARCHITECTURE.md" in package_files
-    assert "ARCHITECTURE.md" in docs_extras
+    assert "DECLARATIVE.md" in package_files
+    assert "DECLARATIVE.md" in docs_extras
+    assert "PRODUCTION.md" in package_files
+    assert "PRODUCTION.md" in docs_extras
 
     assert File.exists?("priv/paperforge.schema.json")
     assert File.exists?("examples/paper_forge_1_4_showcase.paperforge")
@@ -53,27 +49,23 @@ defmodule PaperForge.DocumentationPackageTest do
     assert guide =~ "Future Visual Authoring"
   end
 
-  test "README links the plain-language and technical template guides" do
+  test "README links the consolidated template guide" do
     readme = File.read!("README.md")
-    guide = File.read!("PAPERFORGE_TEMPLATES.md")
+    guide = File.read!("DECLARATIVE.md")
 
-    assert readme =~ "[`PAPERFORGE_TEMPLATES.md`](PAPERFORGE_TEMPLATES.md)"
     assert readme =~ "[`DECLARATIVE.md`](DECLARATIVE.md)"
-    assert guide =~ "Create PaperForge Documents Without Writing Elixir"
+    assert guide =~ "# Declarative Documents"
     assert guide =~ "mix paper_forge.validate"
     assert guide =~ "examples/paper_forge_1_4_showcase.paperforge"
   end
 
-  test "ships a discoverable architecture guide" do
+  test "README contains the architecture and public API references" do
     readme = File.read!("README.md")
-    guide = File.read!("ARCHITECTURE.md")
 
-    assert readme =~ "[`ARCHITECTURE.md`](ARCHITECTURE.md)"
-    assert guide =~ "PaperForge.PageCompiler"
-    assert guide =~ "PaperForge.Document.Objects"
-    assert guide =~ "PaperForge.Legacy.*"
-    assert guide =~ "|-- rendering/"
-    assert guide =~ "|-- security/"
+    assert readme =~ "## Architecture"
+    assert readme =~ "## Public API And Compatibility"
+    assert readme =~ "Page Compiler"
+    assert readme =~ "PaperForge.Concurrent"
   end
 
   test "README local files and section links remain valid and packaged" do

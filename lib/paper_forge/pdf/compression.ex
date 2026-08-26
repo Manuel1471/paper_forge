@@ -40,8 +40,7 @@ defmodule PaperForge.Compression do
   def inflate(data) when is_binary(data) do
     :zlib.uncompress(data)
   rescue
-    ErlangError ->
-      raise ArgumentError,
-            "data is not a valid zlib-compressed stream"
+    error in ErlangError ->
+      reraise error, __STACKTRACE__
   end
 end

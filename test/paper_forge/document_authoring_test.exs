@@ -3,6 +3,7 @@ defmodule PaperForge.DocumentAuthoringTest do
 
   alias PaperForge.Document
   alias PaperForge.Flow
+  alias PaperForge.Layout.Block
 
   test "resolves inherited page templates and rejects inheritance cycles" do
     document =
@@ -270,7 +271,7 @@ defmodule PaperForge.DocumentAuthoringTest do
 
   test "renders composable table cells with spans, nested blocks, alignment, and borders" do
     nested =
-      PaperForge.Layout.Block.new(:paragraph, "Nested cell content", size: 8)
+      Block.new(:paragraph, "Nested cell content", size: 8)
 
     {document, report} =
       PaperForge.new(compress: false)
