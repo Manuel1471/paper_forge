@@ -40,6 +40,15 @@ defmodule PaperForge.ParserFuzzTest do
     end
   end
 
+  test "mutation sequences remain valid after repeated truncation" do
+    mutations = [:truncate, :truncate, :truncate, :truncate, :truncate, :truncate, :flip]
+
+    mutated = Enum.reduce(mutations, valid_pdf(), &mutate/2)
+
+    assert is_binary(mutated)
+    assert byte_size(mutated) > 0
+  end
+
   defp valid_pdf do
     PaperForge.new(compress: false)
     |> PaperForge.add_page(fn page -> Page.text(page, "Parser fuzz seed", x: 40, y: 40) end)
@@ -61,7 +70,7 @@ defmodule PaperForge.ParserFuzzTest do
   defp mutate(:flip, <<>>), do: <<0>>
 
   defp mutate(:flip, pdf) do
-    position = rem(byte_size(pdf), 17)
+    position = min(rem(byte_size(pdf), 17), byte_size(pdf) - 1)
     <<head::binary-size(^position), byte, tail::binary>> = pdf
     head <> <<Bitwise.bxor(byte, 0x5A)>> <> tail
   end

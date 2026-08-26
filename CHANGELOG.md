@@ -80,6 +80,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Corrected table-cell baseline placement for both top-left and bottom-left
   page origins. Text now respects cell padding and vertical alignment instead
   of leaking across the upper row border.
+- Made the parser fuzz mutator safe after repeated truncation. Byte-flip
+  mutations now always select an existing byte, preventing the test harness
+  itself from raising before a shortened PDF reaches the parser.
 
 ## [1.4.4] - 2026-08-18
 
