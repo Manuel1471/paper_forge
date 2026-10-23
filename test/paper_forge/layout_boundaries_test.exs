@@ -213,4 +213,52 @@ defmodule PaperForge.LayoutBoundariesTest do
     {:text_box, "Column", options} = Enum.find(operations, &match?({:text_box, "Column", _}, &1))
     assert options[:y] == column.y + 12
   end
+
+  test "keep together does not add page breaks when its children fit" do
+    {_, report} =
+      layout(fn flow ->
+        flow
+        |> Flow.paragraph("Before")
+        |> Flow.keep_together(fn group -> Flow.paragraph(group, "Inside") end)
+        |> Flow.paragraph("After")
+      end)
+
+    assert report.pages == 1
+    assert Enum.map(report.placements, & &1.block.content) == ["Before", "Inside", "After"]
+  end
+
+  test "leading and repeated page breaks preserve physical page numbers" do
+    {_, report} =
+      layout(fn flow ->
+        flow
+        |> Flow.page_break()
+        |> Flow.paragraph("First")
+        |> Flow.page_break()
+        |> Flow.page_break()
+        |> Flow.paragraph("Second")
+      end)
+
+    assert report.pages == 2
+    assert Enum.map(report.placements, & &1.page_number) == [1, 2]
+  end
+
+  test "space before is outside the reported text box" do
+    {_, report} =
+      layout(&Flow.paragraph(&1, "Text", line_height: 12, space_before: 20, space_after: 4))
+
+    [placement] = report.placements
+    assert placement.y == 40
+    assert placement.height == 16
+  end
+
+  test "a footnote must fit at least its separator and one line" do
+    assert_raise PaperForge.LayoutError, fn ->
+      layout(&Flow.footnote(&1, "Note", separator_height: 155))
+    end
+  end
+
+  test "footnote placement bounds exclude its separator" do
+    {_, report} = layout(&Flow.footnote(&1, "Note"))
+    assert Enum.all?(report.placements, &(&1.y + &1.height <= 180))
+  end
 end

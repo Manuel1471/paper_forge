@@ -235,13 +235,13 @@ defmodule PaperForge.Layout.Engine do
 
         heading ++ expanded_children ++ page_break
 
-      %Block{type: :container, children: children, options: block_options} = block ->
+      %Block{type: :container, children: children} = block ->
         [
           %{
             block
             | children:
                 children
-                |> expand_blocks(section, Keyword.merge(options, block_options), document),
+                |> expand_blocks(section, options, document),
               options:
                 block.options
                 |> Keyword.put_new(:section, section)
@@ -720,6 +720,7 @@ defmodule PaperForge.Layout.Engine do
 
   defp place_footnote_lines(block, lines, state, first?, line_height) do
     separator_height = if first?, do: Keyword.get(block.options, :separator_height, 16), else: 0
+    ensure_fits_empty_page!(block, separator_height + line_height, state)
     capacity = floor(max(available_height(state) - separator_height, 0) / line_height)
 
     state =
@@ -739,7 +740,7 @@ defmodule PaperForge.Layout.Engine do
       y: y + separator_height,
       separator_y: y,
       first?: first?,
-      height: height,
+      height: height - separator_height,
       lines: visible
     }
 
@@ -1093,11 +1094,11 @@ defmodule PaperForge.Layout.Engine do
       type: block.type,
       block: block,
       y: state.cursor_y + space_before,
-      height: height,
+      height: height - space_before,
       lines: visible
     }
 
-    state = add_fragment(state, fragment)
+    state = add_fragment(%{state | cursor_y: state.cursor_y + space_before}, fragment)
 
     if remaining == [] do
       state
@@ -1140,6 +1141,8 @@ defmodule PaperForge.Layout.Engine do
         cursor_y: state.cursor_y + fragment.height
     }
   end
+
+  defp next_page(%{pages: [%{placements: []} | _]} = state), do: state
 
   defp next_page(%{pages: pages} = state) do
     new_page = Page.new(state.page_options)
