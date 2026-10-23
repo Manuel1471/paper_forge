@@ -12,18 +12,37 @@ defmodule PaperForge.Legacy.Table do
     page = Page.new(page_options)
     row_height = Keyword.get(options, :row_height, 24)
     y = Keyword.get(options, :y, Page.content_top(page))
-    rows_per_page = max(floor((Page.content_bottom(page) - y) / row_height), 1)
+
+    unless is_number(row_height) and row_height > 0 do
+      raise ArgumentError, "row_height must be positive"
+    end
+
+    rows_per_page = floor((Page.content_bottom(page) - y) / row_height)
 
     header_rows =
       if Keyword.get(options, :repeat_header, false),
         do: Keyword.get(options, :header_rows, 1),
         else: 0
 
-    {headers, body_rows} = Enum.split(rows, header_rows)
-    body_capacity = max(rows_per_page - header_rows, 1)
+    unless is_integer(header_rows) and header_rows >= 0 do
+      raise ArgumentError, "header_rows must be a non-negative integer"
+    end
 
-    Enum.reduce(Enum.chunk_every(body_rows, body_capacity), document, fn chunk,
-                                                                         current_document ->
+    {headers, body_rows} = Enum.split(rows, header_rows)
+    required_rows = length(headers) + if(body_rows == [], do: 0, else: 1)
+
+    if required_rows > rows_per_page do
+      raise ArgumentError, "table headers and at least one body row must fit within the page"
+    end
+
+    body_capacity = max(rows_per_page - length(headers), 1)
+
+    chunks =
+      if body_rows == [] and headers != [],
+        do: [[]],
+        else: Enum.chunk_every(body_rows, body_capacity)
+
+    Enum.reduce(chunks, document, fn chunk, current_document ->
       page =
         Page.new(page_options)
         |> Page.table(

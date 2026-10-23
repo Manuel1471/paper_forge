@@ -33,6 +33,11 @@ defmodule PaperForge.Legacy.Flow do
       overflow?: false
     }
 
+    unless is_number(state.line_height) and state.line_height > 0 and
+             state.line_height <= Page.content_height(page) do
+      raise ArgumentError, "line_height must be positive and fit within the page content height"
+    end
+
     state =
       blocks
       |> Enum.reduce(state, fn block, current_state ->
@@ -72,8 +77,15 @@ defmodule PaperForge.Legacy.Flow do
   defp flow_lines([], state), do: state
 
   defp flow_lines(lines, state) do
-    state = if state.cursor_y >= state.bottom_y, do: next_page(state), else: state
-    max_lines = max(floor((state.bottom_y - state.cursor_y) / state.line_height), 1)
+    state =
+      if state.cursor_y + state.line_height > state.bottom_y, do: next_page(state), else: state
+
+    max_lines = floor((state.bottom_y - state.cursor_y) / state.line_height)
+
+    if max_lines < 1 do
+      raise ArgumentError, "flow y must leave room for at least one line"
+    end
+
     {visible_lines, remaining_lines} = Enum.split(lines, max_lines)
     consumed_height = length(visible_lines) * state.line_height
 

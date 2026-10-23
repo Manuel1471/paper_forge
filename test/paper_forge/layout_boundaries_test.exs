@@ -84,4 +84,41 @@ defmodule PaperForge.LayoutBoundariesTest do
     assert_raise ArgumentError, fn -> Page.new(margins: %Margins{left: -1}) end
     assert_raise ArgumentError, fn -> Margins.new(%Margins{top: "20"}) end
   end
+
+  test "legacy flow moves a line when only a fraction of its height remains" do
+    {_, report} =
+      PaperForge.layout_flow(
+        PaperForge.new(),
+        ["First", "Second"],
+        [size: {100, 100}, margins: 20], line_height: 40, gap: 0)
+
+    assert report.pages_added == 2
+  end
+
+  test "legacy flow rejects a line taller than the content area" do
+    assert_raise ArgumentError, fn ->
+      PaperForge.layout_flow(PaperForge.new(), ["Text"], [size: {100, 100}, margins: 20],
+        line_height: 70
+      )
+    end
+  end
+
+  test "legacy tables retain header-only data" do
+    document =
+      PaperForge.add_table(
+        PaperForge.new(compress: false),
+        [["Header"]],
+        [size: {100, 100}, margins: 20], repeat_header: true)
+
+    assert PaperForge.to_binary(document) =~ "(Header)"
+  end
+
+  test "legacy tables reject a header and row that cannot fit together" do
+    assert_raise ArgumentError, fn ->
+      PaperForge.add_table(
+        PaperForge.new(),
+        [["Header"], ["Body"]],
+        [size: {100, 100}, margins: 20], repeat_header: true, row_height: 40)
+    end
+  end
 end
