@@ -2,6 +2,7 @@ defmodule PaperForge.Legacy.Flow do
   @moduledoc false
 
   alias PaperForge.Document
+  alias PaperForge.Layout.Geometry
   alias PaperForge.Page
   alias PaperForge.TextWrapper
 
@@ -9,7 +10,7 @@ defmodule PaperForge.Legacy.Flow do
   def layout(%Document{} = document, blocks, page_options, options)
       when is_list(blocks) and is_list(page_options) and is_list(options) do
     page_options = Keyword.put_new(page_options, :origin, :top_left)
-    page = page_options |> Page.new() |> decorate_page(options)
+    page = page_options |> Geometry.page!() |> decorate_page(options)
     font_key = Document.resolve_font_key(document, options)
     {document, font} = Document.register_font(document, font_key)
 
@@ -120,7 +121,7 @@ defmodule PaperForge.Legacy.Flow do
 
   defp next_page(state) do
     document = Page.add_to_document(state.page, state.document)
-    page = state.page_options |> Page.new() |> decorate_page(state.options)
+    page = state.page_options |> Geometry.page!() |> decorate_page(state.options)
 
     %{
       state
@@ -154,7 +155,10 @@ defmodule PaperForge.Legacy.Flow do
       text when is_binary(text) ->
         Page.text(page, text,
           x: Page.content_left(page),
-          y: Keyword.get(options, :header_y, max(Page.content_top(page) - 28, 12)),
+          y:
+            Keyword.get_lazy(options, :header_y, fn ->
+              Geometry.template_baseline!(page, :header, Keyword.get(options, :header_size, 9))
+            end),
           width: Page.content_width(page),
           align: Keyword.get(options, :header_align, :center),
           font: Keyword.get(options, :header_font, Keyword.get(options, :font, :helvetica)),
@@ -175,7 +179,9 @@ defmodule PaperForge.Legacy.Flow do
         Page.text(page, text,
           x: Page.content_left(page),
           y:
-            Keyword.get(options, :footer_y, min(Page.content_bottom(page) + 22, page.height - 12)),
+            Keyword.get_lazy(options, :footer_y, fn ->
+              Geometry.template_baseline!(page, :footer, Keyword.get(options, :footer_size, 9))
+            end),
           width: Page.content_width(page),
           align: Keyword.get(options, :footer_align, :center),
           font: Keyword.get(options, :footer_font, Keyword.get(options, :font, :helvetica)),

@@ -261,4 +261,80 @@ defmodule PaperForge.LayoutBoundariesTest do
     {_, report} = layout(&Flow.footnote(&1, "Note"))
     assert Enum.all?(report.placements, &(&1.y + &1.height <= 180))
   end
+
+  test "automatic layout rejects an incompatible origin instead of silently overflowing" do
+    assert_raise ArgumentError, ~r/automatic layout requires/, fn ->
+      PaperForge.layout(PaperForge.new(), &Flow.paragraph(&1, "Text"),
+        page_options: [origin: :bottom_left]
+      )
+    end
+
+    assert Page.new(origin: :bottom_left).origin == :bottom_left
+  end
+
+  test "automatic template text fits inside small margins" do
+    {_, report} =
+      PaperForge.layout(PaperForge.new(), &Flow.paragraph(&1, "Body"),
+        page_options: [size: {200, 200}, margins: 12],
+        header: "Header",
+        footer: "Footer"
+      )
+
+    operations = hd(report.rendered_pages).operations
+    {:text, "Header", header} = Enum.find(operations, &match?({:text, "Header", _}, &1))
+    {:text, "Footer", footer} = Enum.find(operations, &match?({:text, "Footer", _}, &1))
+    assert header[:y] - header[:size] >= 0
+    assert header[:y] + header[:size] * 0.2 <= 12
+    assert footer[:y] - footer[:size] >= 188
+    assert footer[:y] + footer[:size] * 0.2 <= 200
+  end
+
+  test "template text reports margins too small to contain it" do
+    assert_raise ArgumentError, ~r/header requires a margin/, fn ->
+      PaperForge.layout(PaperForge.new(), &Flow.paragraph(&1, "Body"),
+        page_options: [margins: 0],
+        header: "Header"
+      )
+    end
+  end
+
+  test "automatic placement remains inside asymmetric margins across page orientations" do
+    for orientation <- [:portrait, :landscape], size <- [9, 14, 22] do
+      {_, report} =
+        PaperForge.layout(
+          PaperForge.new(),
+          fn flow ->
+            Enum.reduce(1..18, flow, fn n, current ->
+              current
+              |> Flow.paragraph("Block #{n}\nSecond line",
+                size: size,
+                padding: 4,
+                space_before: 3
+              )
+              |> Flow.separator(height: 8)
+            end)
+          end,
+          page_options: [
+            size: {240, 300},
+            orientation: orientation,
+            margins: [top: 24, right: 36, bottom: 30, left: 18]
+          ]
+        )
+
+      Enum.each(report.placements, fn placement ->
+        page = Enum.at(report.rendered_pages, placement.page_number - 1)
+        assert placement.x >= Page.content_left(page)
+        assert placement.x + placement.width <= page.width - page.margins.right
+        assert placement.y >= Page.content_top(page)
+        assert placement.y + placement.height <= Page.content_bottom(page) + 0.000001
+      end)
+
+      text =
+        report.placements
+        |> Enum.filter(&(&1.type == :paragraph))
+        |> Enum.flat_map(& &1.lines)
+
+      assert text == Enum.flat_map(1..18, &["Block #{&1}", "Second line"])
+    end
+  end
 end

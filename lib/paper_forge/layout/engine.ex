@@ -5,6 +5,7 @@ defmodule PaperForge.Layout.Engine do
   alias PaperForge.Flow
   alias PaperForge.FontRegistry
   alias PaperForge.Layout.Block
+  alias PaperForge.Layout.Geometry
   alias PaperForge.LayoutError
   alias PaperForge.NavigationError
   alias PaperForge.Page
@@ -59,7 +60,7 @@ defmodule PaperForge.Layout.Engine do
 
         page =
           page_options
-          |> Page.new()
+          |> Geometry.page!()
           |> render_template(:header, render_options, context)
           |> render_placements(placements, context, current_document)
           |> render_template(:footer, render_options, context)
@@ -464,7 +465,7 @@ defmodule PaperForge.Layout.Engine do
   end
 
   defp paginate(blocks, page_options, document, options) do
-    page = Page.new(page_options)
+    page = Geometry.page!(page_options)
 
     initial = %{
       pages: [%{options: page_options, render_options: options, placements: []}],
@@ -1145,7 +1146,7 @@ defmodule PaperForge.Layout.Engine do
   defp next_page(%{pages: [%{placements: []} | _]} = state), do: state
 
   defp next_page(%{pages: pages} = state) do
-    new_page = Page.new(state.page_options)
+    new_page = Geometry.page!(state.page_options)
 
     %{
       state
@@ -1224,7 +1225,7 @@ defmodule PaperForge.Layout.Engine do
       state =
         if current_page_has_content?(state), do: next_page(state), else: state
 
-      page = Page.new(new_page_options)
+      page = Geometry.page!(new_page_options)
 
       [page_spec | remaining_pages] = state.pages
 
@@ -1408,14 +1409,12 @@ defmodule PaperForge.Layout.Engine do
     min_top = Keyword.get(block.options, :min_lines_at_top, 2)
     min_bottom = Keyword.get(block.options, :min_lines_at_bottom, 2)
 
-    cond do
-      remaining != [] and length(remaining) < min_bottom and length(visible) > min_top ->
-        move = min(min_bottom - length(remaining), length(visible) - min_top)
-        {kept, moved} = Enum.split(visible, length(visible) - move)
-        {kept, moved ++ remaining, state}
-
-      true ->
-        {visible, remaining, state}
+    if remaining != [] and length(remaining) < min_bottom and length(visible) > min_top do
+      move = min(min_bottom - length(remaining), length(visible) - min_top)
+      {kept, moved} = Enum.split(visible, length(visible) - move)
+      {kept, moved ++ remaining, state}
+    else
+      {visible, remaining, state}
     end
   end
 
@@ -1447,7 +1446,7 @@ defmodule PaperForge.Layout.Engine do
   defp default_space_after(_block), do: 4
 
   defp page_context(page_options, page_number, total_pages, placements, section_context) do
-    page = Page.new(page_options)
+    page = Geometry.page!(page_options)
     heading = current_heading(placements)
 
     %PageContext{
@@ -1608,7 +1607,7 @@ defmodule PaperForge.Layout.Engine do
   defp render_template_text(page, :header, text, context) do
     Page.text(page, interpolate_template_text(text, context),
       x: context.content_left,
-      y: max(context.content_top - 28, 12),
+      y: Geometry.template_baseline!(page, :header, 9),
       width: context.content_width,
       align: :center,
       size: 9
@@ -1618,7 +1617,7 @@ defmodule PaperForge.Layout.Engine do
   defp render_template_text(page, :footer, text, context) do
     Page.text(page, interpolate_template_text(text, context),
       x: context.content_left,
-      y: min(context.content_bottom + 24, context.page_height - 12),
+      y: Geometry.template_baseline!(page, :footer, 9),
       width: context.content_width,
       align: :center,
       size: 9

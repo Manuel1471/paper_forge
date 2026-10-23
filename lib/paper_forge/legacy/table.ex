@@ -2,6 +2,7 @@ defmodule PaperForge.Legacy.Table do
   @moduledoc false
 
   alias PaperForge.Document
+  alias PaperForge.Layout.Geometry
   alias PaperForge.Page
 
   @spec add(Document.t(), [[term()]], keyword(), keyword()) :: Document.t()
@@ -9,15 +10,23 @@ defmodule PaperForge.Legacy.Table do
       when is_list(rows) and is_list(page_options) and is_list(options) do
     validate_row_split!(Keyword.get(options, :row_split, :keep))
     page_options = Keyword.put_new(page_options, :origin, :top_left)
-    page = Page.new(page_options)
-    row_height = Keyword.get(options, :row_height, 24)
-    y = Keyword.get(options, :y, Page.content_top(page))
+    page = Geometry.page!(page_options)
+    {headers, chunks} = paginate_rows(rows, page, options)
 
-    unless is_number(row_height) and row_height > 0 do
-      raise ArgumentError, "row_height must be positive"
-    end
+    Enum.reduce(chunks, document, fn chunk, current_document ->
+      page =
+        Geometry.page!(page_options)
+        |> Page.table(
+          headers ++ chunk,
+          table_page_options(page, options, headers != [])
+        )
 
-    rows_per_page = floor((Page.content_bottom(page) - y) / row_height)
+      Page.add_to_document(page, current_document)
+    end)
+  end
+
+  defp paginate_rows(rows, page, options) do
+    rows_per_page = row_capacity(page, options)
 
     header_rows =
       if Keyword.get(options, :repeat_header, false),
@@ -42,16 +51,18 @@ defmodule PaperForge.Legacy.Table do
         do: [[]],
         else: Enum.chunk_every(body_rows, body_capacity)
 
-    Enum.reduce(chunks, document, fn chunk, current_document ->
-      page =
-        Page.new(page_options)
-        |> Page.table(
-          headers ++ chunk,
-          table_page_options(page, options, header_rows > 0)
-        )
+    {headers, chunks}
+  end
 
-      Page.add_to_document(page, current_document)
-    end)
+  defp row_capacity(page, options) do
+    row_height = Keyword.get(options, :row_height, 24)
+    y = Keyword.get(options, :y, Page.content_top(page))
+
+    unless is_number(row_height) and row_height > 0 do
+      raise ArgumentError, "row_height must be positive"
+    end
+
+    floor((Page.content_bottom(page) - y) / row_height)
   end
 
   defp validate_row_split!(:keep), do: :ok
