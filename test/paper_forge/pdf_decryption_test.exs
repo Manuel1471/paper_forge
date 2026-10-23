@@ -1,7 +1,7 @@
 defmodule PaperForge.PDF.DecryptionTest do
   use ExUnit.Case, async: true
-  alias PaperForge.{Security, Stream}
   alias PaperForge.PDF.Decryption
+  alias PaperForge.{Security, Stream}
 
   test "authenticates user and owner passwords and decrypts strings and streams" do
     {:ok, context, object} =

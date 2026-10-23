@@ -1,25 +1,12 @@
 defmodule PaperForge.PDF.Decryption do
   @moduledoc false
-  alias PaperForge.{Reference, Stream}
   alias PaperForge.PDF.Syntax
+  alias PaperForge.{Reference, Security, Stream}
 
   def authenticate(_, _, nil), do: Syntax.fail(:password_required)
 
   def authenticate(dictionary, _trailer, password) when is_binary(password) do
-    unless dictionary["Filter"] == {:name, "Standard"} and dictionary["V"] == 5 and
-             dictionary["R"] in [5, 6],
-           do: Syntax.fail({:unsupported_encryption, Map.take(dictionary, ["Filter", "V", "R"])})
-
-    Enum.each(["StmF", "StrF"], fn field ->
-      name = dictionary[field]
-
-      unless name == {:name, "Identity"} or valid_filter?(dictionary, name),
-        do: Syntax.fail(:unsupported_crypt_filter)
-    end)
-
-    if dictionary["EFF"] && dictionary["EFF"] != dictionary["StmF"],
-      do: Syntax.fail(:unsupported_embedded_file_crypt_filter)
-
+    validate_handler(dictionary)
     password = binary_part(password, 0, min(byte_size(password), 127))
     user = bytes(dictionary["U"])
     owner = bytes(dictionary["O"])
@@ -58,6 +45,22 @@ defmodule PaperForge.PDF.Decryption do
 
   def authenticate(_, _, _), do: Syntax.fail(:invalid_password)
 
+  defp validate_handler(dictionary) do
+    unless dictionary["Filter"] == {:name, "Standard"} and dictionary["V"] == 5 and
+             dictionary["R"] in [5, 6],
+           do: Syntax.fail({:unsupported_encryption, Map.take(dictionary, ["Filter", "V", "R"])})
+
+    Enum.each(["StmF", "StrF"], fn field ->
+      name = dictionary[field]
+
+      unless name == {:name, "Identity"} or valid_filter?(dictionary, name),
+        do: Syntax.fail(:unsupported_crypt_filter)
+    end)
+
+    if dictionary["EFF"] && dictionary["EFF"] != dictionary["StmF"],
+      do: Syntax.fail(:unsupported_embedded_file_crypt_filter)
+  end
+
   defp valid_filter?(dictionary, {:name, name}),
     do: get_in(dictionary, ["CF", name, "CFM"]) == {:name, "AESV3"}
 
@@ -67,7 +70,7 @@ defmodule PaperForge.PDF.Decryption do
   defp bytes(_), do: Syntax.fail(:invalid_encryption_dictionary)
 
   defp hash(password, salt, user, 5), do: :crypto.hash(:sha256, password <> salt <> user)
-  defp hash(password, salt, user, 6), do: PaperForge.Security.password_hash(password, salt, user)
+  defp hash(password, salt, user, 6), do: Security.password_hash(password, salt, user)
 
   defp valid_password?(password, entry, user, revision) do
     <<expected::binary-size(32), salt::binary-size(8), _::binary>> = entry

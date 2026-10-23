@@ -8,11 +8,9 @@ defmodule PaperForge.PDF.Filters do
   alias PaperForge.Stream
 
   def decode(%Stream{} = stream, limit \\ 50_000_000) do
-    try do
-      {:ok, decode!(stream, limit)}
-    catch
-      {:pdf_error, reason} -> {:error, reason}
-    end
+    {:ok, decode!(stream, limit)}
+  catch
+    {:pdf_error, reason} -> {:error, reason}
   end
 
   @doc false
@@ -90,8 +88,12 @@ defmodule PaperForge.PDF.Filters do
     if size > limit, do: Syntax.fail({:max_stream_size_exceeded, limit})
 
     case status do
-      :continue -> inflate_chunks(z, <<>>, [output | acc], size, limit)
-      :finished -> IO.iodata_to_binary(Enum.reverse([output | acc]))
+      :continue ->
+        inflate_chunks(z, <<>>, [output | acc], size, limit)
+
+      :finished ->
+        :ok = :zlib.inflateEnd(z)
+        IO.iodata_to_binary(Enum.reverse([output | acc]))
     end
   end
 
@@ -184,36 +186,40 @@ defmodule PaperForge.PDF.Filters do
   defp rows(bytes, size, pixel, previous, acc) do
     case bytes do
       <<filter, row::binary-size(^size), rest::binary>> when filter in 0..4 ->
-        # A queue of the preceding pixel avoids quadratic binary appends.
-        {decoded, _, _} =
-          Enum.reduce(
-            Enum.with_index(:binary.bin_to_list(row)),
-            {[], :queue.from_list(List.duplicate(0, pixel)), 0},
-            fn {byte, i}, {out, queue, _} ->
-              {{:value, left}, queue} = :queue.out(queue)
-              up = :binary.at(previous, i)
-              upper_left = if i < pixel, do: 0, else: :binary.at(previous, i - pixel)
-
-              prediction =
-                case filter do
-                  0 -> 0
-                  1 -> left
-                  2 -> up
-                  3 -> div(left + up, 2)
-                  4 -> paeth(left, up, upper_left)
-                end
-
-              value = band(byte + prediction, 255)
-              {[value | out], :queue.in(value, queue), 0}
-            end
-          )
-
-        decoded = decoded |> Enum.reverse() |> :erlang.list_to_binary()
+        decoded = decode_row(row, filter, pixel, previous)
         rows(rest, size, pixel, decoded, [decoded | acc])
 
       _ ->
         Syntax.fail(:invalid_predictor_stream)
     end
+  end
+
+  defp decode_row(row, filter, pixel, previous) do
+    # A queue of the preceding pixel avoids quadratic binary appends.
+    {decoded, _, _} =
+      Enum.reduce(
+        Enum.with_index(:binary.bin_to_list(row)),
+        {[], :queue.from_list(List.duplicate(0, pixel)), 0},
+        fn {byte, i}, {out, queue, _} ->
+          {{:value, left}, queue} = :queue.out(queue)
+          up = :binary.at(previous, i)
+          upper_left = if i < pixel, do: 0, else: :binary.at(previous, i - pixel)
+
+          prediction =
+            case filter do
+              0 -> 0
+              1 -> left
+              2 -> up
+              3 -> div(left + up, 2)
+              4 -> paeth(left, up, upper_left)
+            end
+
+          value = band(byte + prediction, 255)
+          {[value | out], :queue.in(value, queue), 0}
+        end
+      )
+
+    decoded |> Enum.reverse() |> :erlang.list_to_binary()
   end
 
   defp paeth(a, b, c) do

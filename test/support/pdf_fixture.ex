@@ -1,4 +1,5 @@
 defmodule PaperForge.Test.PDFFixture do
+  @moduledoc false
   alias PaperForge.Serializer
 
   def classic(objects, trailer \\ %{}, prefix \\ "%PDF-1.7\n", extra_entries \\ []) do
@@ -62,7 +63,7 @@ defmodule PaperForge.Test.PDFFixture do
     xref_offset = byte_size(prefix)
 
     entries =
-      <<0, 0::32, 65535::16, 2, 4::32, 0::16, 2, 4::32, 1::16, 2, 4::32, 2::16, 1,
+      <<0, 0::32, 65_535::16, 2, 4::32, 0::16, 2, 4::32, 1::16, 2, 4::32, 2::16, 1,
         stream_offset::32, 0::16, 1, xref_offset::32, 0::16>>
 
     encoded = :zlib.compress(entries)
@@ -74,7 +75,7 @@ defmodule PaperForge.Test.PDFFixture do
 
     if hybrid do
       classic([], %{"Size" => 6, "XRefStm" => xref_offset}, prefix, [
-        {0, 0, 65535, "f"},
+        {0, 0, 65_535, "f"},
         {1, 0, 0, "f"},
         {2, 0, 0, "f"},
         {3, 0, 0, "f"},

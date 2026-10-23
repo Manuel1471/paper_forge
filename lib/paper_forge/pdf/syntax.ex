@@ -99,8 +99,7 @@ defmodule PaperForge.PDF.Syntax do
 
         if n >= 0 and Regex.match?(~r/^\d+$/, second) and third == "R" do
           generation = String.to_integer(second)
-          if generation > 65535, do: fail(:invalid_object_generation)
-          {Reference.new(n, generation), tail}
+          {reference(n, generation), tail}
         else
           {n, rest}
         end
@@ -116,6 +115,11 @@ defmodule PaperForge.PDF.Syntax do
         fail({:unsupported_pdf_token, token})
     end
   end
+
+  defp reference(_, generation) when generation > 65_535,
+    do: fail(:invalid_object_generation)
+
+  defp reference(n, generation), do: Reference.new(n, generation)
 
   defp dictionary(<<">>", rest::binary>>, acc, _, _), do: {acc, rest}
 
