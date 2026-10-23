@@ -1,5 +1,24 @@
 # Migrating PaperForge
 
+## Migrating from 1.4 to 1.5
+
+Existing authoring APIs remain available. `PaperForge.metadata/2` still writes
+metadata; the new `metadata/1` reads the existing Info dictionary.
+
+- Use `open/2` for a path, or `Interoperability.parse_pdf/2` for bytes.
+- Valid xref tables/streams and trailers are now required. The former regex
+  importer sometimes accepted incomplete files; 1.5 deliberately rejects them.
+- Parsing preserves the active object generation and follows incremental revisions.
+- Stream limits now cover supported decompressed content as well as encoded bytes.
+  `max_total_decoded_bytes` defaults to 200 MB. Review custom workload limits.
+- Open supported encrypted PDFs with `password:` before transforming or composing.
+  Rewriting produces unencrypted output unless new writer `security:` options are set.
+- Writing is a full rewrite; existing signatures and linearization are not preserved.
+- Review [`INTEROPERABILITY.md`](INTEROPERABILITY.md) for feature and compatibility
+  boundaries, including page-level composition and unsupported encryption handlers.
+
+No new runtime dependency is required.
+
 ## Migrating from 1.3 to 1.4
 
 PaperForge 1.4 is backward compatible with the documented 1.3 public API.

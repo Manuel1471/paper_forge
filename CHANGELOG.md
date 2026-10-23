@@ -5,6 +5,46 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-22
+
+### Added
+
+- PDF Interoperability & Transformation Engine: `open/2`, `open!/2`, `page_count/1`,
+  `metadata/1`, `forms/1`, `annotations/1`, `attachments/1`, `outlines/1`,
+  `signatures/1`, and structured `analyze/1`.
+- Byte-oriented syntax reader and xref-driven object loading: xref streams,
+  compressed object streams, hybrid references, incremental trailer chains,
+  active generations, sparse object IDs, and inherited page resources.
+- Bounded Flate, ASCIIHex, ASCII85 and RunLength decoding, filter chains and PNG
+  predictors. Standard AES-256 R5/R6 password authentication and decryption.
+- `mix paper_forge.inspect` with human-readable/JSON reports and password-env input.
+- Page deletion, rotation, reordering, extraction, merging, resource-preserving
+  watermarks, selective metadata updates and graph normalization.
+- Independent libqpdf/pypdf fixtures, targeted regression tests, expanded fuzz
+  seeds and arbitrary-byte mutations. New interoperability and migration guide.
+
+### Fixed
+
+- Writer xref generations now match object headers; sparse IDs no longer cause
+  allocation proportional to the largest object number.
+- Object boundaries no longer depend on regex matches inside strings or streams.
+  Root and Info come from trailers; older/free objects do not override active ones.
+- Nested page imports retain inherited resources without importing sibling pages
+  through Parent backlinks. Reachable stale/broken references fail explicitly.
+- Literal-string octal escapes and line continuation, integer precision, old/new
+  PDF headers, cyclic stream lengths and decompression resource bounds.
+
+### Changed
+
+- Import now requires valid xref/trailer structure; incomplete files formerly
+  accepted by the classic regex parser return errors. Obsolete incomplete-input
+  limit tests were replaced with valid PDFs exercising actual limits.
+- The new reader accepts PDF 1.0–1.7 and 2.0 headers; this is not a claim that every
+  version-specific feature is interpreted. Existing authoring APIs remain intact.
+- Output remains a complete rewrite. Append-only editing, signature verification,
+  automatic malformed-file repair, XFA, RC4/AES-128 import, LZW/TIFF predictors and
+  document-level catalog merging remain outside this release's supported scope.
+
 ## [1.4.5] - 2026-08-26
 
 ### Added
