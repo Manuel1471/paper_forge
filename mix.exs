@@ -9,6 +9,7 @@ defmodule PaperForge.MixProject do
       app: :paper_forge,
       version: @version,
       elixir: "~> 1.20",
+      test_ignore_filters: [~r/test\/support\//],
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),

@@ -1498,7 +1498,7 @@ defmodule PaperForge.Document do
     else
       raise ArgumentError,
             "unsupported PDF version #{inspect(value)}. " <>
-              "Supported versions: 1.4, 1.5, 1.6, 1.7"
+              "Supported versions: 1.0 through 1.7 and 2.0"
     end
   end
 
