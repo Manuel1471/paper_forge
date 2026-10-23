@@ -19,6 +19,14 @@ metadata; the new `metadata/1` reads the existing Info dictionary.
 
 No new runtime dependency is required.
 
+### Standard-font text encoding
+
+Helvetica, Times and Courier now encode supported Unicode text to WinAnsi before
+writing content streams. Accents, the euro sign, bullets and smart punctuation
+render correctly. Raw UTF-8 bytes are no longer written under a WinAnsi font.
+Characters outside that encoding raise `FontError`; register an embedded font
+with the required glyphs. Symbol and ZapfDingbats retain their native encoding.
+
 ### Automatic layout corrections
 
 Review generated PDFs when upgrading: corrected wrapping and line heights can

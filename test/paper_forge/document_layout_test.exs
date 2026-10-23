@@ -218,7 +218,7 @@ defmodule PaperForge.DocumentLayoutTest do
 
     assert content =~ "(1.) Tj"
     assert content =~ "(Alpha) Tj"
-    assert content =~ "(•) Tj"
+    assert content =~ <<"(", 149, ") Tj">>
   end
 
   test "add_flow creates automatic page breaks" do

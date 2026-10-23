@@ -48,6 +48,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   empty page breaks no longer desynchronize page references. String headers and
   footers are positioned inside their margins.
 
+- Standard Helvetica/Times/Courier content now encodes Latin accents and Windows-1252
+  punctuation as WinAnsi bytes, matching the font dictionary instead of emitting UTF-8.
+  Unsupported characters raise `FontError` and require an appropriate embedded font.
+
 ### Changed
 
 - Import now requires valid xref/trailer structure; incomplete files formerly
