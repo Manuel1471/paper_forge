@@ -342,6 +342,74 @@ defmodule PaperForge do
   end
 
   @doc """
+  Opens an existing PDF file as an object graph.
+
+  Supports classic, stream and hybrid cross references, object streams and
+  incremental revisions. Options include `:password` (Standard AES-256 R5/R6),
+  `:max_file_size`, `:max_objects`, `:max_depth`, `:max_stream_size`, and `:timeout`.
+  No password or derived key is retained in the returned document.
+  """
+  @spec open(Path.t(), keyword()) :: {:ok, Document.t()} | {:error, term()}
+  def open(path, options \\ []) when is_binary(path) and is_list(options) do
+    limit = Keyword.get(options, :max_file_size, 100_000_000)
+
+    with true <- is_integer(limit) and limit > 0,
+         {:ok, stat} <- File.stat(path),
+         true <- stat.size <= limit,
+         {:ok, bytes} <- File.read(path) do
+      PaperForge.PDF.Parser.parse(bytes, options)
+    else
+      false ->
+        {:error,
+         if(is_integer(limit) and limit > 0,
+           do: {:max_file_size_exceeded, limit},
+           else: :invalid_parse_limits
+         )}
+
+      error ->
+        error
+    end
+  end
+
+  @doc "Opens a PDF file, raising `ArgumentError` when it cannot be read or parsed."
+  def open!(path, options \\ []) do
+    case open(path, options) do
+      {:ok, document} -> document
+      {:error, reason} -> raise ArgumentError, "cannot open PDF: #{inspect(reason)}"
+    end
+  end
+
+  @doc "Counts leaf pages, including nested page trees."
+  def page_count(%Document{} = document), do: inspect_pdf(document, :page_count)
+
+  @doc "Returns the existing PDF Info dictionary (PDF string keys and values)."
+  def metadata(%Document{} = document), do: inspect_pdf(document, :metadata)
+
+  @doc "Returns AcroForm fields with inherited properties and qualified names."
+  def forms(%Document{} = document), do: inspect_pdf(document, :forms)
+
+  @doc "Returns annotations with their one-based page numbers."
+  def annotations(%Document{} = document), do: inspect_pdf(document, :annotations)
+
+  @doc "Returns embedded-file name-tree entries and file specification dictionaries."
+  def attachments(%Document{} = document), do: inspect_pdf(document, :attachments)
+
+  @doc "Returns the outline hierarchy."
+  def outlines(%Document{} = document), do: inspect_pdf(document, :outlines)
+
+  @doc "Inventories signature dictionaries; does not verify cryptographic validity."
+  def signatures(%Document{} = document), do: inspect_pdf(document, :signatures)
+
+  @doc "Reports source structure, graph integrity, resources and normalization opportunities."
+  defdelegate analyze(document), to: PaperForge.PDF.Inspection
+
+  defp inspect_pdf(document, function) do
+    apply(PaperForge.PDF.Inspection, function, [document])
+  catch
+    {:pdf_error, reason} -> raise ArgumentError, "cannot inspect PDF: #{inspect(reason)}"
+  end
+
+  @doc """
   Adds metadata to the document.
   """
   @spec metadata(Document.t(), keyword()) :: Document.t()
