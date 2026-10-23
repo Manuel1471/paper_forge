@@ -90,7 +90,10 @@ defmodule PaperForge.LayoutBoundariesTest do
       PaperForge.layout_flow(
         PaperForge.new(),
         ["First", "Second"],
-        [size: {100, 100}, margins: 20], line_height: 40, gap: 0)
+        [size: {100, 100}, margins: 20],
+        line_height: 40,
+        gap: 0
+      )
 
     assert report.pages_added == 2
   end
@@ -108,7 +111,9 @@ defmodule PaperForge.LayoutBoundariesTest do
       PaperForge.add_table(
         PaperForge.new(compress: false),
         [["Header"]],
-        [size: {100, 100}, margins: 20], repeat_header: true)
+        [size: {100, 100}, margins: 20],
+        repeat_header: true
+      )
 
     assert PaperForge.to_binary(document) =~ "(Header)"
   end
@@ -118,7 +123,75 @@ defmodule PaperForge.LayoutBoundariesTest do
       PaperForge.add_table(
         PaperForge.new(),
         [["Header"], ["Body"]],
-        [size: {100, 100}, margins: 20], repeat_header: true, row_height: 40)
+        [size: {100, 100}, margins: 20],
+        repeat_header: true,
+        row_height: 40
+      )
     end
+  end
+
+  test "columns use the requested font size and content width during measurement and rendering" do
+    {_, report} =
+      layout(&Flow.columns(&1, 2, ["First\nSecond", "Third"], size: 20, width: :content))
+
+    assert hd(report.placements).height == 64
+    assert Page.content(hd(report.rendered_pages)) =~ "20 Tf"
+  end
+
+  test "empty columns do not crash" do
+    {_, report} = layout(&Flow.columns(&1, 2, []))
+    assert report.pages <= 1
+  end
+
+  test "keep together measures the table header and all rows" do
+    {_, report} =
+      layout(fn flow ->
+        flow
+        |> Flow.spacer(90)
+        |> Flow.keep_together(fn group ->
+          group
+          |> Flow.paragraph("Title", size: 10)
+          |> Flow.table(["Header"], [["One"], ["Two"]], row_height: 24)
+        end)
+      end)
+
+    assert report.placements
+           |> Enum.reject(&(&1.type == :spacer))
+           |> Enum.map(& &1.page_number)
+           |> Enum.uniq() == [2]
+  end
+
+  test "oversized keep together groups fail even after preceding content" do
+    assert_raise PaperForge.LayoutError, fn ->
+      layout(fn flow ->
+        flow
+        |> Flow.spacer(10)
+        |> Flow.keep_together(fn group ->
+          group |> Flow.spacer(100) |> Flow.spacer(100)
+        end)
+      end)
+    end
+  end
+
+  test "split table rows never force a line below a tall header" do
+    assert_raise PaperForge.TableError, fn ->
+      layout(
+        &Flow.table(&1, [String.duplicate("Header\n", 12)], [[String.duplicate("Body\n", 20)]],
+          row_split: :split,
+          cell_line_height: 12
+        )
+      )
+    end
+  end
+
+  test "rich text reserves height for the largest run" do
+    {_, report} = layout(&Flow.rich_text(&1, [{"Large\nText", [size: 30]}]))
+    assert hd(report.placements).height >= 81
+  end
+
+  @tag timeout: 1_000
+  test "a rich-text glyph wider than its box terminates like plain text wrapping" do
+    {_, report} = layout(&Flow.rich_text(&1, [{"W", [size: 30]}], width: 1))
+    assert hd(hd(report.placements).lines) |> hd() |> Map.fetch!(:text) == "W"
   end
 end

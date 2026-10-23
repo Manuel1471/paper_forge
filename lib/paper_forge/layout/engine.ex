@@ -495,28 +495,24 @@ defmodule PaperForge.Layout.Engine do
   defp place_block(%Block{type: :container, children: children, options: options} = block, state) do
     state = apply_block_layout_options(block, state)
 
-    height =
-      children
-      |> Enum.map(&block_height(&1, state))
-      |> Enum.sum()
+    placed = place_children(children, state)
 
-    if Keyword.get(options, :keep_together, false) and height > available_height(state) and
-         state.cursor_y > Page.content_top(state.page) do
-      place_children(children, next_page(state))
-    else
-      if height > state.bottom_y - Page.content_top(state.page) do
+    if Keyword.get(options, :keep_together, false) and placed.page_number != state.page_number do
+      fresh = if current_page_has_content?(state), do: next_page(state), else: state
+      placed = place_children(children, fresh)
+
+      if placed.page_number != fresh.page_number do
         raise LayoutError,
           reason: :block_too_large,
           block_id: block.id,
-          page_number: state.page_number,
+          page_number: fresh.page_number,
           block_type: block.type,
-          metadata: %{
-            required_height: height,
-            available_height: state.bottom_y - Page.content_top(state.page)
-          }
+          metadata: %{available_height: Page.content_height(fresh.page)}
       end
 
-      place_children(children, state)
+      placed
+    else
+      placed
     end
   end
 
@@ -868,11 +864,14 @@ defmodule PaperForge.Layout.Engine do
         line_height = table_line_height(block)
         padding = Keyword.get(block.options, :padding, 6)
 
-        capacity =
-          max(
-            floor((max(available_height(state) - header_height, 1) - padding * 2) / line_height),
-            1
-          )
+        minimum_height = header_height + padding * 2 + line_height
+
+        if minimum_height > Page.content_height(state.page) do
+          raise TableError, reason: :row_too_large, block_id: block.id, row: row.index
+        end
+
+        state = fit_on_page(block, minimum_height, state)
+        capacity = floor((available_height(state) - header_height - padding * 2) / line_height)
 
         {visible, continuation} = split_table_row(row, capacity, block)
         remaining = if continuation, do: [continuation | rest], else: rest
@@ -1276,42 +1275,6 @@ defmodule PaperForge.Layout.Engine do
            Keyword.get(block.options, :space_before, 0) +
            Keyword.get(block.options, :space_after, default_space_after(block))
 
-  defp block_height(%Block{type: :spacer, content: height}, _state), do: height
-
-  defp block_height(%Block{type: :separator} = block, _state),
-    do: Keyword.get(block.options, :height, 12)
-
-  defp block_height(%Block{type: :image} = block, _state),
-    do: Keyword.get(block.options, :height, 120)
-
-  defp block_height(%Block{type: :svg} = block, _state),
-    do: Keyword.get(block.options, :height, 120)
-
-  defp block_height(%Block{type: :chart} = block, _state),
-    do: Keyword.get(block.options, :height, 180)
-
-  defp block_height(%Block{type: :qr_code} = block, _state),
-    do: Keyword.get(block.options, :height, 120)
-
-  defp block_height(%Block{type: :barcode} = block, _state),
-    do: Keyword.get(block.options, :height, 72)
-
-  defp block_height(%Block{type: :custom} = block, _state),
-    do: Keyword.get(block.options, :height, 0)
-
-  defp block_height(%Block{type: :table} = block, _state) do
-    Keyword.get(block.options, :row_height, 24) * length(block.content.rows)
-  end
-
-  defp block_height(%Block{type: :list} = block, state) do
-    block.content
-    |> Enum.map(fn item ->
-      item_block = Block.new(:paragraph, to_string(item), block.options)
-      block_height(item_block, state)
-    end)
-    |> Enum.sum()
-  end
-
   defp block_height(
          %Block{type: :grid, content: %{columns: columns, cells: cells}} = block,
          _state
@@ -1339,11 +1302,11 @@ defmodule PaperForge.Layout.Engine do
       TextWrapper.wrap(paragraph,
         width: width,
         font: metric_font_for_block(block, state.document),
-        size: default_size(block)
+        size: Keyword.get(block.options, :size, default_size(block))
       )
       |> length()
     end)
-    |> Enum.chunk_every(ceil(length(paragraphs) / count))
+    |> Enum.chunk_every(max(ceil(length(paragraphs) / count), 1))
     |> Enum.map(&Enum.sum/1)
     |> Enum.max(fn -> 1 end)
     |> Kernel.*(line_height)
@@ -1395,6 +1358,9 @@ defmodule PaperForge.Layout.Engine do
 
       line != [] ->
         append_rich_token([[] | lines], fragment, block, width)
+
+      String.length(fragment.text) == 1 ->
+        [append_rich_fragment(line, fragment) | rest]
 
       true ->
         fragment.text
@@ -1457,8 +1423,18 @@ defmodule PaperForge.Layout.Engine do
       Keyword.get(
         block.options,
         :line_height,
-        Keyword.get(block.options, :size, default_size(block)) * 1.35
+        text_size(block) * 1.35
       )
+
+  defp text_size(%Block{type: :rich_text} = block) do
+    base = Keyword.get(block.options, :size, default_size(block))
+
+    Enum.reduce(block.content, base, fn run, size ->
+      max(size, Keyword.get(run.options, :size, base))
+    end)
+  end
+
+  defp text_size(block), do: Keyword.get(block.options, :size, default_size(block))
 
   defp default_size(%Block{type: :heading, options: options}),
     do: 24 - (Keyword.get(options, :level, 1) - 1) * 2
@@ -1809,7 +1785,7 @@ defmodule PaperForge.Layout.Engine do
          _document
        ) do
     x = Keyword.get(block.options, :x, Page.content_left(page))
-    width = Keyword.get(block.options, :width, Page.content_width(page))
+    width = resolved_block_width(block, page)
     render_chart(page, block.content, x, y, width, height, block.options)
   end
 
@@ -2127,7 +2103,7 @@ defmodule PaperForge.Layout.Engine do
     PaperForge.SVG.render(page, block.content,
       x: Keyword.get(block.options, :x, Page.content_left(page)),
       y: y,
-      width: Keyword.get(block.options, :width, Page.content_width(page)),
+      width: resolved_block_width(block, page),
       height: height
     )
   end
@@ -2215,7 +2191,7 @@ defmodule PaperForge.Layout.Engine do
          _document
        ) do
     elements = PaperForge.Barcode.interleaved_2_of_5(block.content)
-    width = Keyword.get(block.options, :width, Page.content_width(page))
+    width = resolved_block_width(block, page)
     x = Keyword.get(block.options, :x, Page.content_left(page))
     unit = width / Enum.sum(Enum.map(elements, &elem(&1, 1)))
 
@@ -2268,7 +2244,7 @@ defmodule PaperForge.Layout.Engine do
        ) do
     %{columns: columns, cells: cells} = block.content
     gap = Keyword.get(block.options, :gap, 12)
-    width = Keyword.get(block.options, :width, Page.content_width(page))
+    width = resolved_block_width(block, page)
     cell_width = (width - (columns - 1) * gap) / columns
     cell_height = Keyword.get(block.options, :cell_height, 74)
     x = Keyword.get(block.options, :x, Page.content_left(page))
@@ -2320,7 +2296,7 @@ defmodule PaperForge.Layout.Engine do
   defp render_special_placement(page, %{type: :columns, block: block, y: y}, _context, document) do
     %{count: count, paragraphs: paragraphs} = block.content
     gap = Keyword.get(block.options, :column_gap, Keyword.get(block.options, :gap, 18))
-    width = Keyword.get(block.options, :width, Page.content_width(page))
+    width = resolved_block_width(block, page)
     column_width = (width - (count - 1) * gap) / count
     per_column = max(ceil(length(paragraphs) / count), 1)
     x = Keyword.get(block.options, :x, Page.content_left(page))
@@ -2335,7 +2311,7 @@ defmodule PaperForge.Layout.Engine do
             TextWrapper.wrap(paragraph,
               width: column_width,
               font: metric_font_for_block(block, document),
-              size: default_size(block)
+              size: Keyword.get(block.options, :size, default_size(block))
             )
 
           line_height = line_height(block)
@@ -2346,7 +2322,7 @@ defmodule PaperForge.Layout.Engine do
              width: column_width,
              height: length(lines) * line_height,
              font: Keyword.get(block.options, :font, document.default_font),
-             size: default_size(block),
+             size: Keyword.get(block.options, :size, default_size(block)),
              line_height: line_height,
              align: Keyword.get(block.options, :align, :left),
              color: Keyword.get(block.options, :color, PaperForge.Color.black()),
