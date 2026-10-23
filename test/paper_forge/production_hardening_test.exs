@@ -85,7 +85,11 @@ defmodule PaperForge.ProductionHardeningTest do
   end
 
   test "a malformed PDF is contained by parser limits and never poisons a later valid import" do
-    hostile = "%PDF-1.7\n" <> String.duplicate("[", 300)
+    hostile =
+      PaperForge.Test.PDFFixture.classic(
+        PaperForge.Test.PDFFixture.objects() ++
+          [{4, 0, String.duplicate("[", 300) <> "0" <> String.duplicate("]", 300)}]
+      )
 
     assert {:error, {:max_depth_exceeded, 10}} =
              Interoperability.parse_pdf(hostile, max_depth: 10)

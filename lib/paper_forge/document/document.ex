@@ -31,7 +31,8 @@ defmodule PaperForge.Document do
   @default_pdf_version "1.7"
   @supported_pdf_versions MapSet.new(["1.4", "1.5", "1.6", "1.7"])
 
-  defstruct objects: %{},
+  defstruct source_info: %{},
+            objects: %{},
             next_object_id: @first_dynamic_object_id,
             root_reference: nil,
             pages_reference: nil,
@@ -55,6 +56,7 @@ defmodule PaperForge.Document do
             outline_count: 0
 
   @type t :: %__MODULE__{
+          source_info: map(),
           objects: %{optional(pos_integer()) => Object.t()},
           next_object_id: pos_integer(),
           root_reference: Reference.t(),
