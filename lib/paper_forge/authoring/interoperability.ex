@@ -7,7 +7,7 @@ defmodule PaperForge.Interoperability do
   """
 
   alias PaperForge.{Document, Object, Reference, Stream}
-  alias PaperForge.PDF.{Graph, Parser}
+  alias PaperForge.PDF.{Graph, Parser, Syntax}
 
   @type source :: Document.t() | binary()
 
@@ -30,11 +30,15 @@ defmodule PaperForge.Interoperability do
       document = Graph.flatten(document, Graph.pages!(document))
       {:ok, import_document(target, document, selected) |> deduplicate_resources()}
     end
+  catch
+    {:pdf_error, reason} -> {:error, reason}
   end
 
   @doc "Composes several PDF binaries or documents in order."
   @spec compose([source()], keyword()) :: {:ok, Document.t()} | {:error, term()}
-  def compose(sources, options \\ []) when is_list(sources) and sources != [] do
+  def compose(sources, options \\ [])
+
+  def compose(sources, options) when is_list(sources) and sources != [] do
     target =
       Document.new(
         pdf_version: Keyword.get(options, :pdf_version, "1.7"),
@@ -55,7 +59,11 @@ defmodule PaperForge.Interoperability do
       {:ok, document} -> {:ok, deduplicate_resources(document)}
       error -> error
     end
+  catch
+    {:pdf_error, reason} -> {:error, reason}
   end
+
+  def compose(_, _), do: {:error, :invalid_pdf_sources}
 
   @doc "Returns reusable font, XObject, embedded-file, and appearance resources."
   @spec resources(Document.t()) :: map()
@@ -66,16 +74,16 @@ defmodule PaperForge.Interoperability do
       fn {id, object}, inventory ->
         case object.value do
           %{"Type" => {:name, "Font"}} ->
-            Map.update!(inventory, :fonts, &[Reference.new(id) | &1])
+            Map.update!(inventory, :fonts, &[Reference.new(id, object.generation) | &1])
 
           %Stream{dictionary: %{"Type" => {:name, "XObject"}, "Subtype" => {:name, "Image"}}} ->
-            Map.update!(inventory, :xobjects, &[Reference.new(id) | &1])
+            Map.update!(inventory, :xobjects, &[Reference.new(id, object.generation) | &1])
 
           %Stream{dictionary: %{"Type" => {:name, "XObject"}, "Subtype" => {:name, "Form"}}} ->
-            Map.update!(inventory, :appearances, &[Reference.new(id) | &1])
+            Map.update!(inventory, :appearances, &[Reference.new(id, object.generation) | &1])
 
           %Stream{dictionary: %{"Type" => {:name, "EmbeddedFile"}}} ->
-            Map.update!(inventory, :embedded_files, &[Reference.new(id) | &1])
+            Map.update!(inventory, :embedded_files, &[Reference.new(id, object.generation) | &1])
 
           _ ->
             inventory
@@ -142,16 +150,21 @@ defmodule PaperForge.Interoperability do
   defp reachable_objects(document, references, seen) when is_list(references),
     do: Enum.reduce(references, seen, &reachable_objects(document, &1, &2))
 
-  defp reachable_objects(document, %Reference{object_id: id}, seen) do
-    if MapSet.member?(seen, id) or not Map.has_key?(document.objects, id) do
+  defp reachable_objects(document, %Reference{object_id: id, generation: generation}, seen) do
+    object =
+      case document.objects[id] do
+        %Object{generation: ^generation} = object -> object
+        _ -> Syntax.fail({:broken_reference, id, generation})
+      end
+
+    if MapSet.member?(seen, id) do
       seen
     else
-      value = document.objects[id].value
-
       value =
-        if is_map(value) and not is_struct(value) and value["Type"] == {:name, "Page"},
-          do: Map.delete(value, "Parent"),
-          else: value
+        case object.value do
+          %{"Type" => {:name, "Page"}} = value -> Map.delete(value, "Parent")
+          value -> value
+        end
 
       reachable_objects(document, references_in(value), MapSet.put(seen, id))
     end
@@ -174,7 +187,7 @@ defmodule PaperForge.Interoperability do
        when old_id == pages_id, do: target_pages
 
   defp remap(%Reference{object_id: old_id}, mapping, _pages_id, _target_pages),
-    do: Map.get(mapping, old_id, Reference.new(old_id))
+    do: Map.fetch!(mapping, old_id)
 
   defp remap(%Stream{} = stream, mapping, pages_id, target_pages),
     do: %{stream | dictionary: remap(stream.dictionary, mapping, pages_id, target_pages)}

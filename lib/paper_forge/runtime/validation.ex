@@ -70,10 +70,12 @@ defmodule PaperForge.Validation do
 
   defp validate_required_reference(issues, document, field) do
     case Map.get(document, field) do
-      %Reference{object_id: id} ->
-        if Map.has_key?(document.objects, id),
-          do: issues,
-          else: [%{code: :missing_required_object, reference: id} | issues]
+      %Reference{object_id: id, generation: generation} ->
+        case document.objects[id] do
+          nil -> [%{code: :missing_required_object, reference: id} | issues]
+          %Object{generation: ^generation} -> issues
+          _ -> [%{code: :generation_mismatch, reference: id, expected: generation} | issues]
+        end
 
       value ->
         [%{code: :invalid_required_reference, actual: value} | issues]

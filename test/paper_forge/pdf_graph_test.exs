@@ -38,6 +38,26 @@ defmodule PaperForge.PDF.GraphTest do
            end) == 1
   end
 
+  test "import does not silently remap missing or stale resource references" do
+    assert {:ok, document} = Interoperability.parse_pdf(nested())
+
+    for reference <- [Reference.new(8, 1), Reference.new(999)] do
+      broken =
+        PaperForge.Document.update_object(
+          document,
+          Reference.new(7),
+          &Map.put(&1, "Font", %{"F1" => reference})
+        )
+
+      assert {:error, {:broken_reference, _, _}} = Interoperability.import_pages(broken, [1])
+      assert {:error, {:broken_reference, _, _}} = Interoperability.compose([broken])
+    end
+
+    document = %{document | root_reference: Reference.new(2, 1)}
+    assert {:error, issues} = PaperForge.validate(document)
+    assert Enum.any?(issues, &(&1.code == :generation_mismatch))
+  end
+
   test "rejects cycles and generation mismatches" do
     assert {:ok, document} = Interoperability.parse_pdf(nested())
     assert {:error, {:broken_reference, 3, 1}} = Graph.resolve(document, Reference.new(3, 1))
