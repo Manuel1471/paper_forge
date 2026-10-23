@@ -94,6 +94,46 @@ defmodule PaperForge.PDF.ReaderTest do
            end)
   end
 
+  test "rejects cyclic stream lengths and bounds total decoded bytes" do
+    cyclic =
+      Fixture.classic(
+        Fixture.objects() ++
+          [
+            {4, 0, "<< /Length 5 0 R >>\nstream\nhello\nendstream"},
+            {5, 0, "6 0 R"},
+            {6, 0, "5 0 R"}
+          ]
+      )
+
+    assert {:error, :invalid_stream_length} = Interoperability.parse_pdf(cyclic)
+
+    assert {:error, {:max_total_decoded_bytes_exceeded, 20}} =
+             Interoperability.parse_pdf(Fixture.compressed(), max_total_decoded_bytes: 20)
+
+    data = :zlib.compress(String.duplicate("x", 5000))
+
+    compressed =
+      Fixture.classic(
+        Fixture.objects() ++
+          [
+            {4, 0,
+             "<< /Length #{byte_size(data)} /Filter /FlateDecode >>\nstream\n#{data}\nendstream"}
+          ]
+      )
+
+    assert {:error, {:max_stream_size_exceeded, 1000}} =
+             Interoperability.parse_pdf(compressed, max_stream_size: 1000)
+  end
+
+  test "rewriting sparse object numbers does not allocate entries for every unused ID" do
+    pdf = Fixture.classic(Fixture.objects() ++ [{1_000_000, 2, "(sparse)"}])
+    assert {:ok, document} = Interoperability.parse_pdf(pdf)
+    written = PaperForge.to_binary(document)
+    assert byte_size(written) < 2000
+    assert {:ok, reparsed} = Interoperability.parse_pdf(written)
+    assert reparsed.objects[1_000_000].generation == 2
+  end
+
   test "reads earlier PDF header versions without crashing" do
     assert {:ok, %{pdf_version: "1.3"}} =
              Interoperability.parse_pdf(Fixture.classic(Fixture.objects(), %{}, "%PDF-1.3\n"))

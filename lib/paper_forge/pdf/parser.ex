@@ -34,7 +34,15 @@ defmodule PaperForge.PDF.Parser do
     if map_size(objects) > limits.max_objects,
       do: Syntax.fail({:max_objects_exceeded, limits.max_objects})
 
-    Enum.each(objects, fn {_, object} -> validate_stream(object.value, limits.max_stream_size) end)
+    decoded_bytes =
+      Enum.reduce(objects, 0, fn {_, object}, total ->
+        total = total + validate_stream(object.value, limits.max_stream_size)
+
+        if total > limits.max_total_decoded_bytes,
+          do: Syntax.fail({:max_total_decoded_bytes_exceeded, limits.max_total_decoded_bytes})
+
+        total
+      end)
 
     linearized =
       Enum.any?(objects, fn {_, object} ->
@@ -42,7 +50,9 @@ defmodule PaperForge.PDF.Parser do
           is_number(object.value["Linearized"])
       end)
 
-    structure = Map.put(structure, :linearized, linearized)
+    structure =
+      Map.merge(structure, %{linearized: linearized, decoded_stream_bytes: decoded_bytes})
+
     root = trailer["Root"]
     {catalog, pages} = catalog_and_pages(objects, root)
 
@@ -78,6 +88,7 @@ defmodule PaperForge.PDF.Parser do
     limits = %{
       max_file_size: Keyword.get(options, :max_file_size, 100_000_000),
       max_objects: Keyword.get(options, :max_objects, 500_000),
+      max_total_decoded_bytes: Keyword.get(options, :max_total_decoded_bytes, 200_000_000),
       max_depth:
         Keyword.get(options, :max_recursion_depth, Keyword.get(options, :max_depth, 100)),
       max_stream_size:
@@ -106,14 +117,14 @@ defmodule PaperForge.PDF.Parser do
 
   defp validate_stream(%PaperForge.Stream{} = stream, limit) do
     case Filters.decode(stream, limit) do
-      {:ok, _} -> :ok
-      {:error, {:unsupported_stream_filter, _}} -> :ok
-      {:error, {:unsupported_predictor, _}} -> :ok
+      {:ok, bytes} -> byte_size(bytes)
+      {:error, {:unsupported_stream_filter, _}} -> IO.iodata_length(stream.data)
+      {:error, {:unsupported_predictor, _}} -> IO.iodata_length(stream.data)
       {:error, reason} -> Syntax.fail(reason)
     end
   end
 
-  defp validate_stream(_, _), do: :ok
+  defp validate_stream(_, _), do: 0
 
   defp catalog_and_pages(objects, root) do
     catalog = resolve(objects, root)

@@ -15,7 +15,8 @@ defmodule PaperForge.PDF.Reader do
       loading: MapSet.new(),
       limits: limits,
       security: nil,
-      encrypt_id: nil
+      encrypt_id: nil,
+      decoded_bytes: 0
     }
 
     state = encryption(state, trailer, options)
@@ -154,7 +155,8 @@ defmodule PaperForge.PDF.Reader do
       loading: MapSet.new(),
       limits: limits,
       security: nil,
-      encrypt_id: nil
+      encrypt_id: nil,
+      decoded_bytes: 0
     }
 
     {object, _} = direct(offset, state)
@@ -330,7 +332,8 @@ defmodule PaperForge.PDF.Reader do
   defp stream_length(%Reference{object_id: id, generation: generation}, state) do
     {object, state} = load(id, state)
     unless object.generation == generation, do: Syntax.fail(:invalid_stream_length_reference)
-    stream_length(object.value, state)
+    unless is_integer(object.value) and object.value >= 0, do: Syntax.fail(:invalid_stream_length)
+    {object.value, state}
   end
 
   defp stream_length(_, _), do: Syntax.fail(:invalid_stream_length)
@@ -346,8 +349,17 @@ defmodule PaperForge.PDF.Reader do
             do: Syntax.fail(:invalid_object_stream_reference)
 
           {object, state} = load(stream_id, state)
-          values = object_stream(object.value, state.limits)
-          {values, %{state | streams: Map.put(state.streams, stream_id, values)}}
+          {values, decoded_bytes} = object_stream(object.value, state.limits)
+          total = state.decoded_bytes + decoded_bytes
+
+          if total > state.limits.max_total_decoded_bytes,
+            do:
+              Syntax.fail(
+                {:max_total_decoded_bytes_exceeded, state.limits.max_total_decoded_bytes}
+              )
+
+          {values,
+           %{state | streams: Map.put(state.streams, stream_id, values), decoded_bytes: total}}
       end
 
     case Map.get(values, index) do
@@ -371,12 +383,15 @@ defmodule PaperForge.PDF.Reader do
 
     next_offsets = Enum.map(Enum.drop(headers, 1), &elem(&1, 1)) ++ [byte_size(body)]
 
-    headers
-    |> Enum.zip(next_offsets)
-    |> Enum.with_index()
-    |> Map.new(fn {{{id, offset}, next_offset}, index} ->
-      {index, {id, compressed_value(body, offset, next_offset, limits.max_depth)}}
-    end)
+    values =
+      headers
+      |> Enum.zip(next_offsets)
+      |> Enum.with_index()
+      |> Map.new(fn {{{id, offset}, next_offset}, index} ->
+        {index, {id, compressed_value(body, offset, next_offset, limits.max_depth)}}
+      end)
+
+    {values, byte_size(bytes)}
   end
 
   defp object_stream(_, _), do: Syntax.fail(:invalid_object_stream)

@@ -32,6 +32,23 @@ defmodule PaperForge.PDF.DecryptionTest do
              catch_throw(Decryption.authenticate(object.value, %{}, "wrong"))
   end
 
+  test "signature Contents remains unencrypted while other signature strings decrypt" do
+    {:ok, context, object} =
+      Security.prepare([], user_password: "reader", owner_password: "owner")
+
+    decoder = Decryption.authenticate(object.value, %{}, "reader")
+    reason = Security.encrypt_object("Approved", context)
+
+    signature = %{
+      "Type" => {:name, "Sig"},
+      "Contents" => {:hex_string, <<1, 2, 3>>},
+      "Reason" => reason
+    }
+
+    assert %{"Contents" => {:hex_string, <<1, 2, 3>>}, "Reason" => {:hex_string, "Approved"}} =
+             Decryption.decrypt(signature, decoder)
+  end
+
   test "rejects tampered permissions and unsupported crypt filters" do
     {:ok, _, object} = Security.prepare([], user_password: "", owner_password: "owner")
 

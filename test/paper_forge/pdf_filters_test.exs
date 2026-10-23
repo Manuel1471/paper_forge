@@ -21,6 +21,14 @@ defmodule PaperForge.PDF.FiltersTest do
              Filters.decode(stream("garbage", {:name, "FlateDecode"}))
   end
 
+  test "truncated compressed data is not accepted as a complete stream" do
+    compressed = :zlib.compress("complete data")
+    truncated = binary_part(compressed, 0, byte_size(compressed) - 3)
+
+    assert {:error, :invalid_flate_stream} =
+             Filters.decode(stream(truncated, {:name, "FlateDecode"}))
+  end
+
   test "ASCII85 supports full, partial, and zero groups and rejects overflow" do
     assert {:ok, "Hello, world!"} =
              Filters.decode(stream("87cURD_*#TDfTZ)+T~>", {:name, "ASCII85Decode"}))

@@ -117,11 +117,24 @@ defmodule PaperForge.PDF.Decryption do
   def decrypt(value, %{strings: true} = context) when is_binary(value),
     do: decrypt_binary(value, context.key)
 
+  # Signature Contents is excluded from document encryption by the PDF format.
+  def decrypt(%{"Type" => {:name, "Sig"}} = value, context), do: decrypt_signature(value, context)
+
+  def decrypt(%{"ByteRange" => _, "Contents" => _} = value, context),
+    do: decrypt_signature(value, context)
+
   def decrypt(value, context) when is_map(value),
     do: Map.new(value, fn {key, val} -> {key, decrypt(val, context)} end)
 
   def decrypt(value, context) when is_list(value), do: Enum.map(value, &decrypt(&1, context))
   def decrypt(value, _), do: value
+
+  defp decrypt_signature(value, context) do
+    Map.new(value, fn
+      {"Contents", contents} -> {"Contents", contents}
+      {key, item} -> {key, decrypt(item, context)}
+    end)
+  end
 
   defp decrypt_binary(<<iv::binary-size(16), encrypted::binary>>, key)
        when byte_size(encrypted) > 0 and rem(byte_size(encrypted), 16) == 0 do
