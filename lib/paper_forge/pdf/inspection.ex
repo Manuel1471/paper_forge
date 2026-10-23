@@ -6,7 +6,7 @@ defmodule PaperForge.PDF.Inspection do
   def page_count(document), do: length(Graph.pages!(document))
 
   def metadata(document),
-    do: document |> Graph.resolve!(document.info_reference) |> then(&(&1 || %{}))
+    do: dictionary(document, document.info_reference, :invalid_info_dictionary)
 
   defp catalog(document), do: Graph.resolve!(document, document.root_reference)
 
@@ -24,7 +24,7 @@ defmodule PaperForge.PDF.Inspection do
   end
 
   def forms(document) do
-    form = Graph.resolve!(document, catalog(document)["AcroForm"]) || %{}
+    form = dictionary(document, catalog(document)["AcroForm"], :invalid_acroform)
     fields = Graph.resolve!(document, form["Fields"]) || []
     {values, _} = fields(document, fields, "", %{}, MapSet.new(), 0)
     values
@@ -50,7 +50,7 @@ defmodule PaperForge.PDF.Inspection do
   defp fields(_, _, _, _, _, _), do: Syntax.fail(:invalid_form_fields)
 
   def attachments(document) do
-    names = Graph.resolve!(document, catalog(document)["Names"]) || %{}
+    names = dictionary(document, catalog(document)["Names"], :invalid_names_dictionary)
     tree = names["EmbeddedFiles"]
     {values, _} = name_tree(document, tree, MapSet.new(), 0)
 
@@ -81,7 +81,7 @@ defmodule PaperForge.PDF.Inspection do
   end
 
   def outlines(document) do
-    root = Graph.resolve!(document, catalog(document)["Outlines"]) || %{}
+    root = dictionary(document, catalog(document)["Outlines"], :invalid_outline)
     {values, _} = outline(document, root["First"], MapSet.new(), 0)
     values
   end
@@ -122,10 +122,18 @@ defmodule PaperForge.PDF.Inspection do
     }
 
   def analyze(%Document{} = document) do
-    refs =
+    object_refs =
       Enum.flat_map(document.objects, fn {id, object} ->
         Enum.map(Graph.references(object.value), &%{object_id: id, reference: &1})
       end)
+
+    roots =
+      Enum.map(
+        Graph.references([document.root_reference, document.info_reference]),
+        &%{object_id: nil, reference: &1}
+      )
+
+    refs = roots ++ object_refs
 
     broken =
       Enum.filter(refs, fn %{reference: ref} ->
@@ -182,6 +190,12 @@ defmodule PaperForge.PDF.Inspection do
 
     cat = catalog(document)
 
+    {mark_info, issues} =
+      case safely(fn -> dictionary(document, cat["MarkInfo"], :invalid_mark_info) end) do
+        {:ok, value} -> {value, issues}
+        {:error, reason} -> {nil, [reason | issues]}
+      end
+
     report =
       Map.merge(inventory, %{
         pdf_version: document.pdf_version,
@@ -190,12 +204,7 @@ defmodule PaperForge.PDF.Inspection do
         object_count: map_size(document.objects),
         cross_reference_type: Map.get(structure, :cross_reference_type, :generated),
         compressed_objects: Map.get(structure, :compressed_objects, 0),
-        incremental_revisions:
-          max(
-            length(Map.get(structure, :revisions, [])) - 1 -
-              if(structure[:linearized], do: 1, else: 0),
-            0
-          ),
+        incremental_revisions: revision_count(structure),
         revisions: Map.get(structure, :revisions, []),
         fonts: resources.fonts,
         images: resources.images,
@@ -206,7 +215,7 @@ defmodule PaperForge.PDF.Inspection do
         permissions: get_in(structure, [:encryption, :permissions]),
         tagged_pdf: %{
           structure_tree: cat["StructTreeRoot"],
-          mark_info: Graph.resolve!(document, cat["MarkInfo"])
+          mark_info: mark_info
         },
         normalization_opportunities: opportunities(duplicates, orphaned, structure),
         issues: Enum.reverse(issues)
@@ -215,6 +224,14 @@ defmodule PaperForge.PDF.Inspection do
     {:ok, report}
   catch
     {:pdf_error, reason} -> {:error, reason}
+  end
+
+  defp dictionary(document, value, error) do
+    case Graph.resolve!(document, value) do
+      nil -> %{}
+      value when is_map(value) and not is_struct(value) -> value
+      _ -> Syntax.fail(error)
+    end
   end
 
   defp inspect_feature(document, name), do: safely(fn -> apply(__MODULE__, name, [document]) end)
@@ -242,12 +259,19 @@ defmodule PaperForge.PDF.Inspection do
     end)
   end
 
+  defp revision_count(structure) do
+    max(
+      length(Map.get(structure, :revisions, [])) - 1 - if(structure[:linearized], do: 1, else: 0),
+      0
+    )
+  end
+
   defp opportunities(duplicates, orphaned, structure) do
     []
     |> then(&if(duplicates != [], do: &1 ++ [:deduplicate_resources], else: &1))
     |> then(&if(orphaned != [], do: &1 ++ [:remove_orphaned_objects], else: &1))
     |> then(
-      &if(length(Map.get(structure, :revisions, [])) > 1,
+      &if(revision_count(structure) > 0,
         do: &1 ++ [:consolidate_revisions],
         else: &1
       )
@@ -256,8 +280,14 @@ defmodule PaperForge.PDF.Inspection do
 
   defp text({:hex_string, bytes}), do: text(bytes)
 
-  defp text(<<254, 255, bytes::binary>>),
-    do: :unicode.characters_to_binary(bytes, {:utf16, :big}, :utf8)
+  defp text(<<254, 255, bytes::binary>>) do
+    case :unicode.characters_to_binary(bytes, {:utf16, :big}, :utf8) do
+      value when is_binary(value) -> value
+      _ -> Syntax.fail(:invalid_pdf_text_string)
+    end
+  end
 
-  defp text(value), do: value
+  defp text(nil), do: nil
+  defp text(value) when is_binary(value), do: value
+  defp text(_), do: Syntax.fail(:invalid_pdf_text_string)
 end

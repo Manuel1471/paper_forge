@@ -52,6 +52,26 @@ defmodule PaperForge.PDF.InspectionTest do
     assert Jason.decode!(json)["object_count"] == 15
   end
 
+  test "analysis reports broken Info and MarkInfo references and malformed feature dictionaries" do
+    document = PaperForge.new()
+    missing = PaperForge.Reference.new(99)
+    document = %{document | info_reference: missing}
+
+    document =
+      PaperForge.Document.update_object(document, document.root_reference, fn value ->
+        value
+        |> Map.put("AcroForm", 123)
+        |> Map.put("Names", false)
+        |> Map.put("MarkInfo", missing)
+      end)
+
+    assert {:ok, report} = PaperForge.analyze(document)
+    assert :invalid_acroform in report.issues
+    assert :invalid_names_dictionary in report.issues
+    assert {:broken_reference, 99, 0} in report.issues
+    assert Enum.any?(report.broken_references, &(&1.object_id == nil))
+  end
+
   test "analysis reports malformed feature trees without looping" do
     pdf =
       Fixture.classic(
