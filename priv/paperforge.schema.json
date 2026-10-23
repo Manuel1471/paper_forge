@@ -274,6 +274,7 @@
       "additionalProperties": false,
       "properties": {
         "type": {"type": "string"},
+        "name": {"type": "string"},
         "text": {},
         "content": {},
         "options": {"type": "object"},

@@ -22,6 +22,7 @@ defmodule PaperForge.Declarative do
   alias PaperForge.DesignSystem
   alias PaperForge.Flow
   alias PaperForge.Import
+  alias PaperForge.Layout.Block
   alias PaperForge.Math
 
   @max_depth 64
@@ -43,12 +44,14 @@ defmodule PaperForge.Declarative do
     last_header text author subject name filename data points reply_to reply_type
     default_appearance border_color line_width chart_type show_values show_legend
     point_radius inner_radius grid_color label_color chart_padding
+    show_axes show_grid tick_count y_min y_max label_size value_size title_size subtitle
+    value_decimals value_prefix value_suffix page_options levels level_styles bookmark single_line_entries leader
     weight
   )a
   @enum_values ~w(
     left center right justify top middle bottom contain cover fill ordered unordered
     keep split error clip ellipsis continue portrait landscape all none a3 a4 a5 letter legal
-    bar line area scatter pie donut regular bold
+    bar line area scatter pie donut regular bold content
   )a
   @declarative_font_slots for index <- 1..64,
                               do: String.to_atom("paperforge_declarative_font_#{index}")
@@ -536,6 +539,30 @@ defmodule PaperForge.Declarative do
     else
       compile_component(flow, name, node, context, state, depth)
     end
+  end
+
+  defp compile_node(flow, %{"type" => type} = node, context, state, depth)
+       when type in ["group", "section"] do
+    options =
+      options_to_keyword(
+        interpolate(Map.get(node, "options", %{}), context),
+        state.design.tokens,
+        state.font_keys
+      )
+
+    with {:ok, children, next_state} <-
+           compile_blocks(Map.get(node, "blocks", []), context, state, depth + 1) do
+      block =
+        Block.new(
+          if(type == "group", do: :container, else: :section),
+          Map.get(node, "name"),
+          Keyword.put(options, :children, Enum.reverse(children.blocks))
+        )
+
+      {:ok, %{flow | blocks: [block | flow.blocks]}, next_state}
+    end
+  rescue
+    exception -> {:error, error(:invalid_block, "$.blocks", Exception.message(exception), node)}
   end
 
   defp compile_node(flow, %{"type" => type} = node, context, state, _depth) do
@@ -1160,7 +1187,7 @@ defmodule PaperForge.Declarative do
   end
 
   defp option_value(value, key, _font_keys)
-       when key in [:style, :template, :extends] and is_binary(value),
+       when key in [:style, :template, :extends, :id, :destination] and is_binary(value),
        do: value
 
   defp option_value(value, key, font_keys)
@@ -1173,6 +1200,15 @@ defmodule PaperForge.Declarative do
 
   defp option_value([x, y], :focal_point, _font_keys) when is_number(x) and is_number(y),
     do: {x, y}
+
+  defp option_value(value, :page_options, font_keys) when is_map(value),
+    do: options_to_keyword(value, %{}, font_keys)
+
+  defp option_value(value, :level_styles, font_keys) when is_map(value) do
+    Map.new(value, fn {level, style} ->
+      {String.to_integer(level), options_to_keyword(style, %{}, font_keys)}
+    end)
+  end
 
   defp option_value(value, :margins, _font_keys) when is_map(value) do
     allowed = %{"top" => :top, "right" => :right, "bottom" => :bottom, "left" => :left}

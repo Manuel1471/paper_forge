@@ -16,7 +16,7 @@ defmodule PaperForge.Declarative.Validator do
   ))
   @control_fields MapSet.new(~w(if then else for blocks component props slots variant slot))
   @block_fields MapSet.new(
-                  ~w(type text content options columns rows min_rows max_rows cells count paragraphs ast annotation_type entries number)
+                  ~w(type text content options columns rows min_rows max_rows cells count paragraphs ast annotation_type entries number name)
                 )
   @form_fields MapSet.new(
                  ~w(type name page rect origin value default tooltip options choices calculation background_color border_color border_width border_radius check_color check_width)
@@ -538,6 +538,9 @@ defmodule PaperForge.Declarative.Validator do
 
         Map.has_key?(node, "slot") ->
           []
+
+        node["type"] in ["group", "section"] ->
+          block_errors(Map.get(node, "blocks", []), "#{path}.blocks")
 
         Map.has_key?(node, "type") ->
           []

@@ -16,7 +16,7 @@ defmodule PaperForge.SVG do
 
   @spec render(Page.t(), binary(), keyword()) :: Page.t()
   def render(%Page{} = page, svg, options) when is_binary(svg) and is_list(options) do
-    {root, _rest} = :xmerl_scan.string(String.to_charlist(svg), quiet: true)
+    {root, _rest} = :xmerl_scan.string(:binary.bin_to_list(svg), quiet: true)
     attrs = attributes(root)
     matrix = viewbox_matrix(attrs, options)
     clips = collect_clip_paths(root, matrix)
@@ -76,7 +76,7 @@ defmodule PaperForge.SVG do
 
     Page.text(page, text,
       x: x,
-      y: y - size,
+      y: y,
       size: size,
       color: color(Map.get(style, "fill", "black")),
       weight: svg_weight(Map.get(style, "font-weight")),
