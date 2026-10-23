@@ -373,6 +373,8 @@ defmodule PaperForge.Layout.Engine do
 
         entry_blocks =
           Enum.map(entries, fn {text, level, destination} ->
+            text = navigation_entry_text(text, block.options)
+
             page = Map.get(page_map, normalize_destination(destination), "?")
             indent = max(level - 1, 0) * Keyword.get(block.options, :indent, 14)
             leader = Keyword.get(block.options, :leader, ".")
@@ -439,6 +441,12 @@ defmodule PaperForge.Layout.Engine do
       block ->
         [block]
     end)
+  end
+
+  defp navigation_entry_text(text, options) do
+    if Keyword.get(options, :single_line_entries, false),
+      do: String.replace(text, "\n", " "),
+      else: text
   end
 
   defp resolve_section_template_options(block_options, document) do
@@ -1831,269 +1839,11 @@ defmodule PaperForge.Layout.Engine do
   end
 
   defp render_chart(page, series, x, y, width, height, options) do
-    page =
-      case Keyword.get(options, :background_color) do
-        nil ->
-          page
-
-        color ->
-          Page.rectangle(page,
-            x: x,
-            y: y,
-            width: width,
-            height: height,
-            fill: true,
-            stroke: false,
-            fill_color: color
-          )
-      end
-
-    case Keyword.get(options, :chart_type, :bar) do
-      :bar ->
-        render_bar_chart(page, series, x, y, width, height, options)
-
-      type when type in [:line, :area, :scatter] ->
-        render_cartesian_chart(page, series, x, y, width, height, type, options)
-
-      type when type in [:pie, :donut] ->
-        render_radial_chart(page, series, x, y, width, height, type, options)
-
-      other ->
-        raise ArgumentError, "unsupported chart type: #{inspect(other)}"
-    end
-  end
-
-  defp render_bar_chart(page, series, x, y, width, height, options) do
-    values = Enum.map(series, fn {_label, value} -> value end)
-    max_value = max(Enum.max(values, fn -> 1 end), 1)
-    padding = chart_padding(options)
-    plot_x = x + padding
-    plot_width = max(width - padding * 2, 1)
-    gap = Keyword.get(options, :gap, 12)
-    value_area = Keyword.get(options, :value_area, 22)
-    value_gap = Keyword.get(options, :value_gap, 7)
-    label_area = 18
-    plot_height = max(height - padding * 2 - value_area - label_area, 1)
-    bar_width = max((plot_width - gap * (length(values) - 1)) / max(length(values), 1), 8)
-    colors = chart_colors(options)
-
-    series
-    |> Enum.with_index()
-    |> Enum.reduce(page, fn {{label, value}, index}, current ->
-      bar_height = plot_height * value / max_value
-      bar_x = plot_x + index * (bar_width + gap)
-      bar_y = y + padding + value_area + plot_height - bar_height
-
-      current
-      |> Page.rectangle(
-        x: bar_x,
-        y: bar_y,
-        width: bar_width,
-        height: bar_height,
-        fill: true,
-        stroke: false,
-        fill_color: Enum.at(colors, rem(index, length(colors)))
-      )
-      |> maybe_chart_value(value, bar_x, max(bar_y - value_gap, y + padding), bar_width, options)
-      |> Page.text(label,
-        x: bar_x,
-        y: y + height - padding - 8,
-        width: bar_width,
-        align: :center,
-        size: 8,
-        color: chart_label_color(options)
-      )
-    end)
-  end
-
-  defp render_cartesian_chart(page, series, x, y, width, height, type, options) do
-    values = Enum.map(series, &elem(&1, 1))
-    max_value = max(Enum.max(values, fn -> 1 end), 1)
-    padding = chart_padding(options)
-    plot_x = x + padding
-    plot_width = max(width - padding * 2, 1)
-    label_area = 18
-    top_area = if Keyword.get(options, :show_values, true), do: 16, else: 4
-    plot_height = max(height - padding * 2 - label_area - top_area, 1)
-    step = if length(series) > 1, do: plot_width / (length(series) - 1), else: 0
-    color = hd(chart_colors(options))
-
-    points =
-      series
-      |> Enum.with_index()
-      |> Enum.map(fn {{_label, value}, index} ->
-        {plot_x + index * step,
-         y + padding + top_area + plot_height - plot_height * value / max_value}
-      end)
-
-    page =
-      if type == :area and points != [] do
-        [{first_x, _} | _] = points
-        {last_x, _} = List.last(points)
-
-        segments =
-          [{:move_to, first_x, y + padding + top_area + plot_height}] ++
-            Enum.map(points, fn {px, py} -> {:line_to, px, py} end) ++
-            [{:line_to, last_x, y + padding + top_area + plot_height}, :close]
-
-        Page.path(page, segments,
-          fill: true,
-          stroke: false,
-          fill_color: Keyword.get(options, :fill_color, color)
-        )
-      else
-        page
-      end
-
-    page =
-      if type in [:line, :area] and length(points) > 1 do
-        segments =
-          points
-          |> Enum.with_index()
-          |> Enum.map(fn {{px, py}, index} ->
-            if index == 0, do: {:move_to, px, py}, else: {:line_to, px, py}
-          end)
-
-        Page.path(page, segments,
-          fill: false,
-          stroke: true,
-          stroke_color: color,
-          line_width: Keyword.get(options, :line_width, 2)
-        )
-      else
-        page
-      end
-
-    radius = Keyword.get(options, :point_radius, 3.5)
-
-    series
-    |> Enum.zip(points)
-    |> Enum.reduce(page, fn {{label, value}, {px, py}}, current ->
-      current
-      |> Page.circle(x: px, y: py, radius: radius, fill: true, stroke: false, fill_color: color)
-      |> maybe_chart_value(value, px - 20, max(py - 13, y + padding), 40, options)
-      |> Page.text(label,
-        x: px - 24,
-        y: y + height - padding - 8,
-        width: 48,
-        align: :center,
-        size: 8,
-        color: chart_label_color(options)
-      )
-    end)
-  end
-
-  defp render_radial_chart(page, series, x, y, width, height, type, options) do
-    total = series |> Enum.map(&max(elem(&1, 1), 0)) |> Enum.sum()
-    colors = chart_colors(options)
-    padding = chart_padding(options)
-    inner_width = max(width - padding * 2, 1)
-    inner_height = max(height - padding * 2, 1)
-    radius = max(min(inner_width * 0.28, inner_height * 0.42), 10)
-    center_x = x + padding + radius
-    center_y = y + padding + inner_height / 2
-
-    {page, _angle} =
-      series
-      |> Enum.with_index()
-      |> Enum.reduce({page, -90.0}, fn {{_label, value}, index}, {current, angle} ->
-        sweep = if total > 0, do: max(value, 0) / total * 360, else: 0
-        color = Enum.at(colors, rem(index, length(colors)))
-        {draw_wedge(current, center_x, center_y, radius, angle, sweep, color), angle + sweep}
-      end)
-
-    page =
-      if type == :donut do
-        Page.circle(page,
-          x: center_x,
-          y: center_y,
-          radius: radius * Keyword.get(options, :inner_radius, 0.55),
-          fill: true,
-          stroke: false,
-          fill_color: Keyword.get(options, :background_color, PaperForge.Color.white())
-        )
-      else
-        page
-      end
-
-    legend_x = center_x + radius + 24
-    legend_width = max(x + width - padding - legend_x, 60)
-
-    series
-    |> Enum.with_index()
-    |> Enum.reduce(page, fn {{label, value}, index}, current ->
-      row_y = y + padding + 6 + index * 18
-      color = Enum.at(colors, rem(index, length(colors)))
-
-      current
-      |> Page.circle(
-        x: legend_x,
-        y: row_y + 4,
-        radius: 4,
-        fill: true,
-        stroke: false,
-        fill_color: color
-      )
-      |> Page.text("#{label}  #{value}",
-        x: legend_x + 11,
-        y: row_y,
-        width: legend_width,
-        size: 8,
-        color: chart_label_color(options)
-      )
-    end)
-  end
-
-  defp draw_wedge(page, cx, cy, radius, start_angle, sweep, color) do
-    steps = max(ceil(abs(sweep) / 12), 1)
-
-    arc =
-      Enum.map(0..steps, fn step ->
-        angle = (start_angle + sweep * step / steps) * :math.pi() / 180
-        {:line_to, cx + radius * :math.cos(angle), cy + radius * :math.sin(angle)}
-      end)
-
-    Page.path(page, [{:move_to, cx, cy} | arc] ++ [:close],
-      fill: true,
-      stroke: false,
-      fill_color: color
+    PaperForge.Chart.render(
+      page,
+      series,
+      Keyword.merge(options, x: x, y: y, width: width, height: height)
     )
-  end
-
-  defp maybe_chart_value(page, value, x, y, width, options) do
-    if Keyword.get(options, :show_values, true),
-      do:
-        Page.text(page, to_string(value),
-          x: x,
-          y: y,
-          width: width,
-          align: :center,
-          size: 8,
-          color: chart_label_color(options)
-        ),
-      else: page
-  end
-
-  defp chart_label_color(options),
-    do: Keyword.get(options, :label_color, PaperForge.Color.black())
-
-  defp chart_padding(options), do: max(Keyword.get(options, :chart_padding, 12), 0)
-
-  defp chart_colors(options) do
-    case Keyword.get(options, :colors) do
-      colors when is_list(colors) and colors != [] ->
-        colors
-
-      _ ->
-        [
-          Keyword.get(options, :color, PaperForge.Color.rgb255(15, 143, 131)),
-          PaperForge.Color.rgb255(23, 107, 135),
-          PaperForge.Color.rgb255(232, 173, 53),
-          PaperForge.Color.rgb255(231, 101, 84),
-          PaperForge.Color.rgb255(102, 83, 165),
-          PaperForge.Color.rgb255(74, 154, 195)
-        ]
-    end
   end
 
   defp render_special_placement(

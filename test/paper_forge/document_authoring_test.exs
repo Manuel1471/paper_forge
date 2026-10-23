@@ -209,31 +209,19 @@ defmodule PaperForge.DocumentAuthoringTest do
   end
 
   test "reserves space above the tallest chart bar for its value label" do
-    {document, _report} =
-      PaperForge.new(compress: false)
-      |> PaperForge.layout(
-        fn flow ->
-          Flow.chart(flow, [{"Q1", 12}, {"Q2", 18}], height: 80)
-        end,
-        page_options: [size: {300, 320}, margins: 30]
+    page =
+      PaperForge.Chart.render(PaperForge.Page.new(origin: :top_left), [{"Q1", 12}, {"Q2", 18}],
+        x: 30,
+        y: 30,
+        width: 240,
+        height: 80
       )
 
-    pdf = PaperForge.to_binary(document)
-
-    [_, bar_y, bar_width, bar_height] =
-      Regex.run(~r/156 ([\d.]+) ([\d.]+) ([\d.]+) re/, pdf)
-
-    [_, label_y] =
-      Regex.run(~r/1 0 0 1 [\d.]+ ([\d.]+) Tm\n\(18\)/, pdf)
-
-    parse_number = fn value ->
-      {number, ""} = Float.parse(value)
-      number
-    end
-
-    assert parse_number.(label_y) > parse_number.(bar_y) + parse_number.(bar_height)
-    assert parse_number.(bar_width) < 114
-    assert pdf =~ "42 240 102"
+    bars = for {:rectangle, options} <- page.operations, do: options
+    tallest = Enum.max_by(bars, & &1[:height])
+    {:text, "18", label} = Enum.find(page.operations, &match?({:text, "18", _}, &1))
+    assert label[:y] < tallest[:y]
+    assert label[:y] - label[:size] >= 30
   end
 
   test "selects first, odd, even, and last page template variants" do
