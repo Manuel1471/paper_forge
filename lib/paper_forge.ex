@@ -409,6 +409,32 @@ defmodule PaperForge do
     {:pdf_error, reason} -> raise ArgumentError, "cannot inspect PDF: #{inspect(reason)}"
   end
 
+  @doc "Deletes selected one-based pages. This is not content redaction."
+  defdelegate delete_pages(document, selection), to: PaperForge.PDF.Transformation
+
+  @doc "Reorders pages using a permutation of all one-based page numbers."
+  defdelegate reorder_pages(document, selection), to: PaperForge.PDF.Transformation
+
+  @doc "Adds a multiple of 90 degrees to selected pages' inherited rotation."
+  defdelegate rotate_pages(document, selection, angle), to: PaperForge.PDF.Transformation
+
+  @doc "Updates selected Info entries, preserving unrelated metadata. Does not synchronize XMP."
+  defdelegate update_metadata(document, options), to: PaperForge.PDF.Transformation
+
+  @doc "Flattens inherited page attributes and removes objects unreachable from Root and Info."
+  defdelegate normalize(document), to: PaperForge.PDF.Transformation
+
+  @doc "Adds a Helvetica watermark (Latin-1 text) while preserving existing page resources."
+  defdelegate add_watermark(document, text, options \\ []), to: PaperForge.PDF.Transformation
+
+  @doc "Extracts selected pages into a new document. Returns `{:ok, document}` or an error."
+  defdelegate extract_pages(document, selection),
+    to: PaperForge.Interoperability,
+    as: :import_pages
+
+  @doc "Merges PDF binaries or documents into a new document in order."
+  defdelegate merge(documents, options \\ []), to: PaperForge.Interoperability, as: :compose
+
   @doc """
   Adds metadata to the document.
   """
