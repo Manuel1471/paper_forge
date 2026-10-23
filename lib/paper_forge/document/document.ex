@@ -29,7 +29,17 @@ defmodule PaperForge.Document do
   @first_dynamic_object_id 3
   @default_compression true
   @default_pdf_version "1.7"
-  @supported_pdf_versions MapSet.new(["1.4", "1.5", "1.6", "1.7"])
+  @supported_pdf_versions MapSet.new([
+                            "1.0",
+                            "1.1",
+                            "1.2",
+                            "1.3",
+                            "1.4",
+                            "1.5",
+                            "1.6",
+                            "1.7",
+                            "2.0"
+                          ])
 
   defstruct source_info: %{},
             objects: %{},

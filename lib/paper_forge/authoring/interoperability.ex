@@ -2,13 +2,12 @@ defmodule PaperForge.Interoperability do
   @moduledoc """
   Imports, composes, and inspects PDF documents without external executables.
 
-  Binary import supports unencrypted PDFs using direct objects and traditional
-  page trees. Encrypted PDFs and compressed object streams are rejected with
-  structured errors.
+  Binary import supports classic, stream and hybrid cross references, compressed
+  objects and incremental revisions. See `PaperForge.open/2` for password support.
   """
 
   alias PaperForge.{Document, Object, Reference, Stream}
-  alias PaperForge.PDF.Parser
+  alias PaperForge.PDF.{Graph, Parser}
 
   @type source :: Document.t() | binary()
 
@@ -28,6 +27,7 @@ defmodule PaperForge.Interoperability do
           compress: Keyword.get(options, :compress, true)
         )
 
+      document = Graph.flatten(document, Graph.pages!(document))
       {:ok, import_document(target, document, selected) |> deduplicate_resources()}
     end
   end
@@ -45,6 +45,7 @@ defmodule PaperForge.Interoperability do
     |> Enum.reduce_while({:ok, target}, fn source, {:ok, current} ->
       with {:ok, document} <- normalize_source(source),
            {:ok, pages} <- select_pages(document, :all) do
+        document = Graph.flatten(document, Graph.pages!(document))
         {:cont, {:ok, import_document(current, document, pages)}}
       else
         error -> {:halt, error}
@@ -89,20 +90,15 @@ defmodule PaperForge.Interoperability do
   defp normalize_source(other), do: {:error, {:unsupported_pdf_source, other}}
 
   defp select_pages(document, selection) do
-    pages = document.objects[document.pages_reference.object_id].value["Kids"]
+    with {:ok, leaves} <- Graph.pages(document) do
+      pages = Enum.map(leaves, & &1.reference)
 
-    case selection do
-      :all ->
-        {:ok, pages}
-
-      %Range{} = range ->
-        select_page_indexes(pages, Enum.to_list(range))
-
-      indexes when is_list(indexes) ->
-        select_page_indexes(pages, indexes)
-
-      _ ->
-        {:error, :invalid_page_selection}
+      case selection do
+        :all -> {:ok, pages}
+        %Range{} = range -> select_page_indexes(pages, Enum.to_list(range))
+        indexes when is_list(indexes) -> select_page_indexes(pages, indexes)
+        _ -> {:error, :invalid_page_selection}
+      end
     end
   end
 
@@ -151,6 +147,12 @@ defmodule PaperForge.Interoperability do
       seen
     else
       value = document.objects[id].value
+
+      value =
+        if is_map(value) and not is_struct(value) and value["Type"] == {:name, "Page"},
+          do: Map.delete(value, "Parent"),
+          else: value
+
       reachable_objects(document, references_in(value), MapSet.put(seen, id))
     end
   end
