@@ -89,6 +89,7 @@ defmodule PaperForge.MixProject do
       assets: %{"docs" => "docs"},
       extras: [
         "README.md",
+        "examples/ATLAS_REPORT.md",
         "CHANGELOG.md",
         "CONTRIBUTING.md",
         "CODE_OF_CONDUCT.md",

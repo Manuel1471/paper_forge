@@ -207,3 +207,14 @@ object identity mismatches, invalid page trees, and page-count mismatches.
 The same immutable document produces the same PDF bytes. Dynamic metadata such
 as `DateTime.utc_now/0` is caller-controlled and must be fixed explicitly when
 reproducible artifacts are required.
+
+### Charts and SVG text
+
+Cartesian charts now include axes and grid lines by default; use `show_axes: false`
+and `show_grid: false` for the previous minimal appearance. Negative values use a
+shared zero baseline. Pie/donut negative values and legends too large for their
+panel now raise errors instead of silently producing misleading or clipped marks.
+Category labels may be sampled; all data marks remain present. `tick_count` is an
+approximate target for readable intervals. SVG text now uses its specified baseline
+and accepts UTF-8 source correctly; remove manual vertical offsets used to compensate
+for the previous one-font-size shift.

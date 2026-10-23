@@ -9,6 +9,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- Native vector chart engine with signed scales, readable ticks, bounded dense
+  categories, fractional labels, smooth pie/donut sectors and validated legends.
+- Declarative groups and sections with page options, expanded chart/navigation
+  options, and a 27-page Atlas report authored in `.paperforge` with a chart gallery.
+
 - PDF Interoperability & Transformation Engine: `open/2`, `open!/2`, `page_count/1`,
   `metadata/1`, `forms/1`, `annotations/1`, `attachments/1`, `outlines/1`,
   `signatures/1`, and structured `analyze/1`.
@@ -24,6 +29,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   seeds and arbitrary-byte mutations. New interoperability and migration guide.
 
 ### Fixed
+
+- SVG UTF-8 parsing and text baseline positioning; zero-height bars and
+  overflowing dense chart geometry; radial legend visibility.
 
 - Writer xref generations now match object headers; sparse IDs no longer cause
   allocation proportional to the largest object number.

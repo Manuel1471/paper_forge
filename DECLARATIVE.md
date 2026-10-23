@@ -309,6 +309,28 @@ accent or `colors` for a reusable palette. `show_values`, `line_width`,
 the declarative format. `chart_padding` reserves interior space around marks,
 value labels, and axis labels; it defaults to `12` points.
 
+### Chart scales and document sections (1.5)
+
+Cartesian charts include zero and support negative values. `show_axes` and
+`show_grid` default to true. `tick_count` (2–10, default 5) is a target: the
+renderer selects readable numeric intervals. `y_min` and `y_max` must contain
+zero and every value. `value_decimals` (0–6), `value_prefix`, `value_suffix`,
+`label_size`, `value_size`, `title_size`, `title`, and `subtitle` control labels.
+Dense categories sample labels while preserving every data point. Scatter uses
+categorical X positions, not numeric X/Y pairs. Pie/donut data must be
+nonnegative; empty and all-zero series display explicit messages. Disable
+`show_legend` to center a radial chart without its legend. `show_values: false`
+hides numeric labels, including values and percentages in radial legends.
+An undersized plot or legend raises an error instead of overflowing.
+
+`group` contains `blocks` and accepts `options.keep_together`. `section` contains
+`blocks`, an optional `name`, and `options.page_options` (size, margins, header,
+footer). Nested children obey the same validation and compilation budgets as
+ordinary blocks. For a full-bleed cover followed by paginated body pages, see
+[`examples/atlas_2026.paperforge`](examples/atlas_2026.paperforge). Navigation
+supports `levels`, `level_styles` keyed by heading level, and
+`single_line_entries` to flatten explicit newlines in contents entries.
+
 ### Imported Markup And Math
 
 `html` accepts the documented safe HTML/CSS subset and `markdown` accepts
