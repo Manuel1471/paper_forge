@@ -423,11 +423,11 @@ defmodule PaperForge.Document do
         ) :: t()
   def update_object(
         %__MODULE__{} = document,
-        %Reference{object_id: object_id},
+        %Reference{} = reference,
         update_function
       )
       when is_function(update_function, 1),
-      do: DocumentObjects.update(document, Reference.new(object_id), update_function)
+      do: DocumentObjects.update(document, reference, update_function)
 
   @doc """
   Adds a page reference to the page tree.
@@ -741,22 +741,20 @@ defmodule PaperForge.Document do
   """
   @spec fetch_object(t(), Reference.t()) ::
           {:ok, Object.t()} | :error
-  def fetch_object(
-        %__MODULE__{} = document,
-        %Reference{object_id: object_id}
-      ) do
-    Map.fetch(document.objects, object_id)
+  def fetch_object(%__MODULE__{} = document, %Reference{object_id: id, generation: generation}) do
+    case Map.fetch(document.objects, id) do
+      {:ok, %Object{generation: ^generation} = object} -> {:ok, object}
+      _ -> :error
+    end
   end
 
-  @doc """
-  Fetches an object by reference and raises when missing.
-  """
+  @doc "Fetches an object by reference and raises when missing or its generation differs."
   @spec fetch_object!(t(), Reference.t()) :: Object.t()
-  def fetch_object!(
-        %__MODULE__{} = document,
-        %Reference{object_id: object_id}
-      ) do
-    Map.fetch!(document.objects, object_id)
+  def fetch_object!(%__MODULE__{} = document, %Reference{} = reference) do
+    case fetch_object(document, reference) do
+      {:ok, object} -> object
+      :error -> raise KeyError, key: reference, term: document.objects
+    end
   end
 
   defp normalize_destination_name(name) when is_atom(name) do

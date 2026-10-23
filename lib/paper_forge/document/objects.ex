@@ -19,9 +19,13 @@ defmodule PaperForge.Document.Objects do
   end
 
   @spec update(Document.t(), Reference.t(), (term() -> term())) :: Document.t()
-  def update(%Document{} = document, %Reference{object_id: object_id}, update_function)
+  def update(
+        %Document{} = document,
+        %Reference{object_id: object_id} = reference,
+        update_function
+      )
       when is_function(update_function, 1) do
-    object = Map.fetch!(document.objects, object_id)
+    object = Document.fetch_object!(document, reference)
     updated_object = %{object | value: update_function.(object.value)}
     %{document | objects: Map.put(document.objects, object_id, updated_object)}
   end

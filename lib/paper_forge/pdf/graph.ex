@@ -64,8 +64,9 @@ defmodule PaperForge.PDF.Graph do
 
         Enum.reduce(kids, {[], seen}, fn child, {pages, seen} ->
           {next, seen} = walk_pages(document, child, inherited, seen, depth + 1)
-          {pages ++ next, seen}
+          {Enum.reverse(next, pages), seen}
         end)
+        |> then(fn {pages, seen} -> {Enum.reverse(pages), seen} end)
 
       _ ->
         Syntax.fail(:invalid_page_tree)

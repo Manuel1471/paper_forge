@@ -58,6 +58,32 @@ defmodule PaperForge.PDF.GraphTest do
     assert Enum.any?(issues, &(&1.code == :generation_mismatch))
   end
 
+  test "document fetch and update honor reference generations" do
+    document = PaperForge.new()
+    stale = %{document.root_reference | generation: 1}
+    assert :error = PaperForge.Document.fetch_object(document, stale)
+    assert_raise KeyError, fn -> PaperForge.Document.fetch_object!(document, stale) end
+    assert_raise KeyError, fn -> PaperForge.Document.update_object(document, stale, & &1) end
+  end
+
+  test "transforms pages and roots with nonzero generations" do
+    pdf =
+      Fixture.classic(
+        [
+          {1, 2, "<< /Type /Pages /Kids [3 7 R] /Count 1 >>"},
+          {2, 3, "<< /Type /Catalog /Pages 1 2 R >>"},
+          {3, 7, "<< /Type /Page /Parent 1 2 R /MediaBox [0 0 200 300] >>"}
+        ],
+        %{"Root" => Reference.new(2, 3)}
+      )
+
+    assert {:ok, document} = Interoperability.parse_pdf(pdf)
+    document = PaperForge.rotate_pages(document, [1], 90)
+    assert {:ok, reopened} = document |> PaperForge.to_binary() |> Interoperability.parse_pdf()
+    assert reopened.objects[3].generation == 7
+    assert reopened.objects[3].value["Rotate"] == 90
+  end
+
   test "rejects cycles and generation mismatches" do
     assert {:ok, document} = Interoperability.parse_pdf(nested())
     assert {:error, {:broken_reference, 3, 1}} = Graph.resolve(document, Reference.new(3, 1))
