@@ -1690,7 +1690,7 @@ defmodule PaperForge.Layout.Engine do
     page =
       Page.text_box(page, text,
         x: placement.x + padding,
-        y: y + padding,
+        y: y + padding + size,
         width: max(placement.width - padding * 2, 1),
         font: Keyword.get(block.options, :font, document.default_font),
         size: size,
@@ -1726,7 +1726,7 @@ defmodule PaperForge.Layout.Engine do
 
     Page.text_box(page, Enum.join(lines, "\n"),
       x: placement.x,
-      y: y,
+      y: y + Keyword.get(block.options, :size, 8),
       width: placement.width,
       height: length(lines) * Keyword.get(block.options, :line_height, 10),
       size: Keyword.get(block.options, :size, 8),
@@ -2279,7 +2279,7 @@ defmodule PaperForge.Layout.Engine do
       )
       |> Page.text_box(text,
         x: cell_x + 10,
-        y: cell_y + 10,
+        y: cell_y + 10 + Keyword.get(block.options, :size, 10),
         width: cell_width - 20,
         height: cell_height - 20,
         size: Keyword.get(block.options, :size, 10),
@@ -2318,7 +2318,7 @@ defmodule PaperForge.Layout.Engine do
 
           {Page.text_box(column_page, paragraph,
              x: x + index * (column_width + gap),
-             y: cursor,
+             y: cursor + text_size(block),
              width: column_width,
              height: length(lines) * line_height,
              font: Keyword.get(block.options, :font, document.default_font),
@@ -2406,7 +2406,7 @@ defmodule PaperForge.Layout.Engine do
       current =
         Page.text(current, text,
           x: cursor,
-          y: y,
+          y: y + text_size(block),
           font: font,
           size: size,
           color:

@@ -194,4 +194,23 @@ defmodule PaperForge.LayoutBoundariesTest do
     {_, report} = layout(&Flow.rich_text(&1, [{"W", [size: 30]}], width: 1))
     assert hd(hd(report.placements).lines) |> hd() |> Map.fetch!(:text) == "W"
   end
+
+  test "automatic text baselines sit inside their allocated boxes" do
+    {_, report} =
+      layout(fn flow ->
+        flow
+        |> Flow.paragraph("Box", size: 20, padding: 4)
+        |> Flow.rich_text([{"Inline", [size: 18]}])
+        |> Flow.columns(1, ["Column"], size: 12)
+      end)
+
+    [paragraph, rich, column] = report.placements
+    operations = hd(report.rendered_pages).operations
+    {:text_box, "Box", options} = Enum.find(operations, &match?({:text_box, "Box", _}, &1))
+    assert options[:y] == paragraph.y + 4 + 20
+    {:text, "Inline", options} = Enum.find(operations, &match?({:text, "Inline", _}, &1))
+    assert options[:y] == rich.y + 18
+    {:text_box, "Column", options} = Enum.find(operations, &match?({:text_box, "Column", _}, &1))
+    assert options[:y] == column.y + 12
+  end
 end

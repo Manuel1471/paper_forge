@@ -95,7 +95,7 @@ defmodule PaperForge.Legacy.Flow do
         Enum.join(visible_lines, "\n"),
         state.options
         |> Keyword.put(:x, state.x)
-        |> Keyword.put(:y, state.cursor_y)
+        |> Keyword.put(:y, state.cursor_y + state.size)
         |> Keyword.put(:width, state.width)
         |> Keyword.put(:height, consumed_height)
         |> Keyword.put(:font, state.font_key)
