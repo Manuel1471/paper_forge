@@ -190,7 +190,8 @@ defmodule PaperForge.Writer do
         object_size = IO.iodata_length(encoded_object)
         :ok = IO.binwrite(io, encoded_object)
 
-        {Map.put(offsets, object.id, current_offset), current_offset + object_size}
+        {Map.put(offsets, object.id, {current_offset, object.generation}),
+         current_offset + object_size}
       end)
 
     {:ok, offsets, next_offset}
@@ -235,7 +236,7 @@ defmodule PaperForge.Writer do
           Map.put(
             offsets,
             object.id,
-            current_offset
+            {current_offset, object.generation}
           )
 
         updated_offset =
@@ -303,11 +304,11 @@ defmodule PaperForge.Writer do
            offsets,
            object_id
          ) do
-      {:ok, offset} ->
+      {:ok, {offset, generation}} ->
         [
           pad_offset(offset),
           " ",
-          "00000",
+          String.pad_leading(Integer.to_string(generation), 5, "0"),
           " n \n"
         ]
 

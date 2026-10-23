@@ -3,6 +3,27 @@ defmodule PaperForge.WriterTest do
 
   alias PaperForge.Page
 
+  @tag :tmp_dir
+  test "xref generations match object headers in memory and file output", %{tmp_dir: dir} do
+    document = PaperForge.new()
+    root = %{document.root_reference | generation: 3}
+    object = %{document.objects[root.object_id] | generation: 3}
+
+    document = %{
+      document
+      | root_reference: root,
+        objects: Map.put(document.objects, root.object_id, object)
+    }
+
+    pdf = PaperForge.to_binary(document)
+    assert pdf =~ "2 3 obj"
+    assert pdf =~ "00003 n"
+    assert pdf =~ "/Root 2 3 R"
+    path = Path.join(dir, "generation.pdf")
+    assert :ok = PaperForge.Writer.write_to_file(document, path)
+    assert File.read!(path) == pdf
+  end
+
   describe "to_binary/1" do
     test "generates a complete compressed PDF binary" do
       pdf =
