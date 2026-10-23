@@ -34,6 +34,20 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Literal-string octal escapes and line continuation, integer precision, old/new
   PDF headers, cyclic stream lengths and decompression resource bounds.
 
+- Automatic layout now reserves wrapped heading heights, scales default leading
+  with text/run sizes, and positions text baselines inside allocated boxes.
+- Padded paragraphs recalculate capacity after page changes; spacers, separators
+  and custom blocks honor bottom margins. Keep-together groups use actual
+  pagination and no longer introduce unrelated page breaks.
+- Column rendering honors `:size` and `width: :content`; empty columns and
+  oversized rich-text glyphs terminate safely. Split table rows and footnotes
+  reject impossible minimum heights instead of overflowing.
+- Legacy flow/table pagination no longer forces content into insufficient space;
+  header-only tables retain their content. Margin structs are validated.
+- Placement bounds exclude preceding spacing and footnote separators; redundant
+  empty page breaks no longer desynchronize page references. String headers and
+  footers are positioned inside their margins.
+
 ### Changed
 
 - Import now requires valid xref/trailer structure; incomplete files formerly

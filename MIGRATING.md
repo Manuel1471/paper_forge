@@ -19,6 +19,32 @@ metadata; the new `metadata/1` reads the existing Info dictionary.
 
 No new runtime dependency is required.
 
+### Automatic layout corrections
+
+Review generated PDFs when upgrading: corrected wrapping and line heights can
+change page counts. Default line height now follows `:size`; rich text uses the
+largest run size. An explicit `:line_height` still overrides that default.
+Automatic text positions describe the top of their allocated area; baselines
+are offset into it. Low-level `Page.text/3` and `Page.text_box/3` keep their
+existing baseline coordinate semantics.
+
+Automatic layout, `layout_flow`, and paginated tables require `origin: :top_left`
+(the default). Passing `:bottom_left` now raises rather than producing invalid
+pagination; use `Page` primitives for manual bottom-left layouts. String headers
+and footers require enough margin for their font size (10.8 points for the
+unified engine's 9-point templates). Custom template callbacks and explicit
+block `:x`/`:y` remain caller-positioned and can draw outside flow bounds.
+
+`keep_together` groups that cannot fit on one empty page raise `LayoutError`.
+Legacy tables reject a header/body combination that cannot fit. Placement
+`:height` excludes `:space_before` and, for footnotes, the separator area.
+A single glyph wider than its text box is retained, like plain text wrapping;
+choose a wider box or smaller font when strict horizontal containment is needed.
+
+Run `mix run examples/layout_boundaries.exs` to generate a visual regression
+sample with red content bounds, wrapped headings, padded text, columns and tables.
+
+
 ## Migrating from 1.3 to 1.4
 
 PaperForge 1.4 is backward compatible with the documented 1.3 public API.
