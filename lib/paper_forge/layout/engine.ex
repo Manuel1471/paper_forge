@@ -570,7 +570,7 @@ defmodule PaperForge.Layout.Engine do
         state
       end
 
-    state = place_text_lines(block, [block.content], state)
+    state = place_text_lines(block, paragraph_lines(block, state), state)
     maybe_page_break_after(block, state)
   end
 
@@ -671,6 +671,7 @@ defmodule PaperForge.Layout.Engine do
     height = Keyword.get(block.options, :height, 12)
 
     ensure_fits_empty_page!(block, height, state)
+    state = fit_on_page(block, height, state)
 
     state =
       add_fragment(state, %{
@@ -687,6 +688,7 @@ defmodule PaperForge.Layout.Engine do
   defp place_block(%Block{type: :spacer} = block, state) do
     state = maybe_page_break_before(block, state)
     ensure_fits_empty_page!(block, block.content, state)
+    state = fit_on_page(block, block.content, state)
 
     state =
       add_fragment(state, %{
@@ -704,6 +706,7 @@ defmodule PaperForge.Layout.Engine do
     state = maybe_page_break_before(block, state)
     height = Keyword.get(block.options, :height, 0)
     ensure_fits_empty_page!(block, height, state)
+    state = fit_on_page(block, height, state)
 
     state =
       add_fragment(state, %{
@@ -764,7 +767,7 @@ defmodule PaperForge.Layout.Engine do
     include_header? = repeat_header or first?
     header_height = if include_header?, do: header.height, else: 0
     available = available_height(state)
-    full_height = state.bottom_y - Page.content_top(state.page) - header_height
+    full_height = Page.content_height(state.page) - header_height
     first_group = Enum.take(rows, max(Map.get(hd(rows), :span_rows, 1), 1))
     first_group_height = Enum.sum(Enum.map(first_group, & &1.height))
 
@@ -844,7 +847,7 @@ defmodule PaperForge.Layout.Engine do
 
   defp place_oversized_table_row([row | rest], header_height, block, state) do
     policy = Keyword.get(block.options, :row_split, :keep)
-    full_height = state.bottom_y - Page.content_top(state.page) - header_height
+    full_height = Page.content_height(state.page) - header_height
     span_rows = max(Map.get(row, :span_rows, 1), 1)
 
     cond do
@@ -1066,7 +1069,7 @@ defmodule PaperForge.Layout.Engine do
     required_height =
       length(lines) * line_height + padding * 2 + space_before + space_after
 
-    full_page_height = state.bottom_y - Page.content_top(state.page)
+    full_page_height = Page.content_height(state.page)
 
     state =
       if Keyword.get(block.options, :keep_together, false) and
@@ -1077,29 +1080,14 @@ defmodule PaperForge.Layout.Engine do
         state
       end
 
-    available_lines =
-      max(
-        floor(
-          max(available_height(state) - space_before - space_after - padding * 2, 0) /
-            line_height
-        ),
-        1
-      )
-
-    {visible, remaining} = Enum.split(lines, available_lines)
+    ensure_fits_empty_page!(block, line_height + padding * 2 + space_before + space_after, state)
+    state = fit_text_on_page(block, lines, state)
+    {visible, remaining} = Enum.split(lines, text_capacity(block, state))
 
     {visible, remaining, state} =
       apply_widow_orphan_control(block, visible, remaining, lines, state)
 
     height = length(visible) * line_height + padding * 2 + space_before + space_after
-    ensure_fits_empty_page!(block, height, state)
-
-    state =
-      if height > available_height(state) and current_page_has_content?(state) do
-        next_page(state)
-      else
-        state
-      end
 
     fragment = %{
       id: block.id,
@@ -1117,6 +1105,30 @@ defmodule PaperForge.Layout.Engine do
     else
       place_text_lines(block, remaining, next_page(state))
     end
+  end
+
+  defp text_capacity(block, state) do
+    overhead =
+      Keyword.get(block.options, :padding, 0) * 2 +
+        Keyword.get(block.options, :space_before, 0) +
+        Keyword.get(block.options, :space_after, default_space_after(block))
+
+    max(floor((available_height(state) - overhead) / line_height(block)), 0)
+  end
+
+  defp fit_text_on_page(block, lines, state) do
+    capacity = text_capacity(block, state)
+    minimum = min(length(lines), Keyword.get(block.options, :min_lines_at_top, 2))
+
+    if current_page_has_content?(state) and (capacity == 0 or capacity < minimum),
+      do: next_page(state),
+      else: state
+  end
+
+  defp fit_on_page(_block, height, state) do
+    if height > available_height(state) and current_page_has_content?(state),
+      do: next_page(state),
+      else: state
   end
 
   defp add_fragment(state, fragment) do
@@ -1241,7 +1253,7 @@ defmodule PaperForge.Layout.Engine do
   end
 
   defp ensure_fits_empty_page!(block, height, state) do
-    full_height = state.bottom_y - Page.content_top(state.page)
+    full_height = Page.content_height(state.page)
 
     if height > full_height do
       raise LayoutError,
@@ -1256,10 +1268,14 @@ defmodule PaperForge.Layout.Engine do
     end
   end
 
-  defp block_height(%Block{type: type} = block, state) when type in [:paragraph, :rich_text],
-    do: length(paragraph_lines(block, state)) * line_height(block)
+  defp block_height(%Block{type: type} = block, state)
+       when type in [:paragraph, :rich_text, :heading],
+       do:
+         length(paragraph_lines(block, state)) * line_height(block) +
+           2 * Keyword.get(block.options, :padding, 0) +
+           Keyword.get(block.options, :space_before, 0) +
+           Keyword.get(block.options, :space_after, default_space_after(block))
 
-  defp block_height(%Block{type: :heading} = block, _state), do: line_height(block)
   defp block_height(%Block{type: :spacer, content: height}, _state), do: height
 
   defp block_height(%Block{type: :separator} = block, _state),
@@ -1419,20 +1435,11 @@ defmodule PaperForge.Layout.Engine do
     end
   end
 
-  defp apply_widow_orphan_control(block, visible, remaining, lines, state) do
+  defp apply_widow_orphan_control(block, visible, remaining, _lines, state) do
     min_top = Keyword.get(block.options, :min_lines_at_top, 2)
     min_bottom = Keyword.get(block.options, :min_lines_at_bottom, 2)
 
     cond do
-      remaining != [] and length(visible) < min_top and current_page_has_content?(state) ->
-        {next_visible, next_remaining} =
-          Enum.split(
-            lines,
-            max(floor(available_height(next_page(state)) / line_height(block)), 1)
-          )
-
-        {next_visible, next_remaining, next_page(state)}
-
       remaining != [] and length(remaining) < min_bottom and length(visible) > min_top ->
         move = min(min_bottom - length(remaining), length(visible) - min_top)
         {kept, moved} = Enum.split(visible, length(visible) - move)
@@ -1446,7 +1453,12 @@ defmodule PaperForge.Layout.Engine do
   defp block_text(%Block{content: content}), do: content
 
   defp line_height(block),
-    do: Keyword.get(block.options, :line_height, default_size(block) * 1.35)
+    do:
+      Keyword.get(
+        block.options,
+        :line_height,
+        Keyword.get(block.options, :size, default_size(block)) * 1.35
+      )
 
   defp default_size(%Block{type: :heading, options: options}),
     do: 24 - (Keyword.get(options, :level, 1) - 1) * 2
@@ -1687,7 +1699,7 @@ defmodule PaperForge.Layout.Engine do
         |> Page.destination(destination, y: y)
         |> then(fn destination_page ->
           if type == :heading,
-            do: maybe_bookmark(destination_page, block, text, y),
+            do: maybe_bookmark(destination_page, block, block.content, y),
             else: destination_page
         end)
       else
