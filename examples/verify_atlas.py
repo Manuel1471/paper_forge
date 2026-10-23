@@ -11,7 +11,9 @@ reader = pypdf.PdfReader(root / "atlas-2026-report.pdf", strict=True)
 texts = [page.extract_text() for page in reader.pages]
 all_text = "\n".join(texts)
 route_ids = re.findall(r"^AT-\d{3}\b", all_text, re.MULTILINE)
+outline_titles = [item.title for item in reader.outline]
 checks = {
+    "outline_titles_match_source": outline_titles == expected["chapter_titles"],
     "page_count": len(reader.pages) == expected["pages"],
     "all_route_ids_once_in_order": route_ids == [f"AT-{i:03}" for i in range(1, 121)],
     "spanish_accents_preserved": all(word in all_text for word in ["más", "LOGÍSTICA", "Información", "Mérida", "Querétaro", "Metodología"]),

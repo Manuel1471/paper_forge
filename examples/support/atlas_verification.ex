@@ -51,6 +51,9 @@ defmodule PaperForge.Examples.AtlasVerification do
       "scheduled_trips" => Enum.sum(Enum.map(routes, & &1.trips)),
       "annual_revenue_mxn_millions" => 1090,
       "placements" => length(layout.placements),
+      "chapter_titles" =>
+        for(p <- layout.placements, p.type == :heading,
+          Keyword.get(p.block.options, :bookmark, true), do: p.block.content),
       "chapter_destinations" =>
         for(
           p <- layout.placements,

@@ -52,10 +52,10 @@ python3 -m venv /tmp/atlas-reader
 /tmp/atlas-reader/bin/python examples/verify_atlas.py
 ```
 
-It writes `independent-verification.json` and fails if any of its 12 checks
+It writes `independent-verification.json` and fails if any of its 13 checks
 fails: physical page count, all route IDs in order without duplication, Spanish
 text extraction, absence of mojibake, exact attachment contents, chapter
-destinations, page footers, repeated headers, extracted page count, rotation,
+destinations, exact Unicode bookmark titles, page footers, repeated headers, extracted page count, rotation,
 watermark text on all extracted pages and updated metadata.
 
 For visual review with Poppler installed:

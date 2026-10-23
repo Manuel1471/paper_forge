@@ -26,7 +26,7 @@ The same engine also powers reusable
 [`.paperforge` templates](https://github.com/Manuel1471/paper_forge/blob/main/examples/paper_forge_1_4_showcase.paperforge) and
 [scientific documents](https://github.com/Manuel1471/paper_forge/blob/main/examples/investigacion.paperforge).
 
-The 1.5 release also includes [Atlas 2026](examples/ATLAS_REPORT.md), a 27-page
+The 1.5 release also includes [Atlas 2026](https://github.com/Manuel1471/paper_forge/blob/release/v1.5.0/examples/ATLAS_REPORT.md), a 27-page
 report authored in [`atlas_2026.paperforge`](examples/atlas_2026.paperforge),
 with a 120-row register, six chart types and reproducible readback checks.
 

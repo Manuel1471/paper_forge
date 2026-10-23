@@ -474,6 +474,12 @@ defmodule PaperForge.Document do
     update_catalog_names(document)
   end
 
+  defp encode_outline_title(title) do
+    if String.match?(title, ~r/\A[\x00-\x7F]*\z/),
+      do: title,
+      else: PaperForge.StringEncoding.utf16be_hex(title)
+  end
+
   @doc """
   Adds a PDF outline/bookmark item that points to a page.
   """
@@ -493,7 +499,7 @@ defmodule PaperForge.Document do
 
     item_dictionary =
       %{
-        "Title" => title,
+        "Title" => encode_outline_title(title),
         "Parent" => outlines_reference,
         "Dest" => destination
       }

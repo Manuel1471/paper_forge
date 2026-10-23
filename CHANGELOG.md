@@ -30,6 +30,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Fixed
 
+- Outline titles now use UTF-16BE PDF strings, preserving accented and Unicode
+  bookmark labels in readers such as macOS Preview. Independent Atlas readback
+  now compares bookmark titles against the original headings.
+
 - SVG UTF-8 parsing and text baseline positioning; zero-height bars and
   overflowing dense chart geometry; radial legend visibility.
 
