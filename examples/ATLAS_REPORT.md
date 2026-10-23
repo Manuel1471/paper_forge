@@ -2,9 +2,19 @@
 
 A fictional logistics annual report in Spanish, designed to exercise actual
 layout and PDF interoperability rather than assemble isolated drawing demos.
-It currently generates 23 A4 pages, 13 chapters and a 120-row route register
+It currently generates 27 A4 pages, 17 chapters and a 120-row route register
 flowing automatically across nine pages. All figures are synthetic and
 reproducible; no company results or environmental certification are implied.
+
+The complete design lives in [`atlas_2026.paperforge`](atlas_2026.paperforge):
+sections, full-bleed cover, inline SVG artwork, charts, text and tables are JSON
+data. No custom rendering callbacks are registered. The small Elixir runner
+supplies the 120 deterministic route rows, attaches the dataset and verifies
+generation and transformation. Edit the `.paperforge` file to change the design.
+
+Four gallery pages exercise signed bars and areas, fractional line values,
+categorical scatter, pie/donut composition, 40 categories, empty series and
+all-zero values. Axes include zero; labels are sampled without dropping marks.
 
 ## Generate
 

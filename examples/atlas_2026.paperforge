@@ -1,0 +1,2245 @@
+{
+  "blocks": [
+    {
+      "blocks": [
+        {
+          "content": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 595 842\"><rect x=\"0\" y=\"0\" width=\"595\" height=\"842\" fill=\"#132733\"/>\n<rect x=\"48\" y=\"65\" width=\"40\" height=\"5\" fill=\"#E16647\"/>\n<text x=\"48\" y=\"118\" font-size=\"38\" fill=\"#FFFFFF\">ATLAS</text>\n<text x=\"50\" y=\"143\" font-size=\"9\" fill=\"#9AC2BE\">LOGÍSTICA / INFORME ANUAL</text>\n<text x=\"48\" y=\"239\" font-size=\"49\" fill=\"#FFFFFF\">La distancia</text>\n<text x=\"48\" y=\"296\" font-size=\"49\" fill=\"#FFFFFF\">se convierte</text>\n<text x=\"48\" y=\"353\" font-size=\"49\" fill=\"#FFFFFF\">en confianza.</text>\n<text x=\"48\" y=\"426\" font-size=\"32\" fill=\"#E16647\">2026</text>\n<line x1=\"89.6\" y1=\"536.75\" x2=\"173.2\" y2=\"481.4\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"89.6\" y1=\"536.75\" x2=\"186.4\" y2=\"604.4\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"173.2\" y1=\"481.4\" x2=\"274.4\" y2=\"542.9\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"186.4\" y1=\"604.4\" x2=\"274.4\" y2=\"542.9\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"186.4\" y1=\"604.4\" x2=\"322.79999999999995\" y2=\"639.25\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"274.4\" y1=\"542.9\" x2=\"388.8\" y2=\"503.95\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"274.4\" y1=\"542.9\" x2=\"441.59999999999997\" y2=\"592.1\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"322.79999999999995\" y1=\"639.25\" x2=\"441.59999999999997\" y2=\"592.1\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"388.8\" y1=\"503.95\" x2=\"498.8\" y2=\"538.8\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"441.59999999999997\" y1=\"592.1\" x2=\"498.8\" y2=\"538.8\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<circle cx=\"89.6\" cy=\"536.75\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"83.6\" y=\"562.75\" font-size=\"9\" fill=\"#5B6F76\">01</text>\n<circle cx=\"173.2\" cy=\"481.4\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"167.2\" y=\"507.4\" font-size=\"9\" fill=\"#5B6F76\">02</text>\n<circle cx=\"186.4\" cy=\"604.4\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"180.4\" y=\"630.4\" font-size=\"9\" fill=\"#5B6F76\">03</text>\n<circle cx=\"274.4\" cy=\"542.9\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"268.4\" y=\"568.9\" font-size=\"9\" fill=\"#5B6F76\">04</text>\n<circle cx=\"322.79999999999995\" cy=\"639.25\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"316.79999999999995\" y=\"665.25\" font-size=\"9\" fill=\"#5B6F76\">05</text>\n<circle cx=\"388.8\" cy=\"503.95\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"382.8\" y=\"529.95\" font-size=\"9\" fill=\"#5B6F76\">06</text>\n<circle cx=\"441.59999999999997\" cy=\"592.1\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"435.59999999999997\" y=\"618.1\" font-size=\"9\" fill=\"#5B6F76\">07</text>\n<circle cx=\"498.8\" cy=\"538.8\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"492.8\" y=\"564.8\" font-size=\"9\" fill=\"#5B6F76\">08</text>\n<text x=\"48\" y=\"733\" font-size=\"10\" fill=\"#FFFFFF\">OPERACIÓN  /  PERSONAS  /  IMPACTO</text>\n<text x=\"48\" y=\"766\" font-size=\"9\" fill=\"#9AC2BE\">Edición demostrativa · Datos ficticios · PaperForge 1.5.0</text></svg>",
+          "options": {
+            "height": 842,
+            "id": "cover",
+            "space_after": 0,
+            "width": 595
+          },
+          "type": "svg"
+        }
+      ],
+      "name": "cover-section",
+      "options": {
+        "footer": null,
+        "header": null,
+        "page_options": {
+          "margins": 0,
+          "size": [
+            595,
+            842
+          ]
+        }
+      },
+      "type": "section"
+    },
+    {
+      "blocks": [
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "GUÍA DE LECTURA",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-e86fd6e506a5",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "options": {
+            "color": "#132733",
+            "id": "table_of_contents-92239177d4b3",
+            "leader": ".",
+            "level_styles": {
+              "1": {
+                "line_height": 23,
+                "size": 10.5
+              }
+            },
+            "levels": [
+              1
+            ],
+            "line_height": 36,
+            "single_line_entries": true,
+            "size": 28,
+            "title": "Dentro de este informe"
+          },
+          "type": "table_of_contents"
+        },
+        {
+          "content": 22,
+          "options": {
+            "id": "spacer-0b30d586a2e1"
+          },
+          "type": "spacer"
+        },
+        {
+          "blocks": [
+            {
+              "content": "Un informe realista, una empresa ficticia",
+              "options": {
+                "color": "#00736E",
+                "id": "paragraph-782755a93934",
+                "size": 12,
+                "space_after": 8,
+                "weight": "bold"
+              },
+              "type": "paragraph"
+            },
+            {
+              "content": "Las cifras son un conjunto de datos sintético y reproducible. Este documento demuestra composición editorial, paginación, inspección y transformación de PDF; no describe resultados de una empresa real.",
+              "options": {
+                "fill_color": "#EDF4F1",
+                "id": "paragraph-dca19cb347b8",
+                "line_height": 15,
+                "padding": 14,
+                "size": 10,
+                "space_after": 15
+              },
+              "type": "paragraph"
+            }
+          ],
+          "options": {
+            "id": "container-17d0920f201e",
+            "keep_together": true
+          },
+          "type": "group"
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "01 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-22d8e4b29c4f",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "Una red más confiable,\nun crecimiento más disciplinado",
+          "options": {
+            "color": "#132733",
+            "destination": "summary",
+            "id": "heading-048b065d67a7",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "En 2026, Atlas concentró su estrategia en una pregunta sencilla: ¿cómo hacer que cada entrega sea más predecible sin trasladar toda la complejidad al cliente? La respuesta combinó capacidad regional, información compartida y decisiones operativas más cerca del terreno.",
+          "options": {
+            "id": "paragraph-5970cca64214"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 499 92\"><rect x=\"0.0\" y=\"0\" width=\"158.33333333333334\" height=\"92\" fill=\"#EDF4F1\"/>\n<text x=\"14.0\" y=\"41\" font-size=\"24\" fill=\"#00736E\">$1,090 M</text>\n<text x=\"14.0\" y=\"67\" font-size=\"7\" fill=\"#5B6F76\">INGRESOS SIMULADOS</text>\n<rect x=\"170.33333333333334\" y=\"0\" width=\"158.33333333333334\" height=\"92\" fill=\"#EDF4F1\"/>\n<text x=\"184.33333333333334\" y=\"41\" font-size=\"24\" fill=\"#00736E\">34,140</text>\n<text x=\"184.33333333333334\" y=\"67\" font-size=\"7\" fill=\"#5B6F76\">VIAJES PROGRAMADOS</text>\n<rect x=\"340.6666666666667\" y=\"0\" width=\"158.33333333333334\" height=\"92\" fill=\"#EDF4F1\"/>\n<text x=\"354.6666666666667\" y=\"41\" font-size=\"24\" fill=\"#00736E\">120</text>\n<text x=\"354.6666666666667\" y=\"67\" font-size=\"7\" fill=\"#5B6F76\">CORREDORES ACTIVOS</text></svg>",
+          "options": {
+            "height": 92,
+            "id": "custom-759628de6fd6",
+            "space_after": 0,
+            "width": 499
+          },
+          "type": "svg"
+        },
+        {
+          "content": 18,
+          "options": {
+            "id": "spacer-859aca1037d1"
+          },
+          "type": "spacer"
+        },
+        {
+          "content": "La mejora se mide en la experiencia diaria",
+          "options": {
+            "bookmark": false,
+            "color": "#00736E",
+            "id": "heading-eec51275ee02",
+            "level": 2,
+            "size": 17,
+            "space_after": 12
+          },
+          "type": "heading"
+        },
+        {
+          "count": 2,
+          "options": {
+            "column_gap": 24,
+            "id": "columns-cf2854db2ab8",
+            "line_height": 15.5,
+            "size": 10.5,
+            "space_after": 22
+          },
+          "paragraphs": [
+            "La red operó con un modelo de capacidad reservada. Las ventanas de carga se acordaron antes del despacho y los cambios se registraron en una bitácora común. Esto permitió separar los retrasos de origen de las incidencias en tránsito.",
+            "El crecimiento comercial se concentró en cuentas con demanda recurrente. La prioridad fue mantener el nivel de servicio y comprender el costo de cada corredor antes de ampliar la cobertura. La expansión dejó de ser un fin en sí mismo."
+          ],
+          "type": "columns"
+        },
+        {
+          "blocks": [
+            {
+              "content": "Decisión de dirección",
+              "options": {
+                "color": "#00736E",
+                "id": "paragraph-4df284a3f12d",
+                "size": 12,
+                "space_after": 8,
+                "weight": "bold"
+              },
+              "type": "paragraph"
+            },
+            {
+              "content": "Mantener la inversión en calidad de servicio y automatización, con revisiones trimestrales de capacidad y un criterio explícito de rentabilidad por corredor.",
+              "options": {
+                "fill_color": "#EDF4F1",
+                "id": "paragraph-99417e347112",
+                "line_height": 15,
+                "padding": 14,
+                "size": 10,
+                "space_after": 15
+              },
+              "type": "paragraph"
+            }
+          ],
+          "options": {
+            "id": "container-17d0920f201e",
+            "keep_together": true
+          },
+          "type": "group"
+        },
+        {
+          "content": "Los viajes se calculan sumando el anexo de 120 corredores. Los ingresos corresponden a la serie mensual, expresada en millones de pesos.",
+          "options": {
+            "id": "footnote-3048609559d4",
+            "marker": false
+          },
+          "type": "footnote"
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "02 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-912007828345",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "La red: conectar capacidad\ncon demanda regional",
+          "options": {
+            "color": "#132733",
+            "destination": "network",
+            "id": "heading-214d7796afa0",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "Ocho nodos regionales articulan la operación. El esquema siguiente es conceptual: muestra conexiones y dependencias, no distancias geográficas ni rutas cartográficas. Cada nodo concentra recepción, clasificación y salida hacia su zona de servicio.",
+          "options": {
+            "id": "paragraph-4e403bed0546"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 499 260\"><rect x=\"0\" y=\"0\" width=\"499\" height=\"240\" fill=\"#EDF4F1\"/>\n<line x1=\"52.16\" y1=\"85.75\" x2=\"133.67000000000002\" y2=\"41.2\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"52.16\" y1=\"85.75\" x2=\"146.54000000000002\" y2=\"140.2\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"133.67000000000002\" y1=\"41.2\" x2=\"232.34\" y2=\"90.7\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"146.54000000000002\" y1=\"140.2\" x2=\"232.34\" y2=\"90.7\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"146.54000000000002\" y1=\"140.2\" x2=\"279.53\" y2=\"168.25\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"232.34\" y1=\"90.7\" x2=\"343.88\" y2=\"59.35\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"232.34\" y1=\"90.7\" x2=\"395.36\" y2=\"130.3\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"279.53\" y1=\"168.25\" x2=\"395.36\" y2=\"130.3\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"343.88\" y1=\"59.35\" x2=\"451.13\" y2=\"87.4\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<line x1=\"395.36\" y1=\"130.3\" x2=\"451.13\" y2=\"87.4\" stroke=\"#00736E\" stroke-width=\"2\"/>\n<circle cx=\"52.16\" cy=\"85.75\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"46.16\" y=\"111.75\" font-size=\"9\" fill=\"#5B6F76\">01</text>\n<circle cx=\"133.67000000000002\" cy=\"41.2\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"127.67000000000002\" y=\"67.2\" font-size=\"9\" fill=\"#5B6F76\">02</text>\n<circle cx=\"146.54000000000002\" cy=\"140.2\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"140.54000000000002\" y=\"166.2\" font-size=\"9\" fill=\"#5B6F76\">03</text>\n<circle cx=\"232.34\" cy=\"90.7\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"226.34\" y=\"116.7\" font-size=\"9\" fill=\"#5B6F76\">04</text>\n<circle cx=\"279.53\" cy=\"168.25\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"273.53\" y=\"194.25\" font-size=\"9\" fill=\"#5B6F76\">05</text>\n<circle cx=\"343.88\" cy=\"59.35\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"337.88\" y=\"85.35\" font-size=\"9\" fill=\"#5B6F76\">06</text>\n<circle cx=\"395.36\" cy=\"130.3\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"389.36\" y=\"156.3\" font-size=\"9\" fill=\"#5B6F76\">07</text>\n<circle cx=\"451.13\" cy=\"87.4\" r=\"8\" fill=\"#E16647\"/>\n<text x=\"445.13\" y=\"113.4\" font-size=\"9\" fill=\"#5B6F76\">08</text>\n<text x=\"20\" y=\"219\" font-size=\"9\" fill=\"#00736E\">RED CONCEPTUAL / OCHO NODOS</text></svg>",
+          "options": {
+            "height": 260,
+            "id": "custom-107c57f83381",
+            "space_after": 0,
+            "width": 499
+          },
+          "type": "svg"
+        },
+        {
+          "content": "Tres reglas para crecer sin fragmentar la operación",
+          "options": {
+            "bookmark": false,
+            "color": "#00736E",
+            "id": "heading-35e021a15187",
+            "level": 2,
+            "size": 17,
+            "space_after": 12
+          },
+          "type": "heading"
+        },
+        {
+          "content": [
+            "Asignar una ventana operativa a cada corredor y mantenerla visible para los equipos de origen y destino.",
+            "Revisar desbalances de carga semanalmente, usando capacidad efectiva y no solo capacidad nominal.",
+            "Activar proveedores alternos únicamente después de validar seguridad, trazabilidad y tiempos de respuesta."
+          ],
+          "options": {
+            "id": "list-b03550809733",
+            "line_height": 16,
+            "size": 10.5,
+            "space_after": 12,
+            "type": "ordered"
+          },
+          "type": "list"
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "03 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-cf47d7f0face",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "Ingresos que crecen\ncon una base operativa más estable",
+          "options": {
+            "color": "#132733",
+            "destination": "financial",
+            "id": "heading-690dc764f72a",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "El escenario simulado registra ingresos anuales de $1,090 millones. La estacionalidad aumenta la demanda al final del año; por ello, el presupuesto reserva capacidad desde el tercer trimestre y protege los contratos recurrentes frente a los picos de volumen.",
+          "options": {
+            "id": "paragraph-4bb40f48b2bd"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": [
+            [
+              "Ene",
+              72
+            ],
+            [
+              "Feb",
+              74
+            ],
+            [
+              "Mar",
+              79
+            ],
+            [
+              "Abr",
+              81
+            ],
+            [
+              "May",
+              86
+            ],
+            [
+              "Jun",
+              89
+            ],
+            [
+              "Jul",
+              91
+            ],
+            [
+              "Ago",
+              94
+            ],
+            [
+              "Sep",
+              98
+            ],
+            [
+              "Oct",
+              102
+            ],
+            [
+              "Nov",
+              109
+            ],
+            [
+              "Dic",
+              115
+            ]
+          ],
+          "options": {
+            "chart_padding": 16,
+            "chart_type": "bar",
+            "color": "#00736E",
+            "colors": [
+              "#00736E",
+              "#00736E",
+              "#00736E",
+              "#00736E",
+              "#00736E",
+              "#00736E",
+              "#00736E",
+              "#00736E",
+              "#00736E",
+              "#00736E",
+              "#00736E",
+              "#E16647"
+            ],
+            "height": 220,
+            "id": "chart-288aa0318a89",
+            "label_color": "#5B6F76",
+            "show_values": true,
+            "space_after": 20
+          },
+          "type": "chart"
+        },
+        {
+          "content": "Ingresos mensuales · Millones de MXN · Escenario sintético",
+          "options": {
+            "color": "#5B6F76",
+            "id": "paragraph-04fa10c89c1f",
+            "size": 8.5
+          },
+          "type": "paragraph"
+        },
+        {
+          "columns": [
+            "Trimestre",
+            "Ingresos / MXN M",
+            "Participación"
+          ],
+          "options": {
+            "cell_line_height": 12.5,
+            "color": "#132733",
+            "column_widths": [
+              170,
+              170,
+              159
+            ],
+            "header_color": "#FFFFFF",
+            "header_fill_color": "#132733",
+            "id": "table-40c169702678",
+            "line_width": 0.4,
+            "padding": 9,
+            "repeat_header": true,
+            "row_height": 32,
+            "size": 9,
+            "space_after": 18,
+            "stripe_fill_color": "#EDF4F1",
+            "stroke_color": "#D5E0DE"
+          },
+          "rows": [
+            [
+              "T1",
+              "$225",
+              "20.6%"
+            ],
+            [
+              "T2",
+              "$256",
+              "23.5%"
+            ],
+            [
+              "T3",
+              "$283",
+              "26.0%"
+            ],
+            [
+              "T4",
+              "$326",
+              "29.9%"
+            ]
+          ],
+          "type": "table"
+        },
+        {
+          "content": "Lectura de gestión: el aumento de ingresos no se presenta como evidencia de productividad. Para evaluar productividad se requiere separar precio, mezcla, ocupación y kilómetros vacíos; esas variables se revisan por corredor.",
+          "options": {
+            "id": "paragraph-d3b751b91d4e",
+            "size": 9.5
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "04 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-ae3c079e0332",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "La promesa de servicio\nempieza antes del despacho",
+          "options": {
+            "color": "#132733",
+            "destination": "service",
+            "id": "heading-0894d5ad81d3",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "Una entrega puntual depende de varias decisiones anteriores al viaje. La confirmación de la cita, la disponibilidad del equipo y la integridad documental son parte de la misma promesa. El tablero operativo asigna responsables y tiempos límite a cada evento.",
+          "options": {
+            "id": "paragraph-31258ff84756"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 499 92\"><rect x=\"0.0\" y=\"0\" width=\"158.33333333333334\" height=\"92\" fill=\"#EDF4F1\"/>\n<text x=\"14.0\" y=\"41\" font-size=\"24\" fill=\"#00736E\">98.2%</text>\n<text x=\"14.0\" y=\"67\" font-size=\"7\" fill=\"#5B6F76\">META DE PUNTUALIDAD</text>\n<rect x=\"170.33333333333334\" y=\"0\" width=\"158.33333333333334\" height=\"92\" fill=\"#EDF4F1\"/>\n<text x=\"184.33333333333334\" y=\"41\" font-size=\"24\" fill=\"#00736E\">30 min</text>\n<text x=\"184.33333333333334\" y=\"67\" font-size=\"7\" fill=\"#5B6F76\">PRIMERA RESPUESTA</text>\n<rect x=\"340.6666666666667\" y=\"0\" width=\"158.33333333333334\" height=\"92\" fill=\"#EDF4F1\"/>\n<text x=\"354.6666666666667\" y=\"41\" font-size=\"24\" fill=\"#00736E\">24 h</text>\n<text x=\"354.6666666666667\" y=\"67\" font-size=\"7\" fill=\"#5B6F76\">CIERRE DOCUMENTAL</text></svg>",
+          "options": {
+            "height": 92,
+            "id": "custom-ec1ceec8fa67",
+            "space_after": 0,
+            "width": 499
+          },
+          "type": "svg"
+        },
+        {
+          "content": 20,
+          "options": {
+            "id": "spacer-7bb09649369d"
+          },
+          "type": "spacer"
+        },
+        {
+          "columns": [
+            "Momento",
+            "Control",
+            "Responsable"
+          ],
+          "options": {
+            "cell_line_height": 12.5,
+            "color": "#132733",
+            "column_widths": [
+              105,
+              284,
+              110
+            ],
+            "header_color": "#FFFFFF",
+            "header_fill_color": "#132733",
+            "id": "table-b15b0871b3e6",
+            "line_width": 0.4,
+            "padding": 9,
+            "repeat_header": true,
+            "row_height": 32,
+            "size": 9,
+            "space_after": 18,
+            "stripe_fill_color": "#EDF4F1",
+            "stroke_color": "#D5E0DE"
+          },
+          "rows": [
+            [
+              "Antes de la carga",
+              "Cita confirmada, unidad asignada y documentos completos",
+              "Planeación"
+            ],
+            [
+              "En tránsito",
+              "Seguimiento de hitos y gestión de excepciones",
+              "Torre de control"
+            ],
+            [
+              "En destino",
+              "Prueba de entrega y registro de diferencias",
+              "Operación local"
+            ],
+            [
+              "Después del viaje",
+              "Conciliación de tiempos, costos e incidencias",
+              "Servicio al cliente"
+            ]
+          ],
+          "type": "table"
+        },
+        {
+          "content": "Una incidencia, un expediente",
+          "options": {
+            "bookmark": false,
+            "color": "#00736E",
+            "id": "heading-b22c5756ef07",
+            "level": 2,
+            "size": 17,
+            "space_after": 12
+          },
+          "type": "heading"
+        },
+        {
+          "content": "El cliente recibe un número de caso y una actualización verificable. El equipo registra qué ocurrió, qué evidencia existe y cuál es la siguiente acción. Las causas se clasifican después de resolver la urgencia para evitar que el indicador reemplace la atención al cliente.",
+          "options": {
+            "id": "paragraph-8cc9daa1de43"
+          },
+          "type": "paragraph"
+        },
+        {
+          "blocks": [
+            {
+              "content": "El indicador no es una garantía",
+              "options": {
+                "color": "#00736E",
+                "id": "paragraph-36ac7e46fd59",
+                "size": 12,
+                "space_after": 8,
+                "weight": "bold"
+              },
+              "type": "paragraph"
+            },
+            {
+              "content": "La meta de 98.2% es aspiracional. Los porcentajes del registro operativo son valores simulados por corredor y no deben confundirse con un resultado consolidado auditado.",
+              "options": {
+                "fill_color": "#EDF4F1",
+                "id": "paragraph-6c884b656505",
+                "line_height": 15,
+                "padding": 14,
+                "size": 10,
+                "space_after": 15
+              },
+              "type": "paragraph"
+            }
+          ],
+          "options": {
+            "id": "container-17d0920f201e",
+            "keep_together": true
+          },
+          "type": "group"
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "05 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-d412c35ab515",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "Información compartida,\nmenos decisiones a ciegas",
+          "options": {
+            "color": "#132733",
+            "destination": "technology",
+            "id": "heading-f85c1b45b098",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "La plataforma conecta planeación, monitoreo y conciliación. Su diseño prioriza eventos observables sobre reportes aislados: una cita cambia de estado, una unidad cruza un hito, una entrega obtiene evidencia. Cada evento conserva origen, fecha y responsable.",
+          "options": {
+            "id": "paragraph-4f2ad02443e2"
+          },
+          "type": "paragraph"
+        },
+        {
+          "cells": [
+            "01 / CAPTURAR\nEventos de operación",
+            "02 / VALIDAR\nReglas y consistencia",
+            "03 / ACTUAR\nAlertas con responsable"
+          ],
+          "columns": 3,
+          "options": {
+            "cell_height": 85,
+            "fill_color": "#EDF4F1",
+            "gap": 15,
+            "id": "grid-bd321e014513",
+            "line_height": 16,
+            "size": 10,
+            "stroke_color": "#EDF4F1"
+          },
+          "type": "grid"
+        },
+        {
+          "content": 20,
+          "options": {
+            "id": "spacer-7bb09649369d"
+          },
+          "type": "spacer"
+        },
+        {
+          "content": "Arquitectura orientada a excepciones",
+          "options": {
+            "bookmark": false,
+            "color": "#00736E",
+            "id": "heading-e8fdcf587fef",
+            "level": 2,
+            "size": 17,
+            "space_after": 12
+          },
+          "type": "heading"
+        },
+        {
+          "count": 2,
+          "options": {
+            "column_gap": 25,
+            "id": "columns-fa7feaae6dc5",
+            "line_height": 16,
+            "size": 10.5,
+            "space_after": 22
+          },
+          "paragraphs": [
+            "La integración no elimina la supervisión humana. Cuando faltan datos, el sistema comunica la incertidumbre y evita completar campos con supuestos. Los cambios relevantes quedan en un historial que permite reconstruir la secuencia de decisiones.",
+            "Las alertas se ordenan por impacto y tiempo disponible. Una demora con margen de recuperación se atiende de forma distinta a una entrega con ventana crítica. El objetivo es reducir ruido y dirigir la atención al siguiente paso útil."
+          ],
+          "type": "columns"
+        },
+        {
+          "columns": [
+            "Dato",
+            "Validación mínima"
+          ],
+          "options": {
+            "cell_line_height": 12.5,
+            "color": "#132733",
+            "column_widths": [
+              160,
+              339
+            ],
+            "header_color": "#FFFFFF",
+            "header_fill_color": "#132733",
+            "id": "table-2740f8219907",
+            "line_width": 0.4,
+            "padding": 9,
+            "repeat_header": true,
+            "row_height": 32,
+            "size": 9,
+            "space_after": 18,
+            "stripe_fill_color": "#EDF4F1",
+            "stroke_color": "#D5E0DE"
+          },
+          "rows": [
+            [
+              "Identificador de viaje",
+              "Único, estable y presente en todos los eventos"
+            ],
+            [
+              "Fecha y hora",
+              "Zona horaria explícita y secuencia coherente"
+            ],
+            [
+              "Evidencia de entrega",
+              "Archivo asociado al destino y al responsable"
+            ],
+            [
+              "Cambio de estado",
+              "Transición permitida y motivo documentado"
+            ]
+          ],
+          "type": "table"
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "06 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-8bff4081b384",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "Usar mejor la capacidad\nantes de añadir más kilómetros",
+          "options": {
+            "color": "#132733",
+            "destination": "sustainability",
+            "id": "heading-4ab91e09043f",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "La agenda ambiental comienza por medir. Sin kilómetros recorridos, consumo y carga útil comparables, una reducción porcentual puede ocultar cambios en el perímetro de operación. Este escenario presenta una trayectoria objetivo, no una medición de emisiones certificada.",
+          "options": {
+            "id": "paragraph-e3bd8a7d8e67"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": [
+            [
+              "2026",
+              100
+            ],
+            [
+              "2027",
+              94
+            ],
+            [
+              "2028",
+              88
+            ],
+            [
+              "2029",
+              83
+            ],
+            [
+              "2030",
+              78
+            ]
+          ],
+          "options": {
+            "chart_type": "line",
+            "color": "#00736E",
+            "height": 210,
+            "id": "chart-b50fcc538a65",
+            "show_values": true,
+            "space_after": 16
+          },
+          "type": "chart"
+        },
+        {
+          "content": "Índice objetivo de intensidad energética · Base 2026 = 100",
+          "options": {
+            "color": "#5B6F76",
+            "id": "paragraph-027ff1a4a26b",
+            "size": 8.5
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "Prioridades de implementación",
+          "options": {
+            "bookmark": false,
+            "color": "#00736E",
+            "id": "heading-eb3c480e38d4",
+            "level": 2,
+            "size": 17,
+            "space_after": 12
+          },
+          "type": "heading"
+        },
+        {
+          "content": [
+            "Consolidar cargas compatibles y reducir retornos vacíos sin extender los tiempos comprometidos.",
+            "Homologar la captura de combustible y kilometraje antes de comparar proveedores.",
+            "Evaluar renovación de unidades según ciclo de uso, mantenimiento y disponibilidad de infraestructura."
+          ],
+          "options": {
+            "id": "list-b3da2c2c3f05",
+            "line_height": 16,
+            "size": 10.5,
+            "space_after": 11,
+            "type": "ordered"
+          },
+          "type": "list"
+        },
+        {
+          "content": "El índice es ilustrativo. No equivale a toneladas de CO2 ni a una declaración de neutralidad de carbono.",
+          "options": {
+            "id": "footnote-95da0a991857",
+            "marker": false
+          },
+          "type": "footnote"
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "07 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-f59188bbf3cb",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "La seguridad se construye\nen cada cambio de turno",
+          "options": {
+            "color": "#132733",
+            "destination": "people",
+            "id": "heading-170097159921",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "La continuidad operativa depende de equipos que puedan reportar riesgos sin temor a perder tiempo o reconocimiento. El programa de seguridad combina capacitación práctica, revisión de incidentes y conversaciones breves antes de cada turno.",
+          "options": {
+            "id": "paragraph-39455501f1da"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": [
+            {
+              "options": {
+                "color": "#00736E",
+                "size": 25
+              },
+              "text": "Cuidar a las personas"
+            },
+            {
+              "options": {
+                "size": 12
+              },
+              "text": "\nes una condición de la operación, no un resultado secundario."
+            }
+          ],
+          "options": {
+            "fill_color": "#EDF4F1",
+            "id": "rich_text-752467555168",
+            "padding": 22,
+            "space_after": 24
+          },
+          "type": "rich_text"
+        },
+        {
+          "columns": [
+            "Programa",
+            "Frecuencia",
+            "Evidencia"
+          ],
+          "options": {
+            "cell_line_height": 12.5,
+            "color": "#132733",
+            "column_widths": [
+              170,
+              100,
+              229
+            ],
+            "header_color": "#FFFFFF",
+            "header_fill_color": "#132733",
+            "id": "table-294d11d9376a",
+            "line_width": 0.4,
+            "padding": 9,
+            "repeat_header": true,
+            "row_height": 32,
+            "size": 9,
+            "space_after": 18,
+            "stripe_fill_color": "#EDF4F1",
+            "stroke_color": "#D5E0DE"
+          },
+          "rows": [
+            [
+              "Inducción de seguridad",
+              "Al ingreso",
+              "Evaluación práctica y acompañamiento"
+            ],
+            [
+              "Revisión de fatiga",
+              "Antes del turno",
+              "Lista de verificación y escalamiento"
+            ],
+            [
+              "Simulacro de incidentes",
+              "Trimestral",
+              "Registro de respuesta y acciones"
+            ],
+            [
+              "Revisión de casi accidentes",
+              "Mensual",
+              "Causas, responsables y seguimiento"
+            ],
+            [
+              "Actualización técnica",
+              "Semestral",
+              "Competencias por función"
+            ]
+          ],
+          "type": "table"
+        },
+        {
+          "content": "Aprender sin normalizar el riesgo",
+          "options": {
+            "bookmark": false,
+            "color": "#00736E",
+            "id": "heading-840ec18aac33",
+            "level": 2,
+            "size": 17,
+            "space_after": 12
+          },
+          "type": "heading"
+        },
+        {
+          "content": "La revisión de un incidente distingue las decisiones individuales de las condiciones del sistema. Una instrucción confusa, una ventana imposible o una herramienta que falla deben corregirse junto con la conducta observable. El cierre exige evidencia de que la acción se implementó.",
+          "options": {
+            "id": "paragraph-7a69ca9c84cc"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "08 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-033a838db2d8",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "Prepararse para lo que\nno cabe en el plan",
+          "options": {
+            "color": "#132733",
+            "destination": "risks",
+            "id": "heading-502bc0ae1699",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "El registro de riesgos conecta escenarios con decisiones. No busca anticipar cada evento, sino definir señales, responsables y respuestas antes de que una interrupción limite las opciones. La revisión cambia cuando cambia la exposición.",
+          "options": {
+            "id": "paragraph-97337f9c4115"
+          },
+          "type": "paragraph"
+        },
+        {
+          "columns": [
+            "Riesgo",
+            "Señal temprana",
+            "Respuesta prevista"
+          ],
+          "options": {
+            "cell_line_height": 12.5,
+            "color": "#132733",
+            "column_widths": [
+              115,
+              184,
+              200
+            ],
+            "header_color": "#FFFFFF",
+            "header_fill_color": "#132733",
+            "id": "table-100d5bcb5f42",
+            "line_width": 0.4,
+            "padding": 9,
+            "repeat_header": true,
+            "row_height": 60,
+            "size": 9,
+            "space_after": 18,
+            "stripe_fill_color": "#EDF4F1",
+            "stroke_color": "#D5E0DE"
+          },
+          "rows": [
+            [
+              "Concentración comercial",
+              "Una cuenta supera el umbral interno de participación",
+              "Revisar exposición y diversificar renovaciones"
+            ],
+            [
+              "Capacidad insuficiente",
+              "Reservas recurrentes por encima del nivel disponible",
+              "Activar capacidad validada y proteger ventanas críticas"
+            ],
+            [
+              "Interrupción de corredor",
+              "Alertas de seguridad o cierres prolongados",
+              "Replanificar rutas y comunicar impactos verificables"
+            ],
+            [
+              "Calidad de datos",
+              "Eventos sin identificador o fechas inconsistentes",
+              "Aislar registros y corregir el origen del error"
+            ],
+            [
+              "Ciberincidente",
+              "Accesos atípicos o pérdida de disponibilidad",
+              "Contener, recuperar y mantener operación mínima"
+            ],
+            [
+              "Presión de costos",
+              "Desviación sostenida de combustible y mantenimiento",
+              "Revisar supuestos y acuerdos comerciales"
+            ]
+          ],
+          "type": "table"
+        },
+        {
+          "blocks": [
+            {
+              "content": "Disciplina de seguimiento",
+              "options": {
+                "color": "#00736E",
+                "id": "paragraph-3d956bbb27f4",
+                "size": 12,
+                "space_after": 8,
+                "weight": "bold"
+              },
+              "type": "paragraph"
+            },
+            {
+              "content": "Cada riesgo conserva dueño, fecha de revisión y criterio de cierre. Un semáforo sin una decisión asociada no se considera un control suficiente.",
+              "options": {
+                "fill_color": "#EDF4F1",
+                "id": "paragraph-92490f8e7010",
+                "line_height": 15,
+                "padding": 14,
+                "size": 10,
+                "space_after": 15
+              },
+              "type": "paragraph"
+            }
+          ],
+          "options": {
+            "id": "container-17d0920f201e",
+            "keep_together": true
+          },
+          "type": "group"
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "09 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-0dba5ab53fe9",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "De la estrategia\na una secuencia ejecutable",
+          "options": {
+            "color": "#132733",
+            "destination": "roadmap",
+            "id": "heading-76efcad9dc53",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "El plan 2027 organiza la transformación en cuatro entregas. Cada etapa produce un resultado verificable antes de habilitar la siguiente; el calendario se ajusta si la calidad de los datos o la adopción operativa no alcanzan el nivel esperado.",
+          "options": {
+            "id": "paragraph-f63f9e061088"
+          },
+          "type": "paragraph"
+        },
+        {
+          "columns": [
+            "Etapa",
+            "Entregable",
+            "Criterio de aceptación"
+          ],
+          "options": {
+            "cell_line_height": 12.5,
+            "color": "#132733",
+            "column_widths": [
+              100,
+              180,
+              219
+            ],
+            "header_color": "#FFFFFF",
+            "header_fill_color": "#132733",
+            "id": "table-687306ff414d",
+            "line_width": 0.4,
+            "padding": 9,
+            "repeat_header": true,
+            "row_height": 72,
+            "size": 9,
+            "space_after": 18,
+            "stripe_fill_color": "#EDF4F1",
+            "stroke_color": "#D5E0DE"
+          },
+          "rows": [
+            [
+              "T1 / BASE",
+              "Catálogo de eventos y responsables",
+              "Todos los corredores tienen identificadores y ventanas definidas"
+            ],
+            [
+              "T2 / VISIBILIDAD",
+              "Tablero de excepciones y seguimiento",
+              "Los casos críticos cuentan con responsable y siguiente acción"
+            ],
+            [
+              "T3 / EFICIENCIA",
+              "Modelo de costo por corredor",
+              "Costos conciliados con viajes y revisados por finanzas"
+            ],
+            [
+              "T4 / ESCALA",
+              "Expansión selectiva de la red",
+              "Nuevos corredores cumplen servicio, seguridad y rentabilidad"
+            ]
+          ],
+          "type": "table"
+        },
+        {
+          "content": 16,
+          "options": {
+            "id": "spacer-db4b80096fcc"
+          },
+          "type": "spacer"
+        },
+        {
+          "blocks": [
+            {
+              "content": "La puerta de salida de cada etapa",
+              "options": {
+                "bookmark": false,
+                "color": "#00736E",
+                "id": "heading-47b1d7982812",
+                "level": 2,
+                "size": 17,
+                "space_after": 12
+              },
+              "type": "heading"
+            },
+            {
+              "content": "El comité no aprueba la siguiente fase por haber consumido el presupuesto. La aprueba cuando existe evidencia de que la capacidad instalada funciona: datos completos, equipos entrenados y un proceso que puede sostenerse sin intervención extraordinaria.",
+              "options": {
+                "id": "paragraph-6ead369271f8"
+              },
+              "type": "paragraph"
+            }
+          ],
+          "options": {
+            "id": "container-17d0920f201e",
+            "keep_together": true
+          },
+          "type": "group"
+        },
+        {
+          "content": "register",
+          "options": {
+            "id": "reference-7a12b3d89475",
+            "prefix": "El detalle de corredores comienza en la página ",
+            "size": 10
+          },
+          "type": "reference"
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "10 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-4643b0b60b91",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "Registro operativo\nde corredores",
+          "options": {
+            "color": "#132733",
+            "destination": "register",
+            "id": "heading-d2bd9ae5a297",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "Anexo de 120 corredores. Cada fila conserva un identificador único y muestra origen, destino, viajes programados, puntualidad simulada y distancia de referencia. El encabezado se repite automáticamente; las filas se mantienen completas entre páginas.",
+          "options": {
+            "id": "paragraph-ab70a63cd301"
+          },
+          "type": "paragraph"
+        },
+        {
+          "columns": [
+            "Corredor",
+            "Origen / destino",
+            "Viajes",
+            "Puntualidad",
+            "Distancia"
+          ],
+          "options": {
+            "cell_line_height": 12.5,
+            "color": "#132733",
+            "column_widths": [
+              74,
+              170,
+              75,
+              95,
+              85
+            ],
+            "header_color": "#FFFFFF",
+            "header_fill_color": "#132733",
+            "id": "route-table",
+            "line_width": 0.4,
+            "padding": 9,
+            "repeat_header": true,
+            "row_height": 46,
+            "size": 9,
+            "space_after": 18,
+            "stripe_fill_color": "#EDF4F1",
+            "stroke_color": "#D5E0DE"
+          },
+          "rows": "{{route_rows}}",
+          "type": "table"
+        },
+        {
+          "content": "FIN DEL REGISTRO / AT-120 · 120 corredores incluidos",
+          "options": {
+            "color": "#00736E",
+            "id": "register-end",
+            "size": 9,
+            "weight": "bold"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "11 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-2383a5d9f17d",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "Metodología, trazabilidad\ny límites de interpretación",
+          "options": {
+            "color": "#132733",
+            "destination": "methodology",
+            "id": "heading-d9846b7556f8",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "Este informe utiliza datos deterministas para que cualquier persona pueda reproducir los resultados. El archivo atlas-routes.json está adjunto dentro del PDF y contiene exactamente las filas utilizadas en el anexo operativo.",
+          "options": {
+            "id": "paragraph-e1dd42e16102"
+          },
+          "type": "paragraph"
+        },
+        {
+          "columns": [
+            "Comprobación",
+            "Resultado esperado"
+          ],
+          "options": {
+            "cell_line_height": 12.5,
+            "color": "#132733",
+            "column_widths": [
+              245,
+              254
+            ],
+            "header_color": "#FFFFFF",
+            "header_fill_color": "#132733",
+            "id": "table-6af9158cc6e9",
+            "line_width": 0.4,
+            "padding": 9,
+            "repeat_header": true,
+            "row_height": 35,
+            "size": 9,
+            "space_after": 18,
+            "stripe_fill_color": "#EDF4F1",
+            "stroke_color": "#D5E0DE"
+          },
+          "rows": [
+            [
+              "Corredores únicos",
+              "120 identificadores, de AT-001 a AT-120"
+            ],
+            [
+              "Viajes programados",
+              "34,140"
+            ],
+            [
+              "Puntualidad ponderada por viajes",
+              "96.44%"
+            ],
+            [
+              "Ingresos de la serie mensual",
+              "$1,090 millones de MXN"
+            ],
+            [
+              "Suma de los cuatro trimestres",
+              "$1,090 millones de MXN"
+            ],
+            [
+              "Origen de cifras",
+              "Datos ficticios generados localmente; sin fuentes externas"
+            ]
+          ],
+          "type": "table"
+        },
+        {
+          "content": "Qué prueba este documento",
+          "options": {
+            "bookmark": false,
+            "color": "#00736E",
+            "id": "heading-843fa1f1716d",
+            "level": 2,
+            "size": 17,
+            "space_after": 12
+          },
+          "type": "heading"
+        },
+        {
+          "content": "La ejecución comprueba que el PDF puede volver a abrirse, que el número de páginas coincide con el layout, que no existen referencias rotas y que se conservan adjuntos, enlaces y marcadores. También verifica las posiciones asignadas y la continuidad de las filas de la tabla.",
+          "options": {
+            "id": "paragraph-14788851eec0"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "Qué no prueba",
+          "options": {
+            "bookmark": false,
+            "color": "#00736E",
+            "id": "heading-0569d3105f70",
+            "level": 2,
+            "size": 17,
+            "space_after": 12
+          },
+          "type": "heading"
+        },
+        {
+          "content": "No certifica compatibilidad con todos los lectores PDF, accesibilidad PDF/UA, conformidad PDF/A, firmas digitales ni precisión financiera de una empresa real. El reporte de validación registra los controles ejecutados, sin convertirlos en una garantía universal.",
+          "options": {
+            "id": "paragraph-551763018fe7"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "12 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-10c8ced82ca7",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "Pruebas visibles\nde composición automática",
+          "options": {
+            "color": "#132733",
+            "destination": "layout-lab",
+            "id": "heading-52444e3f3ff5",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "Esta página reúne casos que antes podían producir posiciones incorrectas. Los fondos hacen visibles los límites de cada bloque; el contenido siguiente debe comenzar después del área reservada.",
+          "options": {
+            "id": "paragraph-6dd1fd640c38"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "Un título largo necesita reservar todas sus líneas antes del siguiente párrafo",
+          "options": {
+            "bookmark": false,
+            "color": "#00736E",
+            "fill_color": "#EDF4F1",
+            "id": "heading-cbd4f9abfa1e",
+            "level": 2,
+            "padding": 12,
+            "size": 26,
+            "space_after": 16
+          },
+          "type": "heading"
+        },
+        {
+          "content": "Este párrafo debe aparecer debajo del título completo, sin superposición. La altura depende del ancho, de la fuente y del tamaño solicitado; no se presupone una sola línea.",
+          "options": {
+            "id": "paragraph-e194a0c0af95"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": [
+            {
+              "options": {
+                "color": "#E16647",
+                "size": 28
+              },
+              "text": "28 pt"
+            },
+            {
+              "options": {
+                "size": 10
+              },
+              "text": "  con texto pequeño en la misma línea"
+            },
+            {
+              "options": {
+                "size": 12
+              },
+              "text": "\nLa segunda línea conserva la separación."
+            }
+          ],
+          "options": {
+            "fill_color": "#EDF4F1",
+            "id": "rich_text-96427829f617",
+            "padding": 14,
+            "space_after": 18
+          },
+          "type": "rich_text"
+        },
+        {
+          "count": 2,
+          "options": {
+            "column_gap": 24,
+            "id": "columns-b2f4abc9139a",
+            "line_height": 19,
+            "size": 13,
+            "space_after": 16,
+            "width": "content"
+          },
+          "paragraphs": [
+            "Columna izquierda\nTamaño explícito: 13 pt\nAncho del contenido",
+            "Columna derecha\nMisma medida al dibujar\nMisma altura al paginar"
+          ],
+          "type": "columns"
+        },
+        {
+          "blocks": [
+            {
+              "content": "GRUPO INSEPARABLE",
+              "options": {
+                "color": "#00736E",
+                "id": "paragraph-1c800ccef2be",
+                "size": 9,
+                "weight": "bold"
+              },
+              "type": "paragraph"
+            },
+            {
+              "content": "Este título y su explicación deben compartir página. El motor comprueba la ocupación real del grupo, incluyendo padding y espacio entre párrafos.",
+              "options": {
+                "fill_color": "#EDF4F1",
+                "id": "paragraph-bf3d9d012972",
+                "padding": 12
+              },
+              "type": "paragraph"
+            }
+          ],
+          "options": {
+            "id": "container-17d0920f201e",
+            "keep_together": true
+          },
+          "type": "group"
+        },
+        {
+          "type": "page_break"
+        },
+        {
+          "type": "heading",
+          "content": "Galería de gráficas / escalas con signo",
+          "options": {
+            "size": 26,
+            "color": "#132733",
+            "destination": "charts-signed",
+            "space_after": 18
+          }
+        },
+        {
+          "type": "paragraph",
+          "content": "Comparación con cero visible: ganancias y pérdidas comparten una escala. Las barras negativas descienden desde cero y el área conserva el signo de cada observación."
+        },
+        {
+          "type": "chart",
+          "content": [
+            [
+              "Norte",
+              18
+            ],
+            [
+              "Centro",
+              -7
+            ],
+            [
+              "Bajío",
+              12
+            ],
+            [
+              "Sur",
+              -4
+            ],
+            [
+              "Occidente",
+              9
+            ]
+          ],
+          "options": {
+            "height": 220,
+            "color": "#00736e",
+            "label_color": "#52676f",
+            "grid_color": "#dce7e4",
+            "show_axes": true,
+            "show_grid": true,
+            "value_decimals": 1,
+            "chart_type": "bar",
+            "title": "Variación por región",
+            "subtitle": "Millones de MXN / datos ficticios",
+            "value_suffix": " M"
+          }
+        },
+        {
+          "type": "chart",
+          "content": [
+            [
+              "Ene",
+              4
+            ],
+            [
+              "Feb",
+              -3
+            ],
+            [
+              "Mar",
+              7
+            ],
+            [
+              "Abr",
+              2
+            ],
+            [
+              "May",
+              -5
+            ],
+            [
+              "Jun",
+              9
+            ]
+          ],
+          "options": {
+            "height": 220,
+            "color": "#00736e",
+            "label_color": "#52676f",
+            "grid_color": "#dce7e4",
+            "show_axes": true,
+            "show_grid": true,
+            "value_decimals": 1,
+            "chart_type": "area",
+            "title": "Balance mensual",
+            "fill_color": "#dcece7"
+          }
+        },
+        {
+          "type": "page_break"
+        },
+        {
+          "type": "heading",
+          "content": "Galería de gráficas / tendencias y puntos",
+          "options": {
+            "size": 26,
+            "color": "#132733",
+            "destination": "charts-trends",
+            "space_after": 18
+          }
+        },
+        {
+          "type": "paragraph",
+          "content": "Las posiciones horizontales son categorías ordenadas. Los puntos de dispersión de este módulo son categóricos; no representan un eje X numérico continuo."
+        },
+        {
+          "type": "chart",
+          "content": [
+            [
+              "T1",
+              0.012
+            ],
+            [
+              "T2",
+              0.019
+            ],
+            [
+              "T3",
+              0.009
+            ],
+            [
+              "T4",
+              0.025
+            ]
+          ],
+          "options": {
+            "height": 220,
+            "color": "#00736e",
+            "label_color": "#52676f",
+            "grid_color": "#dce7e4",
+            "show_axes": true,
+            "show_grid": true,
+            "value_decimals": 3,
+            "chart_type": "line",
+            "title": "Valores pequeños, precisión explícita"
+          }
+        },
+        {
+          "type": "chart",
+          "content": [
+            [
+              "Turno A",
+              14
+            ],
+            [
+              "Turno B",
+              8
+            ],
+            [
+              "Turno C",
+              19
+            ],
+            [
+              "Turno D",
+              11
+            ],
+            [
+              "Turno E",
+              16
+            ]
+          ],
+          "options": {
+            "height": 220,
+            "color": "#00736e",
+            "label_color": "#52676f",
+            "grid_color": "#dce7e4",
+            "show_axes": true,
+            "show_grid": true,
+            "value_decimals": 1,
+            "chart_type": "scatter",
+            "title": "Observaciones por turno",
+            "point_radius": 4
+          }
+        },
+        {
+          "type": "page_break"
+        },
+        {
+          "type": "heading",
+          "content": "Galería de gráficas / composición",
+          "options": {
+            "size": 26,
+            "color": "#132733",
+            "destination": "charts-composition",
+            "space_after": 18
+          }
+        },
+        {
+          "type": "paragraph",
+          "content": "Las leyendas incluyen valores y participaciones. Los sectores usan curvas Bézier; los datos negativos se rechazan porque no definen una composición válida."
+        },
+        {
+          "type": "chart",
+          "content": [
+            [
+              "Distribución regional",
+              45
+            ],
+            [
+              "Carga dedicada",
+              32
+            ],
+            [
+              "Almacenamiento",
+              23
+            ]
+          ],
+          "options": {
+            "height": 220,
+            "color": "#00736e",
+            "label_color": "#52676f",
+            "grid_color": "#dce7e4",
+            "show_axes": true,
+            "show_grid": true,
+            "value_decimals": 1,
+            "chart_type": "pie",
+            "title": "Mezcla de ingresos",
+            "colors": [
+              "#00736e",
+              "#e16647",
+              "#a6c7bf"
+            ]
+          }
+        },
+        {
+          "type": "chart",
+          "content": [
+            [
+              "Entregas completas",
+              92
+            ],
+            [
+              "Con seguimiento",
+              6
+            ],
+            [
+              "Pendientes",
+              2
+            ]
+          ],
+          "options": {
+            "height": 220,
+            "color": "#00736e",
+            "label_color": "#52676f",
+            "grid_color": "#dce7e4",
+            "show_axes": true,
+            "show_grid": true,
+            "value_decimals": 1,
+            "chart_type": "donut",
+            "title": "Estado de entregas",
+            "colors": [
+              "#00736e",
+              "#e8ad35",
+              "#e16647"
+            ],
+            "inner_radius": 0.64
+          }
+        },
+        {
+          "type": "page_break"
+        },
+        {
+          "type": "heading",
+          "content": "Galería de gráficas / casos límite",
+          "options": {
+            "size": 26,
+            "color": "#132733",
+            "destination": "charts-boundaries",
+            "space_after": 18
+          }
+        },
+        {
+          "type": "paragraph",
+          "content": "Se conservan las 40 barras. Las etiquetas se muestrean cuando no caben. Un conjunto vacío y un total radial igual a cero se distinguen mediante mensajes explícitos."
+        },
+        {
+          "type": "chart",
+          "content": [
+            [
+              "Corredor 01",
+              -3
+            ],
+            [
+              "Corredor 02",
+              4
+            ],
+            [
+              "Corredor 03",
+              11
+            ],
+            [
+              "Corredor 04",
+              18
+            ],
+            [
+              "Corredor 05",
+              -6
+            ],
+            [
+              "Corredor 06",
+              1
+            ],
+            [
+              "Corredor 07",
+              8
+            ],
+            [
+              "Corredor 08",
+              15
+            ],
+            [
+              "Corredor 09",
+              -9
+            ],
+            [
+              "Corredor 10",
+              -2
+            ],
+            [
+              "Corredor 11",
+              5
+            ],
+            [
+              "Corredor 12",
+              12
+            ],
+            [
+              "Corredor 13",
+              19
+            ],
+            [
+              "Corredor 14",
+              -5
+            ],
+            [
+              "Corredor 15",
+              2
+            ],
+            [
+              "Corredor 16",
+              9
+            ],
+            [
+              "Corredor 17",
+              16
+            ],
+            [
+              "Corredor 18",
+              -8
+            ],
+            [
+              "Corredor 19",
+              -1
+            ],
+            [
+              "Corredor 20",
+              6
+            ],
+            [
+              "Corredor 21",
+              13
+            ],
+            [
+              "Corredor 22",
+              20
+            ],
+            [
+              "Corredor 23",
+              -4
+            ],
+            [
+              "Corredor 24",
+              3
+            ],
+            [
+              "Corredor 25",
+              10
+            ],
+            [
+              "Corredor 26",
+              17
+            ],
+            [
+              "Corredor 27",
+              -7
+            ],
+            [
+              "Corredor 28",
+              0
+            ],
+            [
+              "Corredor 29",
+              7
+            ],
+            [
+              "Corredor 30",
+              14
+            ],
+            [
+              "Corredor 31",
+              -10
+            ],
+            [
+              "Corredor 32",
+              -3
+            ],
+            [
+              "Corredor 33",
+              4
+            ],
+            [
+              "Corredor 34",
+              11
+            ],
+            [
+              "Corredor 35",
+              18
+            ],
+            [
+              "Corredor 36",
+              -6
+            ],
+            [
+              "Corredor 37",
+              1
+            ],
+            [
+              "Corredor 38",
+              8
+            ],
+            [
+              "Corredor 39",
+              15
+            ],
+            [
+              "Corredor 40",
+              -9
+            ]
+          ],
+          "options": {
+            "height": 240,
+            "color": "#00736e",
+            "label_color": "#52676f",
+            "grid_color": "#dce7e4",
+            "show_axes": true,
+            "show_grid": true,
+            "value_decimals": 1,
+            "chart_type": "bar",
+            "title": "Cuarenta categorías en un ancho fijo",
+            "show_values": false,
+            "gap": 12
+          }
+        },
+        {
+          "type": "chart",
+          "content": [
+            [
+              "Sin actividad",
+              0
+            ]
+          ],
+          "options": {
+            "height": 130,
+            "color": "#00736e",
+            "label_color": "#52676f",
+            "grid_color": "#dce7e4",
+            "show_axes": true,
+            "show_grid": true,
+            "value_decimals": 1,
+            "chart_type": "donut",
+            "title": "Total igual a cero"
+          }
+        },
+        {
+          "type": "chart",
+          "content": [],
+          "options": {
+            "height": 110,
+            "color": "#00736e",
+            "label_color": "#52676f",
+            "grid_color": "#dce7e4",
+            "show_axes": true,
+            "show_grid": true,
+            "value_decimals": 1,
+            "chart_type": "line",
+            "title": "Serie vacía"
+          }
+        },
+        {
+          "content": null,
+          "options": {
+            "id": "page_break-71a9d0949cb8"
+          },
+          "type": "page_break"
+        },
+        {
+          "content": "13 / ATLAS 2026",
+          "options": {
+            "color": "#00736E",
+            "id": "paragraph-baf7dc9b41c2",
+            "line_height": 12,
+            "size": 9,
+            "space_after": 16
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "La siguiente entrega\nes una mejor decisión",
+          "options": {
+            "color": "#132733",
+            "destination": "closing",
+            "id": "heading-b0ddadd419a2",
+            "level": 1,
+            "size": 29,
+            "space_after": 22
+          },
+          "type": "heading"
+        },
+        {
+          "content": "Una red confiable no se define por la ausencia de incidentes. Se define por la capacidad de detectarlos, responder con claridad y aprender de ellos. El valor de este informe está en conectar cifras con decisiones y decisiones con responsables.",
+          "options": {
+            "id": "paragraph-c4cd8bce0053"
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": 30,
+          "options": {
+            "id": "spacer-922d54ecd7f9"
+          },
+          "type": "spacer"
+        },
+        {
+          "content": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 499 265\"><rect x=\"0\" y=\"0\" width=\"499\" height=\"240\" fill=\"#132733\"/>\n<text x=\"28\" y=\"64\" font-size=\"34\" fill=\"#FFFFFF\">ATLAS</text>\n<text x=\"28\" y=\"107\" font-size=\"22\" fill=\"#FFFFFF\">Conectar. Cumplir. Aprender.</text>\n<text x=\"28\" y=\"167\" font-size=\"11\" fill=\"#9AC2BE\">Informe demostrativo / 2026</text>\n<text x=\"28\" y=\"200\" font-size=\"10\" fill=\"#FFFFFF\">Creado íntegramente con PaperForge 1.5.0</text></svg>",
+          "options": {
+            "height": 265,
+            "id": "custom-d0e4cc24caf2",
+            "space_after": 0,
+            "width": 499
+          },
+          "type": "svg"
+        },
+        {
+          "content": "REPRODUCIR\nmix run examples/paper_forge_1_5_report.exs",
+          "options": {
+            "id": "paragraph-71eb7f97ed3e",
+            "line_height": 17,
+            "size": 10
+          },
+          "type": "paragraph"
+        },
+        {
+          "content": "El generador entrega el informe, un extracto transformado y un archivo JSON con las verificaciones. Los ejemplos están pensados para revisión, adaptación y pruebas de regresión.",
+          "options": {
+            "color": "#5B6F76",
+            "id": "paragraph-9eff6b45de8a",
+            "size": 9.5
+          },
+          "type": "paragraph"
+        }
+      ],
+      "name": "report-section",
+      "options": {
+        "footer": "DATOS FICTICIOS / {page} / {total}",
+        "header": "ATLAS / INFORME OPERATIVO 2026",
+        "page_options": {
+          "margins": {
+            "bottom": 54,
+            "left": 48,
+            "right": 48,
+            "top": 64
+          },
+          "size": [
+            595,
+            842
+          ]
+        }
+      },
+      "type": "section"
+    }
+  ],
+  "design_system": {
+    "styles": {
+      "paragraph": {
+        "color": "#132733",
+        "line_height": 15.5,
+        "size": 10.5,
+        "space_after": 13
+      }
+    }
+  },
+  "document": {
+    "compress": true
+  },
+  "id": "atlas-2026-paperforge-150",
+  "layout_options": {
+    "margins": {
+      "bottom": 54,
+      "left": 48,
+      "right": 48,
+      "top": 64
+    },
+    "size": "a4"
+  },
+  "metadata": {
+    "author": "Atlas Logística - ejemplo ficticio",
+    "title": "ATLAS | Informe operativo 2026"
+  },
+  "variables": {
+    "route_rows": {
+      "required": true,
+      "type": "list"
+    }
+  },
+  "version": "1"
+}

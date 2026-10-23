@@ -18,7 +18,7 @@ checks = {
     "no_utf8_mojibake": not any(word in all_text for word in ["Ã¡", "Ã³", "Ã©", "Ã±", "�"]),
     "dataset_attachment_matches": json.loads(reader.attachments["atlas-routes.json"][0]) == json.loads((root / "routes.json").read_text()),
     "chapter_destinations_match_layout": all(reader.get_destination_page_number(reader.named_destinations[name]) + 1 == page for name, page in expected["chapter_destinations"].items()),
-    "page_footers_match_physical_pages": all(f"{n:02} / {len(texts)}" in text for n, text in enumerate(texts, 1) if n > 1),
+    "page_footers_match_physical_pages": all(re.search(rf"\b0?{n} / {len(texts)}\b", text) for n, text in enumerate(texts, 1) if n > 1),
     "table_headers_repeat": all("Corredor Origen / destino Viajes Puntualidad Distancia" in texts[n-1] for n in expected["route_table_pages"]),
 }
 extract = pypdf.PdfReader(root / "atlas-2026-extract.pdf", strict=True)
