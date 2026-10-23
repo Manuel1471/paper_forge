@@ -9,6 +9,7 @@ defmodule PaperForge.Validation do
   alias PaperForge.Document
   alias PaperForge.Fonts.Builtin
   alias PaperForge.Object
+  alias PaperForge.PDF.Graph
   alias PaperForge.Reference
   alias PaperForge.Stream
   alias PaperForge.ValidationError
@@ -129,7 +130,7 @@ defmodule PaperForge.Validation do
     do: [%{code: :invalid_page_tree} | issues]
 
   defp validate_page_tree(issues, document) do
-    case PaperForge.PDF.Graph.pages(document) do
+    case Graph.pages(document) do
       {:ok, pages} ->
         root = document.objects[document.pages_reference.object_id].value
 

@@ -38,19 +38,23 @@ defmodule PaperForge.PDF.Transformation do
       |> Enum.with_index(1)
       |> Enum.map(fn {page, index} ->
         if MapSet.member?(indexes, index) do
-          rotation = Graph.resolve!(document, Map.get(page.dictionary, "Rotate", 0))
-          unless is_integer(rotation), do: raise(ArgumentError, "invalid page rotation")
-
-          %{
-            page
-            | dictionary: Map.put(page.dictionary, "Rotate", Integer.mod(rotation + angle, 360))
-          }
+          rotate_page(document, page, angle)
         else
           page
         end
       end)
 
     document |> Graph.flatten(pages) |> modified()
+  end
+
+  defp rotate_page(document, page, angle) do
+    rotation = Graph.resolve!(document, Map.get(page.dictionary, "Rotate", 0))
+    unless is_integer(rotation), do: raise(ArgumentError, "invalid page rotation")
+
+    %{
+      page
+      | dictionary: Map.put(page.dictionary, "Rotate", Integer.mod(rotation + angle, 360))
+    }
   end
 
   def update_metadata(document, options) do
@@ -125,65 +129,72 @@ defmodule PaperForge.PDF.Transformation do
     document = Graph.flatten(document, pages)
 
     Enum.reduce(pages, document, fn page, document ->
-      resources = Graph.resolve!(document, page.dictionary["Resources"]) || %{}
-      fonts = Graph.resolve!(document, resources["Font"]) || %{}
-      states = Graph.resolve!(document, resources["ExtGState"]) || %{}
-      font_name = unique_name(fonts, "PFWatermark")
-      state_name = unique_name(states, "PFWatermarkGS")
-      box = Graph.resolve!(document, page.dictionary["CropBox"] || page.dictionary["MediaBox"])
-
-      unless is_list(box) and length(box) == 4 and Enum.all?(box, &is_number/1),
-        do: raise(ArgumentError, "invalid page box")
-
-      [x0, y0, x1, y1] = box
-      x = (x0 + x1) / 2 - byte_size(text) * size * 0.25
-      y = (y0 + y1) / 2
-
-      command =
-        IO.iodata_to_binary([
-          "Q\n/Artifact BMC\nq\n/",
-          state_name,
-          " gs\n0.5 g\nBT\n/",
-          font_name,
-          " ",
-          Serializer.encode(size),
-          " Tf\n1 0 0 1 ",
-          Serializer.encode(x),
-          " ",
-          Serializer.encode(y),
-          " Tm\n",
-          Serializer.encode(text),
-          " Tj\nET\nQ\nEMC\n"
-        ])
-
-      {document, before} = Document.add_object(document, Stream.new("q\n"))
-
-      {document, after_ref} =
-        Document.add_object(
-          document,
-          Stream.new(command, filters: if(document.compress, do: [:flate], else: []))
-        )
-
-      contents =
-        case Graph.resolve!(document, page.dictionary["Contents"]) do
-          nil -> []
-          %Stream{} -> [page.dictionary["Contents"]]
-          list when is_list(list) -> list
-          _ -> raise ArgumentError, "invalid page contents"
-        end
-
-      Document.update_object(document, page.reference, fn value ->
-        value
-        |> Map.put(
-          "Resources",
-          resources
-          |> Map.put("Font", Map.put(fonts, font_name, font))
-          |> Map.put("ExtGState", Map.put(states, state_name, state))
-        )
-        |> Map.put("Contents", [before | contents] ++ [after_ref])
-      end)
+      watermark_page(document, page, {font, state}, text, size)
     end)
     |> modified()
+  end
+
+  defp watermark_page(document, page, {font, state}, text, size) do
+    resources = Graph.resolve!(document, page.dictionary["Resources"]) || %{}
+    fonts = Graph.resolve!(document, resources["Font"]) || %{}
+    states = Graph.resolve!(document, resources["ExtGState"]) || %{}
+    font_name = unique_name(fonts, "PFWatermark")
+    state_name = unique_name(states, "PFWatermarkGS")
+    box = Graph.resolve!(document, page.dictionary["CropBox"] || page.dictionary["MediaBox"])
+
+    unless is_list(box) and length(box) == 4 and Enum.all?(box, &is_number/1),
+      do: raise(ArgumentError, "invalid page box")
+
+    [x0, y0, x1, y1] = box
+    x = (x0 + x1) / 2 - byte_size(text) * size * 0.25
+    y = (y0 + y1) / 2
+
+    command =
+      IO.iodata_to_binary([
+        "Q\n/Artifact BMC\nq\n/",
+        state_name,
+        " gs\n0.5 g\nBT\n/",
+        font_name,
+        " ",
+        Serializer.encode(size),
+        " Tf\n1 0 0 1 ",
+        Serializer.encode(x),
+        " ",
+        Serializer.encode(y),
+        " Tm\n",
+        Serializer.encode(text),
+        " Tj\nET\nQ\nEMC\n"
+      ])
+
+    {document, before} = Document.add_object(document, Stream.new("q\n"))
+
+    {document, after_ref} =
+      Document.add_object(
+        document,
+        Stream.new(command, filters: if(document.compress, do: [:flate], else: []))
+      )
+
+    contents = page_contents(document, page)
+
+    Document.update_object(document, page.reference, fn value ->
+      value
+      |> Map.put(
+        "Resources",
+        resources
+        |> Map.put("Font", Map.put(fonts, font_name, font))
+        |> Map.put("ExtGState", Map.put(states, state_name, state))
+      )
+      |> Map.put("Contents", [before | contents] ++ [after_ref])
+    end)
+  end
+
+  defp page_contents(document, page) do
+    case Graph.resolve!(document, page.dictionary["Contents"]) do
+      nil -> []
+      %Stream{} -> [page.dictionary["Contents"]]
+      list when is_list(list) -> list
+      _ -> raise ArgumentError, "invalid page contents"
+    end
   end
 
   defp unique_name(map, name),

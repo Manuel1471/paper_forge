@@ -8,6 +8,7 @@ defmodule PaperForge.ProductionHardeningTest do
   alias PaperForge.Page
   alias PaperForge.Runtime.CircuitBreaker
   alias PaperForge.Runtime.Guard
+  alias PaperForge.Test.PDFFixture
   alias PaperForge.Writer
 
   setup do
@@ -86,8 +87,8 @@ defmodule PaperForge.ProductionHardeningTest do
 
   test "a malformed PDF is contained by parser limits and never poisons a later valid import" do
     hostile =
-      PaperForge.Test.PDFFixture.classic(
-        PaperForge.Test.PDFFixture.objects() ++
+      PDFFixture.classic(
+        PDFFixture.objects() ++
           [{4, 0, String.duplicate("[", 300) <> "0" <> String.duplicate("]", 300)}]
       )
 

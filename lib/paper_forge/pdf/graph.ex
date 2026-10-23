@@ -7,11 +7,9 @@ defmodule PaperForge.PDF.Graph do
   @inherited ["Resources", "MediaBox", "CropBox", "Rotate"]
 
   def resolve(%Document{} = document, value) do
-    try do
-      {:ok, resolve!(document, value)}
-    catch
-      {:pdf_error, reason} -> {:error, reason}
-    end
+    {:ok, resolve!(document, value)}
+  catch
+    {:pdf_error, reason} -> {:error, reason}
   end
 
   @doc false
@@ -33,12 +31,10 @@ defmodule PaperForge.PDF.Graph do
   defp resolve_value(_, value, _), do: value
 
   def pages(document) do
-    try do
-      {pages, _} = walk_pages(document, document.pages_reference, %{}, MapSet.new(), 0)
-      {:ok, pages}
-    catch
-      {:pdf_error, reason} -> {:error, reason}
-    end
+    {pages, _} = walk_pages(document, document.pages_reference, %{}, MapSet.new(), 0)
+    {:ok, pages}
+  catch
+    {:pdf_error, reason} -> {:error, reason}
   end
 
   @doc false
