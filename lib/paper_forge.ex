@@ -55,6 +55,7 @@ defmodule PaperForge do
   alias PaperForge.Metadata
   alias PaperForge.Page
   alias PaperForge.PageTemplateError
+  alias PaperForge.PDF.Parser
   alias PaperForge.Runtime.Guard
   alias PaperForge.Telemetry
   alias PaperForge.Validation
@@ -357,7 +358,7 @@ defmodule PaperForge do
          {:ok, stat} <- File.stat(path),
          true <- stat.size <= limit,
          {:ok, bytes} <- File.read(path) do
-      PaperForge.PDF.Parser.parse(bytes, options)
+      Parser.parse(bytes, options)
     else
       false ->
         {:error,

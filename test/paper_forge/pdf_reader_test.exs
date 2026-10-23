@@ -1,6 +1,7 @@
 defmodule PaperForge.PDF.ReaderTest do
   use ExUnit.Case, async: true
   alias PaperForge.{Interoperability, Reference, Stream}
+  alias PaperForge.PDF.Filters
   alias PaperForge.Test.PDFFixture, as: Fixture
 
   test "uses trailer root and info, including nonzero generations" do
@@ -82,7 +83,7 @@ defmodule PaperForge.PDF.ReaderTest do
     assert Enum.any?(reparsed.objects, fn {_, object} ->
              case object.value do
                %Stream{} = stream ->
-                 case PaperForge.PDF.Filters.decode(stream) do
+                 case Filters.decode(stream) do
                    {:ok, data} -> data =~ "Secret"
                    _ -> false
                  end

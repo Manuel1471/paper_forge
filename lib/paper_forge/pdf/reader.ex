@@ -1,7 +1,7 @@
 defmodule PaperForge.PDF.Reader do
   @moduledoc false
   alias PaperForge.{Object, Reference, Stream}
-  alias PaperForge.PDF.{Filters, Syntax}
+  alias PaperForge.PDF.{Decryption, Filters, Syntax}
 
   def read(pdf, limits, options) do
     offset = startxref(pdf)
@@ -138,7 +138,7 @@ defmodule PaperForge.PDF.Reader do
     {generation, rest} = Syntax.integer(rest)
     {flag, rest} = Syntax.word(rest)
 
-    unless offset >= 0 and generation in 0..65535 and flag in ["n", "f"],
+    unless offset >= 0 and generation in 0..65_535 and flag in ["n", "f"],
       do: Syntax.fail(:invalid_xref_entry)
 
     entry = {if(flag == "n", do: :direct, else: :free), offset, generation}
@@ -163,21 +163,8 @@ defmodule PaperForge.PDF.Reader do
       %Stream{
         dictionary: %{"Type" => {:name, "XRef"}, "W" => widths, "Size" => size} = dictionary
       } = stream ->
-        unless is_list(widths) and length(widths) == 3 and
-                 Enum.all?(widths, &(is_integer(&1) and &1 in 0..8)) and Enum.sum(widths) > 0 and
-                 is_integer(size) and size >= 0,
-               do: Syntax.fail(:invalid_xref_stream)
-
-        indexes = Map.get(dictionary, "Index", [0, size])
-
-        unless is_list(indexes) and rem(length(indexes), 2) == 0 and
-                 Enum.all?(indexes, &(is_integer(&1) and &1 >= 0)),
-               do: Syntax.fail(:invalid_xref_index)
-
-        count = indexes |> Enum.chunk_every(2) |> Enum.reduce(0, fn [_, n], acc -> acc + n end)
-
-        if count > limits.max_objects + 1,
-          do: Syntax.fail({:max_objects_exceeded, limits.max_objects})
+        validate_widths(widths, size)
+        indexes = validate_indexes(Map.get(dictionary, "Index", [0, size]), limits.max_objects)
 
         bytes = Filters.decode!(stream, limits.max_stream_size)
 
@@ -195,6 +182,22 @@ defmodule PaperForge.PDF.Reader do
     end
   end
 
+  defp validate_widths(widths, size) do
+    unless is_list(widths) and length(widths) == 3 and
+             Enum.all?(widths, &(is_integer(&1) and &1 in 0..8)) and Enum.sum(widths) > 0 and
+             is_integer(size) and size >= 0, do: Syntax.fail(:invalid_xref_stream)
+  end
+
+  defp validate_indexes(indexes, max_objects) do
+    unless is_list(indexes) and rem(length(indexes), 2) == 0 and
+             Enum.all?(indexes, &(is_integer(&1) and &1 >= 0)),
+           do: Syntax.fail(:invalid_xref_index)
+
+    count = indexes |> Enum.chunk_every(2) |> Enum.reduce(0, fn [_, n], acc -> acc + n end)
+    if count > max_objects + 1, do: Syntax.fail({:max_objects_exceeded, max_objects})
+    indexes
+  end
+
   defp stream_entries(bytes, _, 0, _, entries), do: {entries, bytes}
 
   defp stream_entries(bytes, id, count, [w0, w1, w2] = widths, entries) do
@@ -205,7 +208,7 @@ defmodule PaperForge.PDF.Reader do
     entry =
       case type do
         0 -> {:free, a, b}
-        1 when b <= 65535 -> {:direct, a, b}
+        1 when b <= 65_535 -> {:direct, a, b}
         2 -> {:compressed, a, b}
         _ -> Syntax.fail(:invalid_xref_entry)
       end
@@ -224,96 +227,101 @@ defmodule PaperForge.PDF.Reader do
 
   defp load(id, state) do
     case Map.fetch(state.objects, id) do
-      {:ok, object} ->
-        {object, state}
-
-      :error ->
-        if MapSet.member?(state.loading, id), do: Syntax.fail({:cyclic_object_reference, id})
-
-        if MapSet.size(state.loading) >= state.limits.max_depth,
-          do: Syntax.fail({:max_depth_exceeded, state.limits.max_depth})
-
-        state = %{state | loading: MapSet.put(state.loading, id)}
-
-        {object, state} =
-          case state.entries[id] do
-            {:direct, offset, generation} ->
-              {object, state} = direct(offset, state)
-
-              unless object.id == id and object.generation == generation,
-                do: Syntax.fail({:xref_object_mismatch, id})
-
-              value =
-                if state.security && id != state.encrypt_id &&
-                     not match?(%Stream{dictionary: %{"Type" => {:name, "XRef"}}}, object.value),
-                   do: PaperForge.PDF.Decryption.decrypt(object.value, state.security),
-                   else: object.value
-
-              {%{object | value: value}, state}
-
-            {:compressed, stream_id, index} ->
-              compressed(id, stream_id, index, state)
-
-            _ ->
-              Syntax.fail({:missing_object, id})
-          end
-
-        state = %{
-          state
-          | objects: Map.put(state.objects, id, object),
-            loading: MapSet.delete(state.loading, id)
-        }
-
-        {object, state}
+      {:ok, object} -> {object, state}
+      :error -> load_uncached(id, state)
     end
   end
+
+  defp load_uncached(id, state) do
+    if MapSet.member?(state.loading, id), do: Syntax.fail({:cyclic_object_reference, id})
+
+    if MapSet.size(state.loading) >= state.limits.max_depth,
+      do: Syntax.fail({:max_depth_exceeded, state.limits.max_depth})
+
+    state = %{state | loading: MapSet.put(state.loading, id)}
+    {object, state} = load_entry(state.entries[id], id, state)
+
+    state = %{
+      state
+      | objects: Map.put(state.objects, id, object),
+        loading: MapSet.delete(state.loading, id)
+    }
+
+    {object, state}
+  end
+
+  defp load_entry({:direct, offset, generation}, id, state) do
+    {object, state} = direct(offset, state)
+
+    unless object.id == id and object.generation == generation,
+      do: Syntax.fail({:xref_object_mismatch, id})
+
+    {decrypt_object(object, state), state}
+  end
+
+  defp load_entry({:compressed, stream_id, index}, id, state),
+    do: compressed(id, stream_id, index, state)
+
+  defp load_entry(_, id, _), do: Syntax.fail({:missing_object, id})
+
+  defp decrypt_object(object, %{security: nil}), do: object
+  defp decrypt_object(%{id: id} = object, %{encrypt_id: id}), do: object
+
+  defp decrypt_object(%{value: %Stream{dictionary: %{"Type" => {:name, "XRef"}}}} = object, _),
+    do: object
+
+  defp decrypt_object(object, state),
+    do: %{object | value: Decryption.decrypt(object.value, state.security)}
 
   defp direct(offset, state) do
     {id, rest} = state.pdf |> at(offset) |> Syntax.integer()
     {generation, rest} = Syntax.integer(rest)
     {marker, rest} = Syntax.word(rest)
 
-    unless id > 0 and generation in 0..65535 and marker == "obj",
+    unless id > 0 and generation in 0..65_535 and marker == "obj",
       do: Syntax.fail(:invalid_object_header)
 
     {value, rest} = Syntax.value(rest, state.limits.max_depth)
 
-    case Syntax.skip(rest) do
-      <<"stream", rest::binary>> when is_map(value) and not is_struct(value) ->
-        rest =
-          case rest do
-            <<"\r\n", tail::binary>> -> tail
-            <<"\n", tail::binary>> -> tail
-            _ -> Syntax.fail(:invalid_stream_separator)
-          end
+    {value, state} = object_body(value, Syntax.skip(rest), state)
+    {%Object{id: id, generation: generation, value: value}, state}
+  end
 
-        {length, state} = stream_length(value["Length"], state)
+  defp object_body(dictionary, <<"stream", rest::binary>>, state)
+       when is_map(dictionary) and not is_struct(dictionary) do
+    rest = stream_separator(rest)
+    {length, state} = stream_length(dictionary["Length"], state)
 
-        if length > state.limits.max_stream_size,
-          do: Syntax.fail({:max_stream_size_exceeded, state.limits.max_stream_size})
+    if length > state.limits.max_stream_size,
+      do: Syntax.fail({:max_stream_size_exceeded, state.limits.max_stream_size})
 
-        case rest do
-          <<data::binary-size(^length), tail::binary>> ->
-            {endstream, tail} = Syntax.word(tail)
-            {endobj, _} = Syntax.word(tail)
+    data = stream_bytes(rest, length)
+    {Stream.new(data, dictionary: Map.delete(dictionary, "Length")), state}
+  end
 
-            unless endstream == "endstream" and endobj == "endobj",
-              do: Syntax.fail(:invalid_stream_length)
+  defp object_body(value, rest, state) do
+    {marker, _} = Syntax.word(rest)
+    if marker != "endobj", do: Syntax.fail(:missing_endobj)
+    {value, state}
+  end
 
-            {%Object{
-               id: id,
-               generation: generation,
-               value: Stream.new(data, dictionary: Map.delete(value, "Length"))
-             }, state}
+  defp stream_separator(<<"\r\n", rest::binary>>), do: rest
+  defp stream_separator(<<"\n", rest::binary>>), do: rest
+  defp stream_separator(_), do: Syntax.fail(:invalid_stream_separator)
 
-          _ ->
-            Syntax.fail(:truncated_pdf_stream)
-        end
+  defp stream_bytes(bytes, length) do
+    case bytes do
+      <<data::binary-size(^length), tail::binary>> ->
+        {endstream, tail} = Syntax.word(tail)
+        {endobj, _} = Syntax.word(tail)
 
-      rest ->
-        {marker, _} = Syntax.word(rest)
-        if marker != "endobj", do: Syntax.fail(:missing_endobj)
-        {%Object{id: id, generation: generation, value: value}, state}
+        unless endstream == "endstream" and endobj == "endobj",
+          do: Syntax.fail(:invalid_stream_length)
+
+        data
+
+      _ ->
+        Syntax.fail(:truncated_pdf_stream)
     end
   end
 
@@ -342,7 +350,7 @@ defmodule PaperForge.PDF.Reader do
           {values, %{state | streams: Map.put(state.streams, stream_id, values)}}
       end
 
-    case Enum.at(values, index) do
+    case Map.get(values, index) do
       {^id, value} -> {%Object{id: id, generation: 0, value: value}, state}
       _ -> Syntax.fail({:invalid_compressed_object_index, id})
     end
@@ -361,27 +369,27 @@ defmodule PaperForge.PDF.Reader do
     if Syntax.skip(rest) != "", do: Syntax.fail(:invalid_object_stream_header)
     body = binary_part(bytes, first, byte_size(bytes) - first)
 
+    next_offsets = Enum.map(Enum.drop(headers, 1), &elem(&1, 1)) ++ [byte_size(body)]
+
     headers
+    |> Enum.zip(next_offsets)
     |> Enum.with_index()
-    |> Enum.map(fn {{id, offset}, i} ->
-      next_offset =
-        case Enum.at(headers, i + 1) do
-          nil -> byte_size(body)
-          {_, next} -> next
-        end
-
-      unless offset >= 0 and offset < next_offset and next_offset <= byte_size(body),
-        do: Syntax.fail(:invalid_object_stream_offset)
-
-      {value, rest} =
-        Syntax.value(binary_part(body, offset, next_offset - offset), limits.max_depth)
-
-      if Syntax.skip(rest) != "", do: Syntax.fail(:trailing_object_stream_tokens)
-      {id, value}
+    |> Map.new(fn {{{id, offset}, next_offset}, index} ->
+      {index, {id, compressed_value(body, offset, next_offset, limits.max_depth)}}
     end)
   end
 
   defp object_stream(_, _), do: Syntax.fail(:invalid_object_stream)
+
+  defp compressed_value(body, offset, next_offset, depth) do
+    unless offset >= 0 and offset < next_offset and next_offset <= byte_size(body),
+      do: Syntax.fail(:invalid_object_stream_offset)
+
+    {value, rest} = Syntax.value(binary_part(body, offset, next_offset - offset), depth)
+    if Syntax.skip(rest) != "", do: Syntax.fail(:trailing_object_stream_tokens)
+    value
+  end
+
   defp object_headers(rest, 0, acc), do: {Enum.reverse(acc), rest}
 
   defp object_headers(source, count, acc) do
@@ -400,7 +408,7 @@ defmodule PaperForge.PDF.Reader do
     unless object.generation == generation, do: Syntax.fail(:invalid_encryption_reference)
 
     security =
-      PaperForge.PDF.Decryption.authenticate(
+      Decryption.authenticate(
         object.value,
         trailer,
         Keyword.get(options, :password)
@@ -418,7 +426,7 @@ defmodule PaperForge.PDF.Reader do
     case Enum.uniq(Enum.map(revisions, & &1.type)) do
       [:table] -> :table
       [:stream] -> :stream
-      _ -> :hybrid
+      types -> if(:hybrid in types, do: :hybrid, else: :mixed)
     end
   end
 end

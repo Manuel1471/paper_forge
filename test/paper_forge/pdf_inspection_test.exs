@@ -1,5 +1,6 @@
 defmodule PaperForge.PDF.InspectionTest do
   use ExUnit.Case, async: false
+  alias Mix.Tasks.PaperForge.Inspect
   alias PaperForge.Test.PDFFixture, as: Fixture
 
   @tag :tmp_dir
@@ -46,7 +47,7 @@ defmodule PaperForge.PDF.InspectionTest do
 
     Mix.shell(Mix.Shell.Process)
     on_exit(fn -> Mix.shell(Mix.Shell.IO) end)
-    Mix.Tasks.PaperForge.Inspect.run([path, "--json"])
+    Inspect.run([path, "--json"])
     assert_received {:mix_shell, :info, [json]}
     assert Jason.decode!(json)["object_count"] == 15
   end

@@ -122,97 +122,102 @@ defmodule PaperForge.PDF.Inspection do
     }
 
   def analyze(%Document{} = document) do
-    try do
-      refs =
-        Enum.flat_map(document.objects, fn {id, object} ->
-          Enum.map(Graph.references(object.value), &%{object_id: id, reference: &1})
-        end)
+    refs =
+      Enum.flat_map(document.objects, fn {id, object} ->
+        Enum.map(Graph.references(object.value), &%{object_id: id, reference: &1})
+      end)
 
-      broken =
-        Enum.filter(refs, fn %{reference: ref} ->
-          case document.objects[ref.object_id] do
-            %{generation: generation} -> generation != ref.generation
-            _ -> true
-          end
-        end)
-
-      reachable = Graph.reachable(document, [document.root_reference, document.info_reference])
-
-      orphaned =
-        document.objects
-        |> Enum.sort()
-        |> Enum.reject(fn {id, object} ->
-          MapSet.member?(reachable, Reference.new(id, object.generation))
-        end)
-        |> Enum.map(fn {id, object} -> Reference.new(id, object.generation) end)
-
-      resources = resources(document)
-      duplicates = resources.fonts ++ resources.images
-
-      duplicates =
-        duplicates
-        |> Enum.group_by(fn ref ->
-          :crypto.hash(
-            :sha256,
-            :erlang.term_to_binary(Graph.resolve!(document, ref), [:deterministic])
-          )
-        end)
-        |> Map.values()
-        |> Enum.filter(&(length(&1) > 1))
-        |> Enum.sort()
-
-      {page_count, page_issues} =
-        case Graph.pages(document) do
-          {:ok, pages} -> {length(pages), []}
-          {:error, reason} -> {nil, [reason]}
+    broken =
+      Enum.filter(refs, fn %{reference: ref} ->
+        case document.objects[ref.object_id] do
+          %{generation: generation} -> generation != ref.generation
+          _ -> true
         end
+      end)
 
-      structure = document.source_info
+    reachable = Graph.reachable(document, [document.root_reference, document.info_reference])
 
-      {inventory, issues} =
-        Enum.reduce(
-          [:forms, :annotations, :attachments, :outlines, :signatures],
-          {%{}, page_issues},
-          fn name, {inventory, issues} ->
-            case safely(fn -> apply(__MODULE__, name, [document]) end) do
-              {:ok, value} -> {Map.put(inventory, name, value), issues}
-              {:error, reason} -> {Map.put(inventory, name, []), [reason | issues]}
-            end
-          end
+    orphaned =
+      document.objects
+      |> Enum.sort()
+      |> Enum.reject(fn {id, object} ->
+        MapSet.member?(reachable, Reference.new(id, object.generation))
+      end)
+      |> Enum.map(fn {id, object} -> Reference.new(id, object.generation) end)
+
+    resources = resources(document)
+    duplicates = resources.fonts ++ resources.images
+
+    duplicates =
+      duplicates
+      |> Enum.group_by(fn ref ->
+        :crypto.hash(
+          :sha256,
+          :erlang.term_to_binary(Graph.resolve!(document, ref), [:deterministic])
         )
+      end)
+      |> Map.values()
+      |> Enum.filter(&(length(&1) > 1))
+      |> Enum.sort()
 
-      cat = catalog(document)
+    {page_count, page_issues} =
+      case Graph.pages(document) do
+        {:ok, pages} -> {length(pages), []}
+        {:error, reason} -> {nil, [reason]}
+      end
 
-      report =
-        Map.merge(inventory, %{
-          pdf_version: document.pdf_version,
-          file_structure: Map.take(structure, [:file_size, :startxref]),
-          page_count: page_count,
-          object_count: map_size(document.objects),
-          cross_reference_type: Map.get(structure, :cross_reference_type, :generated),
-          compressed_objects: Map.get(structure, :compressed_objects, 0),
-          incremental_revisions: max(length(Map.get(structure, :revisions, [])) - 1, 0),
-          revisions: Map.get(structure, :revisions, []),
-          fonts: resources.fonts,
-          images: resources.images,
-          duplicate_resources: duplicates,
-          broken_references: broken,
-          orphaned_objects: orphaned,
-          encryption: structure[:encryption],
-          permissions: get_in(structure, [:encryption, :permissions]),
-          tagged_pdf: %{
-            structure_tree: cat["StructTreeRoot"],
-            mark_info: Graph.resolve!(document, cat["MarkInfo"])
-          },
-          normalization_opportunities: opportunities(duplicates, orphaned, structure),
-          issues: Enum.reverse(issues)
-        })
+    structure = document.source_info
 
-      {:ok, report}
-    catch
-      {:pdf_error, reason} -> {:error, reason}
-    end
+    {inventory, issues} =
+      Enum.reduce(
+        [:forms, :annotations, :attachments, :outlines, :signatures],
+        {%{}, page_issues},
+        fn name, {inventory, issues} ->
+          case inspect_feature(document, name) do
+            {:ok, value} -> {Map.put(inventory, name, value), issues}
+            {:error, reason} -> {Map.put(inventory, name, []), [reason | issues]}
+          end
+        end
+      )
+
+    cat = catalog(document)
+
+    report =
+      Map.merge(inventory, %{
+        pdf_version: document.pdf_version,
+        file_structure: Map.take(structure, [:file_size, :startxref, :linearized]),
+        page_count: page_count,
+        object_count: map_size(document.objects),
+        cross_reference_type: Map.get(structure, :cross_reference_type, :generated),
+        compressed_objects: Map.get(structure, :compressed_objects, 0),
+        incremental_revisions:
+          max(
+            length(Map.get(structure, :revisions, [])) - 1 -
+              if(structure[:linearized], do: 1, else: 0),
+            0
+          ),
+        revisions: Map.get(structure, :revisions, []),
+        fonts: resources.fonts,
+        images: resources.images,
+        duplicate_resources: duplicates,
+        broken_references: broken,
+        orphaned_objects: orphaned,
+        encryption: structure[:encryption],
+        permissions: get_in(structure, [:encryption, :permissions]),
+        tagged_pdf: %{
+          structure_tree: cat["StructTreeRoot"],
+          mark_info: Graph.resolve!(document, cat["MarkInfo"])
+        },
+        normalization_opportunities: opportunities(duplicates, orphaned, structure),
+        issues: Enum.reverse(issues)
+      })
+
+    {:ok, report}
+  catch
+    {:pdf_error, reason} -> {:error, reason}
   end
+
+  defp inspect_feature(document, name), do: safely(fn -> apply(__MODULE__, name, [document]) end)
 
   defp safely(fun) do
     {:ok, fun.()}
