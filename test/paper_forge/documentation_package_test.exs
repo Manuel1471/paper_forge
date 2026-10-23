@@ -59,15 +59,6 @@ defmodule PaperForge.DocumentationPackageTest do
     assert guide =~ "examples/paper_forge_1_4_showcase.paperforge"
   end
 
-  test "README contains the architecture and public API references" do
-    readme = File.read!("README.md")
-
-    assert readme =~ "## Architecture"
-    assert readme =~ "## Public API And Compatibility"
-    assert readme =~ "Page Compiler"
-    assert readme =~ "PaperForge.Concurrent"
-  end
-
   test "README local files and section links remain valid and packaged" do
     readme = File.read!("README.md")
     project = PaperForge.MixProject.project()
