@@ -135,6 +135,9 @@ defmodule PaperForge.Security do
     iv <> :crypto.crypto_one_time(:aes_256_cbc, context.file_key, iv, pad(value, 16), true)
   end
 
+  @doc false
+  def password_hash(password, salt, user_key), do: hardened_hash(password, salt, user_key)
+
   defp hardened_hash(password, salt, user_key) do
     initial = :crypto.hash(:sha256, password <> salt <> user_key)
     harden(password, initial, user_key, 0, 0)
