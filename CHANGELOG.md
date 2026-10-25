@@ -9,6 +9,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- Eight-page Lumen visual notebook authored entirely in `.paperforge`, with
+  independent checks for fields, appearances, Unicode and navigation.
+- Form font, size, padding, color and horizontal alignment options; measured
+  text fitting, centered button labels and circular radio controls.
+- Center/right alignment for measured math blocks within the current column.
+
 - Native vector chart engine with signed scales, readable ticks, bounded dense
   categories, fractional labels, smooth pie/donut sectors and validated legends.
 - Declarative groups and sections with page options, expanded chart/navigation
@@ -29,6 +35,16 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   seeds and arbitrary-byte mutations. New interoperability and migration guide.
 
 ### Fixed
+
+- PDFDocEncoding/Unicode metadata, attachment names and MIME types, annotation
+  strings, form values and XMP titles; distinct Unicode CIDs for shared font glyphs.
+- Form edits now regenerate appearances; flattening preserves selected appearance
+  streams, Unicode fonts, empty fields and non-widget annotations.
+- Bounded HTML/SVG parsing without input-driven atoms; UTF-8 and inline SVG are
+  preserved. SVG anchors now use actual font metrics.
+- Consistent declarative style/template identifiers and custom equation references.
+- Nested matrix row heights and integral bounds; centered radial chart legends,
+  inset form borders and proportional selection marks.
 
 - Outline titles now use UTF-16BE PDF strings, preserving accented and Unicode
   bookmark labels in readers such as macOS Preview. Independent Atlas readback

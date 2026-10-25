@@ -415,7 +415,26 @@ top-left page origin.
 The rectangle controls the physical field size. Compact web-like controls can
 use heights around 18-21 points for text and 11-14 points for checkboxes.
 Appearance options include `background_color`, `border_color`, `border_width`,
-`border_radius`, `check_color`, and `check_width`.
+`border_radius`, `check_color`, and `check_width`. Text appearances also accept
+`font` (a built-in or declared font), positive `font_size`, `text_color`,
+`text_align` (`left`, `center`, `right`), and non-negative `padding`. Single-line
+values shrink to fit their rectangle without changing the stored field value.
+Buttons center their labels by default. Radio controls are circular, and strokes
+are inset so their borders remain visible. Use a font covering the intended
+characters for non-Latin visible values; field names and tooltips use PDF Unicode
+strings independently of the appearance font.
+
+Math blocks accept `align: "center"` or `"right"` to position the measured
+expression within its layout column. The default remains left-aligned.
+
+The eight-page [Lumen visual notebook](examples/lumen_visual_2026.paperforge)
+combines imported narrative, charts, tables, centered formulas, notes and a
+symmetrical interactive review form. Generate and verify it with:
+
+```sh
+mix run examples/lumen_visual_2026.exs
+python3 examples/verify_lumen.py  # optional independent check; requires pypdf
+```
 
 An `annotation` block accepts `annotation_type`: `note`, `highlight`,
 `underline`, `strikeout`, `stamp`, `free_text`, `square`, `circle`, `ink`, or

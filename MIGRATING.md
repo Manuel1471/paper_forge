@@ -19,6 +19,28 @@ metadata; the new `metadata/1` reads the existing Info dictionary.
 
 No new runtime dependency is required.
 
+### Unicode strings, forms and declarative names
+
+PDF metadata, attachment names/descriptions, field strings and annotation text
+now distinguish PDFDocEncoding from UTF-16BE. `metadata/1` still returns the raw
+Info dictionary; use `PaperForge.StringEncoding.decode/1` for its text values.
+Embedded TrueType fonts now assign distinct CIDs to Unicode characters even when
+they share a glyph (for example Ω and Ω). Serialized font bytes will change.
+
+Form edits refresh appearances, and flattening reuses their selected appearance
+streams, including empty fields and radio/checkbox states. Missing appearances
+for nonempty fields fail explicitly. Appearance styling is retained while editing
+the authored in-memory document; arbitrary imported form typography is not fully
+reconstructed. Flattening intentionally removes interactive widgets.
+
+Compiled declarative styles and page-template names now consistently use string
+keys. Code inspecting the compiled struct should use `compiled.styles["body"]`
+instead of `compiled.styles[:body]`. Elixir authoring APIs still accept atom names.
+HTML/SVG import uses bounded XML parsing without creating atoms from input names;
+external DTD loading is skipped and entity declarations are rejected. Limits are
+10 MB, 128 nesting levels,
+and 100,000 elements. This remains a supported markup subset, not a browser.
+
 ### Standard-font text encoding
 
 Helvetica, Times and Courier now encode supported Unicode text to WinAnsi before
