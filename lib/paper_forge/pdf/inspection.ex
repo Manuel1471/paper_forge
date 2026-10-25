@@ -43,8 +43,9 @@ defmodule PaperForge.PDF.Inspection do
       field = %{name: name, reference: ref, dictionary: Map.merge(inherited, value)}
       kids = Graph.resolve!(document, value["Kids"]) || []
       {children, seen} = fields(document, kids, name, inherited, MapSet.put(seen, ref), depth + 1)
-      {[all, [field], children] |> List.flatten(), seen}
+      {[all, [field], children], seen}
     end)
+    |> then(fn {values, seen} -> {List.flatten(values), seen} end)
   end
 
   defp fields(_, _, _, _, _, _), do: Syntax.fail(:invalid_form_fields)
@@ -278,16 +279,10 @@ defmodule PaperForge.PDF.Inspection do
     )
   end
 
-  defp text({:hex_string, bytes}), do: text(bytes)
-
-  defp text(<<254, 255, bytes::binary>>) do
-    case :unicode.characters_to_binary(bytes, {:utf16, :big}, :utf8) do
-      value when is_binary(value) -> value
-      _ -> Syntax.fail(:invalid_pdf_text_string)
-    end
-  end
-
   defp text(nil), do: nil
-  defp text(value) when is_binary(value), do: value
+
+  defp text(value) when is_binary(value) or elem(value, 0) == :hex_string,
+    do: PaperForge.StringEncoding.decode(value)
+
   defp text(_), do: Syntax.fail(:invalid_pdf_text_string)
 end

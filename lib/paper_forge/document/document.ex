@@ -19,6 +19,7 @@ defmodule PaperForge.Document do
   alias PaperForge.Images.PNG
   alias PaperForge.Metadata
   alias PaperForge.Object
+  alias PaperForge.PDF.{Graph, Inspection}
   alias PaperForge.PerformanceCache
   alias PaperForge.Reference
   alias PaperForge.Runtime.Limits
@@ -43,6 +44,7 @@ defmodule PaperForge.Document do
 
   defstruct source_info: %{},
             objects: %{},
+            form_appearance_options: %{},
             next_object_id: @first_dynamic_object_id,
             root_reference: nil,
             pages_reference: nil,
@@ -234,7 +236,13 @@ defmodule PaperForge.Document do
       Stream.new(data,
         dictionary: %{
           "Type" => {:name, "EmbeddedFile"},
-          "Subtype" => Keyword.get(options, :mime, "application/octet-stream")
+          "Subtype" =>
+            {:name,
+             Keyword.get(
+               options,
+               :mime_type,
+               Keyword.get(options, :mime, "application/octet-stream")
+             )}
         },
         filters: [:flate]
       )
@@ -243,25 +251,44 @@ defmodule PaperForge.Document do
 
     file_spec = %{
       "Type" => {:name, "Filespec"},
-      "F" => filename,
-      "UF" => filename,
-      "Desc" => Keyword.get(options, :description, filename),
+      "F" => PaperForge.StringEncoding.auto(filename),
+      "UF" => PaperForge.StringEncoding.utf16be_hex(filename),
+      "Desc" => PaperForge.StringEncoding.auto(Keyword.get(options, :description, filename)),
       "AFRelationship" => {:name, Atom.to_string(Keyword.get(options, :relationship, :Data))},
-      "EF" => %{"F" => stream_reference}
+      "EF" => %{"F" => stream_reference, "UF" => stream_reference}
     }
 
     {document, file_reference} = add_object(document, file_spec)
 
+    existing =
+      Enum.flat_map(Inspection.attachments(document), fn attachment ->
+        [PaperForge.StringEncoding.auto(attachment.name), attachment.reference]
+      end)
+
     update_object(document, document.root_reference, fn catalog ->
-      names = Map.get(catalog, "Names", %{})
-      existing = get_in(names, ["EmbeddedFiles", "Names"]) || []
+      names = Graph.resolve!(document, catalog["Names"]) || %{}
 
       catalog
       |> Map.put(
         "Names",
-        Map.put(names, "EmbeddedFiles", %{"Names" => existing ++ [filename, file_reference]})
+        Map.put(names, "EmbeddedFiles", %{
+          "Names" =>
+            (existing ++ [PaperForge.StringEncoding.auto(filename), file_reference])
+            |> Enum.chunk_every(2)
+            |> Enum.sort_by(fn [key, _] ->
+              case key do
+                {:hex_string, bytes} -> bytes
+                bytes -> bytes
+              end
+            end)
+            |> List.flatten()
+        })
       )
-      |> Map.update("AF", [file_reference], &(&1 ++ [file_reference]))
+      |> Map.update(
+        "AF",
+        [file_reference],
+        &((Graph.resolve!(document, &1) || []) ++ [file_reference])
+      )
     end)
   end
 
@@ -920,6 +947,16 @@ defmodule PaperForge.Document do
         descriptor_dictionary
       )
 
+    cid_map =
+      true_type.unicode_to_cid
+      |> Enum.sort_by(&elem(&1, 1))
+      |> Enum.map(fn {codepoint, _cid} ->
+        <<Map.fetch!(true_type.unicode_to_gid, codepoint)::16-big>>
+      end)
+
+    {document, cid_map_reference} =
+      add_object(document, Stream.new([<<0, 0>> | cid_map], filters: [:flate]))
+
     cid_font_dictionary = %{
       "Type" => {:name, "Font"},
       "Subtype" => {:name, "CIDFontType2"},
@@ -930,6 +967,7 @@ defmodule PaperForge.Document do
         "Supplement" => 0
       },
       "FontDescriptor" => descriptor_reference,
+      "CIDToGIDMap" => cid_map_reference,
       "DW" => 1000,
       "W" => true_type_widths(true_type, MapSet.new())
     }
@@ -1138,25 +1176,13 @@ defmodule PaperForge.Document do
   end
 
   defp true_type_widths(true_type, used_glyphs) do
-    glyph_ids =
-      if MapSet.size(used_glyphs) == 0 do
-        []
-      else
-        used_glyphs
-        |> MapSet.to_list()
-        |> Enum.sort()
-      end
-
-    Enum.flat_map(glyph_ids, fn glyph_id ->
-      [
-        glyph_id,
-        [
-          TrueType.pdf_width(
-            true_type,
-            glyph_id
-          )
-        ]
-      ]
+    true_type.unicode_to_cid
+    |> Enum.filter(fn {codepoint, _cid} ->
+      MapSet.member?(used_glyphs, true_type.unicode_to_gid[codepoint])
+    end)
+    |> Enum.sort_by(&elem(&1, 1))
+    |> Enum.flat_map(fn {codepoint, cid} ->
+      [cid, [TrueType.pdf_width(true_type, true_type.unicode_to_gid[codepoint])]]
     end)
   end
 
@@ -1169,20 +1195,12 @@ defmodule PaperForge.Document do
       )
 
     entries =
-      true_type.unicode_to_gid
-      |> Enum.filter(fn {_codepoint, glyph_id} ->
+      true_type.unicode_to_cid
+      |> Enum.filter(fn {codepoint, _cid} ->
         MapSet.size(used_glyphs) == 0 or
-          MapSet.member?(used_glyphs, glyph_id)
+          MapSet.member?(used_glyphs, true_type.unicode_to_gid[codepoint])
       end)
-      |> Enum.reject(fn {_codepoint, glyph_id} ->
-        glyph_id == 0
-      end)
-      |> Enum.sort_by(fn {_codepoint, glyph_id} ->
-        glyph_id
-      end)
-      |> Enum.uniq_by(fn {_codepoint, glyph_id} ->
-        glyph_id
-      end)
+      |> Enum.sort_by(&elem(&1, 1))
 
     [
       "/CIDInit /ProcSet findresource begin\n",

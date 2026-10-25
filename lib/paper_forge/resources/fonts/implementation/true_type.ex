@@ -23,6 +23,7 @@ defmodule PaperForge.Fonts.TrueType do
           units_per_em: pos_integer(),
           number_of_glyphs: non_neg_integer(),
           unicode_to_gid: %{optional(non_neg_integer()) => non_neg_integer()},
+          unicode_to_cid: %{optional(non_neg_integer()) => pos_integer()},
           widths: %{optional(non_neg_integer()) => non_neg_integer()},
           bbox: [integer()],
           ascent: integer(),
@@ -35,6 +36,12 @@ defmodule PaperForge.Fonts.TrueType do
           glyph_offsets: [non_neg_integer()],
           raw_tables: %{optional(binary()) => binary()}
         }
+
+  defp character_ids(cmap) do
+    entries = cmap |> Enum.reject(fn {_, gid} -> gid == 0 end) |> Enum.sort()
+    if length(entries) > 65_535, do: raise(FontError, :invalid_font)
+    entries |> Enum.with_index(1) |> Map.new(fn {{codepoint, _}, cid} -> {codepoint, cid} end)
+  end
 
   @spec parse(binary()) :: {:ok, t()} | {:error, term()}
   def parse(data) when is_binary(data) do
@@ -65,6 +72,7 @@ defmodule PaperForge.Fonts.TrueType do
          units_per_em: head.units_per_em,
          number_of_glyphs: maxp.number_of_glyphs,
          unicode_to_gid: unicode_to_gid,
+         unicode_to_cid: character_ids(unicode_to_gid),
          widths: widths,
          bbox: head.bbox,
          ascent: hhea.ascent,

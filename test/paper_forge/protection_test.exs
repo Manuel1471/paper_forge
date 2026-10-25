@@ -55,7 +55,8 @@ defmodule PaperForge.ProtectionTest do
   test "enforces attachment count, size, MIME, and allow policies" do
     document = PaperForge.attach(document(), "source.csv", "a,b\n1,2", mime: "text/csv")
 
-    assert {:ok, %{attachments: 1, attachment_bytes: 7}} = Protection.audit(document)
+    assert {:ok, %{attachments: 1, attachment_bytes: 7}} =
+             Protection.audit(document, allowed_attachment_mimes: ["text/csv"])
 
     assert {:error, issues} =
              Protection.audit(document,

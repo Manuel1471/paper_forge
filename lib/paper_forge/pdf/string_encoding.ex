@@ -129,7 +129,7 @@ defmodule PaperForge.StringEncoding do
   @doc """
   Chooses the most appropriate PDF representation automatically.
 
-  Strings that can be represented safely using Latin-1 are returned as
+  Strings whose Latin-1 bytes also match PDFDocEncoding are returned as
   ordinary binaries. Other strings are returned as UTF-16BE hexadecimal
   strings.
 
@@ -145,10 +145,78 @@ defmodule PaperForge.StringEncoding do
   def auto(value) when is_binary(value) do
     case to_latin1(value) do
       {:ok, encoded} ->
-        encoded
+        if Enum.all?(:binary.bin_to_list(encoded), &safe_pdfdoc_byte?/1),
+          do: encoded,
+          else: utf16be_hex(value)
 
       {:error, _character} ->
         utf16be_hex(value)
+    end
+  end
+
+  defp safe_pdfdoc_byte?(byte),
+    do: byte in 0..21 or byte == 23 or byte in 32..126 or (byte in 161..255 and byte != 173)
+
+  @pdfdoc_special %{
+    24 => 728,
+    25 => 711,
+    26 => 710,
+    27 => 729,
+    28 => 733,
+    29 => 731,
+    30 => 730,
+    31 => 732,
+    128 => 8226,
+    129 => 8224,
+    130 => 8225,
+    131 => 8230,
+    132 => 8212,
+    133 => 8211,
+    134 => 402,
+    135 => 8260,
+    136 => 8249,
+    137 => 8250,
+    138 => 8722,
+    139 => 8240,
+    140 => 8222,
+    141 => 8220,
+    142 => 8221,
+    143 => 8216,
+    144 => 8217,
+    145 => 8218,
+    146 => 8482,
+    147 => 64_257,
+    148 => 64_258,
+    149 => 321,
+    150 => 338,
+    151 => 352,
+    152 => 376,
+    153 => 381,
+    154 => 305,
+    155 => 322,
+    156 => 339,
+    157 => 353,
+    158 => 382,
+    160 => 8364
+  }
+
+  @doc "Decodes a PDF text string (PDFDocEncoding, BOM UTF-16BE or BOM UTF-8) into UTF-8."
+  @spec decode(encoded_string()) :: binary()
+  def decode({:hex_string, bytes}), do: decode(bytes)
+  def decode(<<254, 255, bytes::binary>>), do: decode_unicode(bytes, {:utf16, :big})
+  def decode(<<239, 187, 191, bytes::binary>>), do: decode_unicode(bytes, :utf8)
+
+  def decode(bytes) when is_binary(bytes) do
+    for <<byte <- bytes>>, into: "" do
+      if byte in [22, 127, 159, 173], do: raise(ArgumentError, "undefined PDFDocEncoding byte")
+      <<Map.get(@pdfdoc_special, byte, byte)::utf8>>
+    end
+  end
+
+  defp decode_unicode(bytes, encoding) do
+    case :unicode.characters_to_binary(bytes, encoding, :utf8) do
+      text when is_binary(text) -> text
+      _ -> raise ArgumentError, "invalid Unicode PDF text string"
     end
   end
 

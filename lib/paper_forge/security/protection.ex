@@ -7,6 +7,7 @@ defmodule PaperForge.Protection do
   """
 
   alias PaperForge.Document
+  alias PaperForge.Fonts.WinAnsi
   alias PaperForge.Reference
   alias PaperForge.Stream
 
@@ -223,7 +224,7 @@ defmodule PaperForge.Protection do
       number(height / 2),
       " Tm\n",
       "(",
-      escape(text),
+      escape(WinAnsi.encode!(text, :helvetica_bold)),
       ") Tj\nET\nQ\nEMC"
     ])
   end
@@ -232,7 +233,12 @@ defmodule PaperForge.Protection do
     {issues, attachments, links, bytes} = audit_value(dictionary, id, policy, acc)
 
     if dictionary["Type"] == {:name, "EmbeddedFile"} do
-      mime = dictionary["Subtype"]
+      mime =
+        case dictionary["Subtype"] do
+          {:name, value} -> value
+          value -> value
+        end
+
       issues = attachment_issues(id, byte_size(data), mime, policy) ++ issues
       {issues, attachments + 1, links, bytes + byte_size(data)}
     else

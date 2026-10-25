@@ -182,8 +182,8 @@ defmodule PaperForge.Graphics.Text do
       |> String.to_charlist()
       |> Enum.map(fn codepoint ->
         case TrueType.glyph_id(font, codepoint) do
-          {:ok, glyph_id} ->
-            <<glyph_id::16-big>>
+          {:ok, _glyph_id} ->
+            <<Map.fetch!(font.unicode_to_cid, codepoint)::16-big>>
 
           :error ->
             raise FontError, {:missing_glyph, font_key, codepoint}
