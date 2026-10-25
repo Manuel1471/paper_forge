@@ -19,7 +19,7 @@ defmodule PaperForge.Declarative.Validator do
                   ~w(type text content options columns rows min_rows max_rows cells count paragraphs ast annotation_type entries number name)
                 )
   @form_fields MapSet.new(
-                 ~w(type name page rect origin value default tooltip options choices calculation background_color border_color border_width border_radius check_color check_width)
+                 ~w(type name page rect origin value default tooltip font options choices calculation background_color border_color border_width border_radius check_color check_width)
                )
   @form_types ~w(text checkbox button radio list combo signature)
   @types ~w(any string number integer boolean list map)

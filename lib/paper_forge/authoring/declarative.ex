@@ -178,7 +178,8 @@ defmodule PaperForge.Declarative do
              variables
            ),
          metadata: interpolate(Map.get(definition, "metadata", %{}), variables),
-         forms: compile_forms(interpolate(Map.get(definition, "forms", []), variables)),
+         forms:
+           compile_forms(interpolate(Map.get(definition, "forms", []), variables), font_keys),
          security: compile_security(interpolate(Map.get(definition, "security", %{}), variables)),
          signature:
            compile_signature(interpolate(Map.get(definition, "signature", %{}), variables)),
@@ -1057,14 +1058,15 @@ defmodule PaperForge.Declarative do
     end
   end
 
-  defp compile_forms(forms) when is_list(forms), do: Enum.map(forms, &compile_form/1)
+  defp compile_forms(forms, font_keys) when is_list(forms),
+    do: Enum.map(forms, &compile_form(&1, font_keys))
 
-  defp compile_form(%{"type" => "radio", "name" => name, "choices" => choices} = form) do
+  defp compile_form(%{"type" => "radio", "name" => name, "choices" => choices} = form, font_keys) do
     %{
       type: :radio,
       name: name,
       value: form["value"],
-      options: compile_form_options(form),
+      options: compile_form_options(form, font_keys),
       choices:
         Enum.map(choices, fn choice ->
           [page: choice["page"], rect: choice["rect"], value: to_text(choice["value"])]
@@ -1072,18 +1074,22 @@ defmodule PaperForge.Declarative do
     }
   end
 
-  defp compile_form(%{"type" => type, "name" => name, "page" => page, "rect" => rect} = form) do
-    options = Keyword.put(compile_form_options(form), :rect, rect)
+  defp compile_form(
+         %{"type" => type, "name" => name, "page" => page, "rect" => rect} = form,
+         font_keys
+       ) do
+    options = Keyword.put(compile_form_options(form, font_keys), :rect, rect)
 
     %{type: form_type(type), name: name, page: page, options: options}
   end
 
-  defp compile_form_options(form) do
+  defp compile_form_options(form, font_keys) do
     [
       value: form["value"],
       origin: form_origin(form["origin"]),
       default: form["default"],
       tooltip: form["tooltip"],
+      font: if(form["font"], do: font_key(form["font"], font_keys)),
       options: form["options"],
       calculation: compile_calculation(form["calculation"]),
       background_color: form["background_color"],

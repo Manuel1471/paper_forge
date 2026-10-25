@@ -98,6 +98,7 @@
         "value": {},
         "default": {},
         "tooltip": {"type": "string"},
+        "font": {"type": "string"},
         "options": {"type": "array"},
         "background_color": {"type": "string"},
         "border_color": {"type": "string"},
