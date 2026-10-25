@@ -142,6 +142,7 @@ defmodule PaperForge.Declarative do
            limits: limits(options),
            blocks: 0,
            equation_count: 0,
+           equation_destinations: %{},
            component_stack: [],
            font_keys: font_keys
          },
@@ -858,17 +859,28 @@ defmodule PaperForge.Declarative do
         destination: destination,
         bookmark: false
       )
-      |> Flow.math(ast, options)
+      |> Flow.math(ast, Keyword.delete(options, :destination))
 
-    {:ok, flow, %{state | equation_count: number}}
+    {:ok, flow,
+     %{
+       state
+       | equation_count: number,
+         equation_destinations: Map.put(state.equation_destinations, number, destination)
+     }}
   end
 
-  defp apply_block(flow, "equation_reference", content, node, _context, options, _state) do
+  defp apply_block(flow, "equation_reference", content, node, _context, options, state) do
     number = Map.get(node, "number", content)
 
     if is_integer(number) and number > 0 do
       text = Keyword.get(options, :text, "Equation #{number}, page {page}")
-      {:ok, Flow.reference(flow, "equation-#{number}", Keyword.put(options, :text, text))}
+
+      {:ok,
+       Flow.reference(
+         flow,
+         Map.get(state.equation_destinations, number, "equation-#{number}"),
+         Keyword.put(options, :text, text)
+       )}
     else
       {:error,
        error(
@@ -1090,6 +1102,16 @@ defmodule PaperForge.Declarative do
       default: form["default"],
       tooltip: form["tooltip"],
       font: if(form["font"], do: font_key(form["font"], font_keys)),
+      font_size: form["font_size"],
+      padding: form["padding"],
+      text_color: form["text_color"],
+      text_align:
+        case form["text_align"] do
+          "left" -> :left
+          "center" -> :center
+          "right" -> :right
+          _ -> nil
+        end,
       options: form["options"],
       calculation: compile_calculation(form["calculation"]),
       background_color: form["background_color"],
@@ -1261,7 +1283,7 @@ defmodule PaperForge.Declarative do
 
   defp compile_named_options(definitions, tokens, context) do
     Map.new(definitions, fn {name, options} ->
-      {declarative_identifier(name), options_to_keyword(interpolate(options, context), tokens)}
+      {to_string(name), options_to_keyword(interpolate(options, context), tokens)}
     end)
   end
 
@@ -1294,11 +1316,6 @@ defmodule PaperForge.Declarative do
   rescue
     ArgumentError -> nil
   end
-
-  defp declarative_identifier(value) when is_atom(value), do: value
-
-  defp declarative_identifier(value) when is_binary(value),
-    do: existing_atom(value) || value
 
   defp register_styles(document, styles),
     do:

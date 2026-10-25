@@ -103,8 +103,8 @@ defmodule PaperForge.DeclarativeTest do
     assert Enum.sort(compiled.layout_options[:margins]) ==
              Enum.sort(top: 42, right: 30, bottom: 36, left: 30)
 
-    assert compiled.styles[:title][:color] == PaperForge.Color.rgb255(7, 89, 133)
-    assert compiled.styles[:metric][:size] == 9
+    assert compiled.styles["title"][:color] == PaperForge.Color.rgb255(7, 89, 133)
+    assert compiled.styles["metric"][:size] == 9
   end
 
   test "renders compiled Layout IR into a PDF" do

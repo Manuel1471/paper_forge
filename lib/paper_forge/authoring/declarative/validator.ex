@@ -19,7 +19,7 @@ defmodule PaperForge.Declarative.Validator do
                   ~w(type text content options columns rows min_rows max_rows cells count paragraphs ast annotation_type entries number name)
                 )
   @form_fields MapSet.new(
-                 ~w(type name page rect origin value default tooltip font options choices calculation background_color border_color border_width border_radius check_color check_width)
+                 ~w(type name page rect origin value default tooltip font font_size padding text_color text_align options choices calculation background_color border_color border_width border_radius check_color check_width)
                )
   @form_types ~w(text checkbox button radio list combo signature)
   @types ~w(any string number integer boolean list map)
@@ -477,7 +477,7 @@ defmodule PaperForge.Declarative.Validator do
 
   defp form_appearance_errors(form, path) do
     numeric_errors =
-      Enum.flat_map(~w(border_width border_radius check_width), fn key ->
+      Enum.flat_map(~w(border_width border_radius check_width padding font_size), fn key ->
         value = form[key]
 
         maybe(
@@ -490,7 +490,7 @@ defmodule PaperForge.Declarative.Validator do
       end)
 
     color_errors =
-      Enum.flat_map(~w(background_color border_color check_color), fn key ->
+      Enum.flat_map(~w(background_color border_color check_color text_color), fn key ->
         value = form[key]
 
         maybe(
@@ -502,7 +502,22 @@ defmodule PaperForge.Declarative.Validator do
         )
       end)
 
-    numeric_errors ++ color_errors
+    numeric_errors ++
+      color_errors ++
+      maybe(
+        [],
+        form["text_align"] not in [nil, "left", "center", "right"],
+        :invalid_form_appearance,
+        "#{path}.text_align",
+        "text_align must be left, center, or right"
+      ) ++
+      maybe(
+        [],
+        form["font_size"] == 0,
+        :invalid_form_appearance,
+        "#{path}.font_size",
+        "font_size must be positive"
+      )
   end
 
   defp valid_rect?([x1, y1, x2, y2]),

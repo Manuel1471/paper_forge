@@ -11,6 +11,7 @@ defmodule PaperForge.SVG do
   alias PaperForge.Color
   alias PaperForge.Import.XML
   alias PaperForge.Page
+  alias PaperForge.TextMetrics
 
   @identity {1.0, 0.0, 0.0, 1.0, 0.0, 0.0}
   @kappa 0.552_284_749_8
@@ -66,7 +67,17 @@ defmodule PaperForge.SVG do
     text = node_text(node) |> String.trim()
     {x, y} = transform_point(number(attrs["x"], 0), number(attrs["y"], 0), matrix)
     size = number(Map.get(style, "font-size"), 12) * matrix_scale(matrix)
-    estimated_width = String.length(text) * size * 0.55
+
+    font =
+      case {svg_weight(Map.get(style, "font-weight")),
+            svg_font_style(Map.get(style, "font-style"))} do
+        {:bold, :italic} -> :helvetica_bold_oblique
+        {:bold, _} -> :helvetica_bold
+        {_, :italic} -> :helvetica_oblique
+        _ -> :helvetica
+      end
+
+    estimated_width = TextMetrics.width(text, font: font, size: size)
 
     x =
       case Map.get(style, "text-anchor", attrs["text-anchor"]) do
@@ -80,6 +91,7 @@ defmodule PaperForge.SVG do
       y: y,
       size: size,
       color: color(Map.get(style, "fill", "black")),
+      font: font,
       weight: svg_weight(Map.get(style, "font-weight")),
       style: svg_font_style(Map.get(style, "font-style")),
       origin: :top_left

@@ -106,6 +106,10 @@
         "border_radius": {"type": "number", "minimum": 0},
         "check_color": {"type": "string"},
         "check_width": {"type": "number", "minimum": 0},
+        "font_size": {"type": "number", "exclusiveMinimum": 0},
+        "padding": {"type": "number", "minimum": 0},
+        "text_color": {"type": "string"},
+        "text_align": {"enum": ["left", "center", "right"]},
         "choices": {
           "type": "array",
           "minItems": 1,

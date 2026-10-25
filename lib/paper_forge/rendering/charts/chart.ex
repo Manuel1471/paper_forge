@@ -485,7 +485,7 @@ defmodule PaperForge.Chart do
     {page, _} =
       rows
       |> Enum.with_index()
-      |> Enum.reduce({page, box.y}, fn {lines, i}, {current, y} ->
+      |> Enum.reduce({page, box.y + (box.h - required) / 2}, fn {lines, i}, {current, y} ->
         current =
           current
           |> Page.rectangle(

@@ -4,6 +4,37 @@ defmodule PaperForge.UnicodeObjectsTest do
   alias PaperForge.PDF.Graph
   @text "Niñez — € “México” 日本語 🚚"
 
+  test "styled fields fit long values and preserve alignment after editing" do
+    value = String.duplicate("W", 40)
+
+    document =
+      PaperForge.new()
+      |> PaperForge.add_page(Page.new())
+      |> AcroForm.add_field(1, :text, "amount",
+        rect: [20, 20, 120, 50],
+        value: value,
+        font_size: 18,
+        text_align: :right,
+        text_color: "#087F83",
+        padding: 10
+      )
+
+    [%{dictionary: field}] = PaperForge.forms(document)
+    assert field["Q"] == 2
+    %Stream{data: commands} = Graph.resolve!(document, field["AP"]["N"])
+    commands = IO.iodata_to_binary(commands)
+    [_, size] = Regex.run(~r/([0-9.]+) Tf/, commands)
+    assert String.to_float(size) < 18
+    assert PaperForge.TextMetrics.width(value, size: String.to_float(size)) <= 80.001
+    assert field["DA"] =~ "18 Tf"
+    assert field["DA"] =~ "rg"
+    updated = AcroForm.import_data(document, %{"amount" => "€ 1"})
+    [%{dictionary: updated_field}] = PaperForge.forms(updated)
+    assert updated_field["Q"] == 2
+    assert updated_field["DA"] == field["DA"]
+    assert AcroForm.export_data(updated)["amount"] == "€ 1"
+  end
+
   test "PDF text encodings round trip without confusing Latin-1 and PDFDocEncoding" do
     for text <- [@text, "a\u00A0b", "a\u00ADb", "ñáéíóú", "€", "“quotes”", "\u0080", ""] do
       assert StringEncoding.decode(StringEncoding.auto(text)) == text

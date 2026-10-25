@@ -55,14 +55,22 @@ defmodule PaperForge.Flow do
   @doc "Adds a measured scientific expression from `PaperForge.Math` AST."
   @spec math(t(), PaperForge.Math.ast(), keyword()) :: t()
   def math(%__MODULE__{} = flow, ast, options \\ []) do
-    {_width, measured_height} = PaperForge.Math.measure(ast, options)
+    {width, measured_height} = PaperForge.Math.measure(ast, options)
     height = Keyword.get(options, :height, measured_height + 8)
 
     custom(
       flow,
       fn page, context ->
+        x =
+          case Keyword.get(options, :align, :left) do
+            :left -> context.block_x
+            :center -> context.block_x + max(context.block_width - width, 0) / 2
+            :right -> context.block_x + max(context.block_width - width, 0)
+            other -> raise ArgumentError, "unsupported math alignment #{inspect(other)}"
+          end
+
         PaperForge.Math.render(page, ast,
-          x: context.block_x,
+          x: x,
           y: context.block_y,
           size: Keyword.get(options, :size, 14),
           color: Keyword.get(options, :color, PaperForge.Color.black())

@@ -38,7 +38,7 @@ defmodule PaperForge.Scientific do
         bookmark: false,
         space_after: 4
       )
-      |> Flow.math(ast, options)
+      |> Flow.math(ast, Keyword.delete(options, :destination))
 
     %{
       scientific

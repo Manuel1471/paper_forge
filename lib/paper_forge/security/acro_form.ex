@@ -9,17 +9,23 @@ defmodule PaperForge.AcroForm do
 
   Field appearances can be adapted to the surrounding design with
   `:background_color`, `:border_color`, `:border_width`, and `:border_radius`.
+  Text fields also accept `:font`, `:font_size`, `:text_color`, `:text_align`,
+  and `:padding`. Generated single-line appearances shrink text to fit the
+  available width; the canonical field value is never truncated.
   Checkboxes additionally accept `:check_color` and `:check_width`.
+  Radio groups use circular controls with a centered selection mark.
   """
 
   alias PaperForge.{
     Document,
+    FontRegistry,
     Page,
     PageCompiler,
     PageResources,
     Reference,
     Stream,
-    StringEncoding
+    StringEncoding,
+    TextMetrics
   }
 
   alias PaperForge.PDF.{Graph, Inspection}
@@ -47,6 +53,7 @@ defmodule PaperForge.AcroForm do
         "P" => page_reference,
         "F" => Keyword.get(options, :annotation_flags, 4),
         "Ff" => field_flags(type, options),
+        "Q" => text_quadding(type, options),
         "DA" => Keyword.get(options, :default_appearance, "/Helv 10 Tf 0 g")
       }
       |> put_value(type, value)
@@ -97,7 +104,14 @@ defmodule PaperForge.AcroForm do
           )
 
         export = choice |> Keyword.fetch!(:value) |> to_string()
-        {current, appearance} = checkbox_appearance(current, rect, export, appearance_options)
+
+        {current, appearance} =
+          checkbox_appearance(
+            current,
+            rect,
+            export,
+            Keyword.put(appearance_options, :radio, true)
+          )
 
         widget = %{
           "Type" => {:name, "Annot"},
@@ -433,21 +447,55 @@ defmodule PaperForge.AcroForm do
     border = color_components(Keyword.get(options, :border_color, "0.25 0.3 0.4"))
     border_width = non_negative_option!(options, :border_width, 1)
     radius = radius_option!(options, width, height)
-    shape = appearance_shape(width, height, radius)
+    shape = inset_shape(width, height, radius, border_width)
+
+    font = Keyword.get(options, :font, :helvetica)
+
+    metrics_font =
+      case FontRegistry.fetch(document.font_registry, font) do
+        {:ok, instance} -> instance
+        :error -> font
+      end
+
+    padding = non_negative_option!(options, :padding, 6)
+    requested_size = positive_option!(options, :font_size, 10)
+    available = max(width - 2 * padding, 0.1)
+    measured = TextMetrics.width(text, font: metrics_font, size: requested_size)
+
+    size =
+      min(
+        requested_size,
+        min(max(height - 4, 0.1), requested_size * available / max(measured, 0.1))
+      )
+
+    alignment = Keyword.get(options, :text_align, if(type == :button, do: :center, else: :left))
+
+    unless alignment in [:left, :center, :right],
+      do: raise(ArgumentError, "invalid form text_align")
+
+    text_color = color_components(Keyword.get(options, :text_color, "0 0 0"))
+
+    [red, green, blue] =
+      text_color
+      |> String.split()
+      |> Enum.map(&String.to_float(if String.contains?(&1, "."), do: &1, else: &1 <> ".0"))
 
     page =
       Page.new(size: {width, height})
       |> Page.text(text,
-        x: 6,
-        y: max(height / 2 - 4, 2),
-        size: 10,
-        font: Keyword.get(options, :font, :helvetica)
+        x: padding,
+        y: (height - size) / 2 + size * 0.2,
+        width: available,
+        align: alignment,
+        size: size,
+        font: font,
+        color: PaperForge.Color.rgb(red, green, blue)
       )
 
     {document, text_content, resources} = PageCompiler.compile(page, document)
 
     content =
-      "q 0 0 #{width} #{height} re W n #{background} rg #{border} RG #{border_width} w #{shape} B 0 g " <>
+      "q 0 0 #{width} #{height} re W n #{background} rg #{border} RG #{border_width} w #{shape} B #{text_color} rg " <>
         text_content <> " Q"
 
     stream =
@@ -478,7 +526,14 @@ defmodule PaperForge.AcroForm do
 
           document
           |> put_form_font(form_ref, name, font)
-          |> Document.update_object(reference, &Map.put(&1, "DA", "/#{name} 10 Tf 0 g"))
+          |> Document.update_object(
+            reference,
+            &Map.put(
+              &1,
+              "DA",
+              "/#{name} #{Keyword.get(options, :font_size, 10)} Tf #{color_components(Keyword.get(options, :text_color, "0 0 0"))} rg"
+            )
+          )
 
         [] ->
           document
@@ -492,6 +547,15 @@ defmodule PaperForge.AcroForm do
     Document.update_object(document, form_ref, fn form ->
       update_in(form, ["DR", "Font"], &Map.put(&1 || %{}, name, font))
     end)
+  end
+
+  defp text_quadding(type, options) do
+    case Keyword.get(options, :text_align, if(type == :button, do: :center, else: :left)) do
+      :left -> 0
+      :center -> 1
+      :right -> 2
+      _ -> raise ArgumentError, "invalid form text_align"
+    end
   end
 
   defp appearance_text(_type, nil, _options), do: ""
@@ -521,7 +585,23 @@ defmodule PaperForge.AcroForm do
     border_width = non_negative_option!(options, :border_width, 1)
     check_width = non_negative_option!(options, :check_width, 1.4)
     radius = radius_option!(options, width, height)
-    shape = appearance_shape(width, height, radius)
+    radio? = Keyword.get(options, :radio, false)
+    side = min(width, height)
+
+    shape =
+      if radio?,
+        do: circle_shape(width / 2, height / 2, max((side - border_width) / 2, 0)),
+        else: inset_shape(width, height, radius, border_width)
+
+    mark =
+      if radio? do
+        "#{check} rg #{circle_shape(width / 2, height / 2, side * 0.23)} f"
+      else
+        left = (width - side) / 2
+        bottom = (height - side) / 2
+
+        "#{check} RG #{check_width} w 1 J 1 j #{left + side * 0.23} #{bottom + side * 0.51} m #{left + side * 0.43} #{bottom + side * 0.31} l #{left + side * 0.77} #{bottom + side * 0.71} l S"
+      end
 
     off =
       Stream.new("q #{background} rg #{border} RG #{border_width} w #{shape} B Q",
@@ -534,7 +614,7 @@ defmodule PaperForge.AcroForm do
 
     yes =
       Stream.new(
-        "q #{background} rg #{border} RG #{border_width} w #{shape} B #{check} RG #{check_width} w 2 #{height / 2} m #{width / 2} 2 l #{width - 2} #{height - 2} l S Q",
+        "q #{background} rg #{border} RG #{border_width} w #{shape} B #{mark} Q",
         dictionary: %{
           "Type" => {:name, "XObject"},
           "Subtype" => {:name, "Form"},
@@ -628,6 +708,31 @@ defmodule PaperForge.AcroForm do
         ArgumentError,
         "form appearance color must be a PDF RGB string, hex color, or Color, got: #{inspect(value)}"
       )
+
+  defp positive_option!(options, key, default) do
+    value = non_negative_option!(options, key, default)
+    if value > 0, do: value, else: raise(ArgumentError, "#{key} must be positive")
+  end
+
+  defp inset_shape(width, height, radius, stroke) do
+    inset = min(stroke / 2, min(width, height) / 2)
+    inner_width = max(width - 2 * inset, 0)
+    inner_height = max(height - 2 * inset, 0)
+    radius = min(radius, min(inner_width, inner_height) / 2)
+
+    "1 0 0 1 #{inset} #{inset} cm " <>
+      appearance_shape(inner_width, inner_height, radius) <>
+      " 1 0 0 1 #{-inset} #{-inset} cm"
+  end
+
+  defp circle_shape(x, y, radius) do
+    control = radius * 0.552_284_75
+
+    "#{x + radius} #{y} m #{x + radius} #{y + control} #{x + control} #{y + radius} #{x} #{y + radius} c " <>
+      "#{x - control} #{y + radius} #{x - radius} #{y + control} #{x - radius} #{y} c " <>
+      "#{x - radius} #{y - control} #{x - control} #{y - radius} #{x} #{y - radius} c " <>
+      "#{x + control} #{y - radius} #{x + radius} #{y - control} #{x + radius} #{y} c h"
+  end
 
   defp appearance_shape(width, height, radius) when radius <= 0,
     do: "0 0 #{width} #{height} re"
