@@ -1,0 +1,1043 @@
+{
+  "version": "1",
+  "id": "lumen-cuaderno-visual-2026",
+  "document": {
+    "compress": true,
+    "pdf_version": "1.7"
+  },
+  "metadata": {
+    "title": "Lumen · Diseño, información y revisión",
+    "author": "PaperForge · Demostración"
+  },
+  "page_templates": {
+    "report": {
+      "size": [
+        595,
+        842
+      ],
+      "margins": {
+        "top": 54,
+        "bottom": 62,
+        "left": 52,
+        "right": 52
+      },
+      "header": "LUMEN / CUADERNO DE RESULTADOS 2026",
+      "footer": "EDICIÓN DEMOSTRATIVA  ·  {page} / {total}"
+    }
+  },
+  "layout_options": {
+    "template": "report"
+  },
+  "design_system": {
+    "styles": {
+      "body": {
+        "size": 11,
+        "line_height": 17,
+        "color": "#183B45",
+        "space_after": 14
+      },
+      "section": {
+        "size": 20,
+        "line_height": 26,
+        "weight": "bold",
+        "color": "#183B45",
+        "space_after": 14
+      }
+    }
+  },
+  "forms": [
+    {
+      "type": "text",
+      "name": "revisor_ñ",
+      "page": 7,
+      "rect": [
+        70,
+        240,
+        279,
+        276
+      ],
+      "origin": "top_left",
+      "border_color": "#BDD2D0",
+      "border_width": 0.8,
+      "border_radius": 4,
+      "background_color": "#FFFFFF",
+      "value": "Lucía Peña",
+      "font_size": 12,
+      "text_color": "#183B45",
+      "padding": 10
+    },
+    {
+      "type": "text",
+      "name": "área",
+      "page": 7,
+      "rect": [
+        316,
+        240,
+        525,
+        276
+      ],
+      "origin": "top_left",
+      "border_color": "#BDD2D0",
+      "border_width": 0.8,
+      "border_radius": 4,
+      "background_color": "#FFFFFF",
+      "value": "Operación y diseño",
+      "font_size": 12,
+      "text_color": "#183B45",
+      "padding": 10
+    },
+    {
+      "type": "text",
+      "name": "presupuesto_€",
+      "page": 7,
+      "rect": [
+        70,
+        327,
+        279,
+        363
+      ],
+      "origin": "top_left",
+      "border_color": "#BDD2D0",
+      "border_width": 0.8,
+      "border_radius": 4,
+      "background_color": "#FFFFFF",
+      "value": "€ 125,000",
+      "font_size": 12,
+      "text_color": "#087F83",
+      "text_align": "right",
+      "padding": 10
+    },
+    {
+      "type": "combo",
+      "name": "país",
+      "page": 7,
+      "rect": [
+        316,
+        327,
+        525,
+        363
+      ],
+      "origin": "top_left",
+      "border_color": "#BDD2D0",
+      "border_width": 0.8,
+      "border_radius": 4,
+      "background_color": "#FFFFFF",
+      "value": "MX",
+      "options": [
+        [
+          "MX",
+          "México"
+        ],
+        [
+          "ES",
+          "España"
+        ]
+      ],
+      "font_size": 12,
+      "text_color": "#183B45",
+      "padding": 10
+    },
+    {
+      "type": "radio",
+      "name": "estado",
+      "value": "aprobado",
+      "origin": "top_left",
+      "border_color": "#087F83",
+      "check_color": "#087F83",
+      "choices": [
+        {
+          "page": 7,
+          "rect": [
+            70,
+            420,
+            90,
+            440
+          ],
+          "value": "aprobado"
+        },
+        {
+          "page": 7,
+          "rect": [
+            303,
+            420,
+            323,
+            440
+          ],
+          "value": "ajustes"
+        }
+      ]
+    },
+    {
+      "type": "checkbox",
+      "name": "confirmación",
+      "page": 7,
+      "rect": [
+        70,
+        471,
+        90,
+        491
+      ],
+      "origin": "top_left",
+      "border_color": "#BDD2D0",
+      "border_width": 0.8,
+      "border_radius": 3,
+      "background_color": "#FFFFFF",
+      "value": true,
+      "check_color": "#087F83"
+    },
+    {
+      "type": "signature",
+      "name": "firma",
+      "page": 7,
+      "rect": [
+        70,
+        547,
+        525,
+        589
+      ],
+      "origin": "top_left",
+      "border_color": "#BDD2D0",
+      "border_width": 0.8,
+      "border_radius": 4,
+      "background_color": "#FFFFFF"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "svg",
+      "content": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 491 690\"><rect x=\"0\" y=\"0\" width=\"491\" height=\"690\" fill=\"#183B45\"/><rect x=\"32\" y=\"38\" width=\"40\" height=\"5\" fill=\"#D8AF6C\"/><text x=\"32\" y=\"88\" font-size=\"35\" font-weight=\"bold\" fill=\"#FFFFFF\" text-anchor=\"start\">LUMEN</text><text x=\"32\" y=\"110\" font-size=\"9\" font-weight=\"normal\" fill=\"#A7D4D0\" text-anchor=\"start\">LABORATORIO DE MOVILIDAD</text><text x=\"32\" y=\"207\" font-size=\"42\" font-weight=\"normal\" fill=\"#FFFFFF\" text-anchor=\"start\">Cada detalle</text><text x=\"32\" y=\"258\" font-size=\"42\" font-weight=\"normal\" fill=\"#FFFFFF\" text-anchor=\"start\">construye</text><text x=\"32\" y=\"309\" font-size=\"42\" font-weight=\"normal\" fill=\"#FFFFFF\" text-anchor=\"start\">confianza.</text><text x=\"34\" y=\"366\" font-size=\"15\" font-weight=\"normal\" fill=\"#D8AF6C\" text-anchor=\"start\">Cuaderno de resultados · 2026</text><circle cx=\"180\" cy=\"494\" r=\"81\" fill=\"none\" stroke=\"#087F83\" stroke-width=\"2\"/><circle cx=\"287\" cy=\"494\" r=\"81\" fill=\"none\" stroke=\"#087F83\" stroke-width=\"2\"/><circle cx=\"234\" cy=\"548\" r=\"81\" fill=\"none\" stroke=\"#087F83\" stroke-width=\"2\"/><text x=\"234\" y=\"517\" font-size=\"16\" font-weight=\"normal\" fill=\"#FFFFFF\" text-anchor=\"middle\">01 / 08</text><text x=\"32\" y=\"651\" font-size=\"9\" font-weight=\"normal\" fill=\"#A7D4D0\" text-anchor=\"start\">Estudio ficticio · Edición demostrativa PaperForge 1.5</text></svg>",
+      "options": {
+        "width": 491,
+        "height": 690,
+        "space_after": 0
+      }
+    },
+    {
+      "type": "page_break"
+    },
+    {
+      "type": "paragraph",
+      "text": "CUADERNO DE DISEÑO  /  01",
+      "options": {
+        "style": "body",
+        "size": 9,
+        "color": "#087F83",
+        "space_after": 14
+      }
+    },
+    {
+      "type": "heading",
+      "text": "Una operación más humana",
+      "options": {
+        "style": "section",
+        "size": 29,
+        "line_height": 34,
+        "destination": "chapter-1",
+        "bookmark": true,
+        "space_after": 18
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Un mismo lenguaje visual conecta la narrativa, los datos y las decisiones. El objetivo es reducir la fricción en cada trayecto.",
+      "options": {
+        "style": "body",
+        "size": 11,
+        "line_height": 17,
+        "space_after": 24
+      }
+    },
+    {
+      "type": "html",
+      "content": "<style>h3 { color: #087F83; font-size: 17pt; } p { color: #183B45; font-size: 11pt; line-height: 17pt; } blockquote { background-color: #EDF4F3; padding: 16pt; }</style><h3>Información que llega a tiempo</h3><p>En México, la red Lumen conectó a equipos de operación, mantenimiento y atención. La información compartida hizo posible anticipar la demanda y explicar cada cambio al pasajero.</p><blockquote><p>“Una buena experiencia empieza antes de subir al vehículo.”</p></blockquote><p>La revisión combinó entrevistas, observación de rutas y análisis de capacidad. Los datos de este cuaderno son simulados: ilustran decisiones, no resultados de una empresa real.</p>"
+    },
+    {
+      "type": "spacer",
+      "content": 14
+    },
+    {
+      "type": "heading",
+      "text": "Tres compromisos medibles",
+      "options": {
+        "style": "section",
+        "size": 18
+      }
+    },
+    {
+      "type": "markdown",
+      "content": "**Claridad.** Una misma jerarquía para títulos, notas y datos de cada región.\n\n**Consistencia.** Márgenes generosos, columnas equilibradas y espacios que distinguen cada idea.\n\n**Continuidad.** Referencias navegables, campos editables y un documento que conserva su significado.",
+      "options": {
+        "size": 11,
+        "line_height": 17,
+        "color": "#183B45"
+      }
+    },
+    {
+      "type": "spacer",
+      "content": 16
+    },
+    {
+      "type": "paragraph",
+      "text": "Diseño editorial + contenido importado",
+      "options": {
+        "style": "body",
+        "size": 10,
+        "color": "#087F83"
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Esta página combina HTML con CSS y CommonMark. Ambos se convierten en bloques medidos dentro del mismo flujo de página.",
+      "options": {
+        "style": "body",
+        "size": 10,
+        "line_height": 15,
+        "background_color": "#EDF4F3",
+        "padding": 14
+      }
+    },
+    {
+      "type": "page_break"
+    },
+    {
+      "type": "paragraph",
+      "text": "CUADERNO DE DISEÑO  /  02",
+      "options": {
+        "style": "body",
+        "size": 9,
+        "color": "#087F83",
+        "space_after": 14
+      }
+    },
+    {
+      "type": "heading",
+      "text": "La red, en perspectiva",
+      "options": {
+        "style": "section",
+        "size": 29,
+        "line_height": 34,
+        "destination": "chapter-2",
+        "bookmark": true,
+        "space_after": 18
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Seis corredores, una base común. La tabla prioriza lectura, comparación y continuidad entre regiones.",
+      "options": {
+        "style": "body",
+        "size": 11,
+        "line_height": 17,
+        "space_after": 24
+      }
+    },
+    {
+      "type": "table",
+      "columns": [
+        "CORREDOR",
+        "REGIÓN",
+        "INGRESOS",
+        "PUNTUALIDAD"
+      ],
+      "rows": [
+        [
+          "Bosque",
+          "Norte",
+          "€ 84 M",
+          "97.2%"
+        ],
+        [
+          "Río",
+          "Centro",
+          "€ 71 M",
+          "96.8%"
+        ],
+        [
+          "Puerto",
+          "Occidente",
+          "€ 66 M",
+          "98.1%"
+        ],
+        [
+          "Jardín",
+          "Bajío",
+          "€ 59 M",
+          "97.5%"
+        ],
+        [
+          "Horizonte",
+          "Sureste",
+          "€ 47 M",
+          "95.9%"
+        ],
+        [
+          "Encuentro",
+          "Norte",
+          "€ 39 M",
+          "96.4%"
+        ]
+      ],
+      "options": {
+        "column_widths": [
+          145,
+          120,
+          110,
+          116
+        ],
+        "size": 9,
+        "padding": 8,
+        "row_height": 32,
+        "cell_line_height": 13,
+        "header_fill_color": "#183B45",
+        "header_color": "#FFFFFF",
+        "stripe_fill_color": "#EDF4F3",
+        "border_color": "#D7E3E2",
+        "repeat_header": true,
+        "space_after": 18
+      }
+    },
+    {
+      "type": "heading",
+      "text": "Capacidad para crecer",
+      "options": {
+        "style": "section",
+        "size": 19
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Las cifras acompañan una decisión concreta: aumentar la frecuencia donde la demanda es estable y reservar capacidad para las horas de mayor variación.",
+      "options": {
+        "style": "body"
+      }
+    },
+    {
+      "type": "chart",
+      "content": [
+        [
+          "Bosque",
+          84
+        ],
+        [
+          "Río",
+          71
+        ],
+        [
+          "Puerto",
+          66
+        ],
+        [
+          "Jardín",
+          59
+        ],
+        [
+          "Horizonte",
+          47
+        ],
+        [
+          "Encuentro",
+          39
+        ]
+      ],
+      "options": {
+        "chart_type": "bar",
+        "height": 180,
+        "color": "#087F83",
+        "background_color": "#EDF4F3",
+        "label_color": "#183B45",
+        "show_values": true,
+        "space_after": 18,
+        "value_prefix": "€ ",
+        "value_suffix": " M"
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Ingresos simulados por corredor. Misma base de comparación y escala desde cero.",
+      "options": {
+        "style": "body",
+        "size": 9,
+        "color": "#557177"
+      }
+    },
+    {
+      "type": "page_break"
+    },
+    {
+      "type": "paragraph",
+      "text": "CUADERNO DE DISEÑO  /  03",
+      "options": {
+        "style": "body",
+        "size": 9,
+        "color": "#087F83",
+        "space_after": 14
+      }
+    },
+    {
+      "type": "heading",
+      "text": "Tendencia y equilibrio",
+      "options": {
+        "style": "section",
+        "size": 29,
+        "line_height": 34,
+        "destination": "chapter-3",
+        "bookmark": true,
+        "space_after": 18
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Dos lecturas complementarias: cómo evoluciona el servicio y dónde se concentra la inversión.",
+      "options": {
+        "style": "body",
+        "size": 11,
+        "line_height": 17,
+        "space_after": 24
+      }
+    },
+    {
+      "type": "heading",
+      "text": "01  /  Puntualidad trimestral",
+      "options": {
+        "style": "section",
+        "size": 16
+      }
+    },
+    {
+      "type": "chart",
+      "content": [
+        [
+          "T1",
+          94
+        ],
+        [
+          "T2",
+          95.5
+        ],
+        [
+          "T3",
+          97
+        ],
+        [
+          "T4",
+          98
+        ]
+      ],
+      "options": {
+        "chart_type": "line",
+        "height": 190,
+        "color": "#087F83",
+        "background_color": "#EDF4F3",
+        "label_color": "#183B45",
+        "show_values": true,
+        "space_after": 18,
+        "value_suffix": "%"
+      }
+    },
+    {
+      "type": "heading",
+      "text": "02  /  Distribución de la inversión",
+      "options": {
+        "style": "section",
+        "size": 16
+      }
+    },
+    {
+      "type": "chart",
+      "content": [
+        [
+          "Flota  42%",
+          42
+        ],
+        [
+          "Energía  28%",
+          28
+        ],
+        [
+          "Seguridad  18%",
+          18
+        ],
+        [
+          "Experiencia  12%",
+          12
+        ]
+      ],
+      "options": {
+        "chart_type": "donut",
+        "height": 225,
+        "color": "#087F83",
+        "background_color": "#EDF4F3",
+        "label_color": "#183B45",
+        "show_values": false,
+        "space_after": 18,
+        "colors": [
+          "#087F83",
+          "#183B45",
+          "#D8AF6C",
+          "#CB633D"
+        ],
+        "show_legend": true,
+        "value_suffix": "%",
+        "label_size": 10
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Las etiquetas y las leyendas se mantienen dentro del área de lectura. La galería ampliada del informe Atlas contiene los seis tipos de gráfica.",
+      "options": {
+        "style": "body",
+        "size": 10,
+        "line_height": 15
+      }
+    },
+    {
+      "type": "page_break"
+    },
+    {
+      "type": "paragraph",
+      "text": "CUADERNO DE DISEÑO  /  04",
+      "options": {
+        "style": "body",
+        "size": 9,
+        "color": "#087F83",
+        "space_after": 14
+      }
+    },
+    {
+      "type": "heading",
+      "text": "Método visible,\nconclusiones trazables",
+      "options": {
+        "style": "section",
+        "size": 29,
+        "line_height": 34,
+        "destination": "chapter-4",
+        "bookmark": true,
+        "space_after": 18
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Las expresiones se dibujan como texto y vectores. El espacio que ocupan se calcula antes de componer la página.",
+      "options": {
+        "style": "body",
+        "size": 11,
+        "line_height": 17,
+        "space_after": 24
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "01  /  PROMEDIO PONDERADO",
+      "options": {
+        "style": "body",
+        "size": 9,
+        "color": "#087F83"
+      }
+    },
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {
+            "symbol": "R = "
+          },
+          {
+            "fraction": {
+              "numerator": {
+                "symbol": "84 + 71 + 66"
+              },
+              "denominator": {
+                "symbol": "3"
+              }
+            }
+          },
+          {
+            "symbol": " = 73.67"
+          }
+        ]
+      },
+      "options": {
+        "title": "Ingresos medios de los corredores principales",
+        "size": 23,
+        "align": "center",
+        "space_after": 24
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "El promedio permite comparar una cartera homogénea. Las unidades se conservan en millones de euros y los valores se redondean después del cálculo.",
+      "options": {
+        "style": "body"
+      }
+    },
+    {
+      "type": "spacer",
+      "content": 12
+    },
+    {
+      "type": "paragraph",
+      "text": "02  /  MATRIZ DE SENSIBILIDAD",
+      "options": {
+        "style": "body",
+        "size": 9,
+        "color": "#087F83"
+      }
+    },
+    {
+      "type": "math",
+      "ast": {
+        "matrix": [
+          [
+            {
+              "fraction": {
+                "numerator": {
+                  "symbol": "1"
+                },
+                "denominator": {
+                  "symbol": "2"
+                }
+              }
+            },
+            {
+              "symbol": "0"
+            },
+            {
+              "symbol": "1"
+            }
+          ],
+          [
+            {
+              "symbol": "0"
+            },
+            {
+              "fraction": {
+                "numerator": {
+                  "symbol": "3"
+                },
+                "denominator": {
+                  "symbol": "4"
+                }
+              }
+            },
+            {
+              "symbol": "2"
+            }
+          ],
+          [
+            {
+              "symbol": "1"
+            },
+            {
+              "symbol": "2"
+            },
+            {
+              "symbol": "3"
+            }
+          ]
+        ]
+      },
+      "options": {
+        "size": 20,
+        "align": "center",
+        "space_after": 24
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Cada fila reserva la altura de su celda más alta. Las fracciones y los corchetes permanecen separados, también al mezclar símbolos de distinta altura.",
+      "options": {
+        "style": "body"
+      }
+    },
+    {
+      "type": "spacer",
+      "content": 12
+    },
+    {
+      "type": "equation_reference",
+      "number": 1,
+      "options": {
+        "text": "Volver al promedio de ingresos · página {page}",
+        "size": 10,
+        "color": "#087F83"
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Nota metodológica: expresiones y datos preparados únicamente para demostrar la composición científica.",
+      "options": {
+        "style": "body",
+        "size": 10,
+        "line_height": 15,
+        "background_color": "#EDF4F3",
+        "padding": 14
+      }
+    },
+    {
+      "type": "page_break"
+    },
+    {
+      "type": "paragraph",
+      "text": "CUADERNO DE DISEÑO  /  05",
+      "options": {
+        "style": "body",
+        "size": 9,
+        "color": "#087F83",
+        "space_after": 14
+      }
+    },
+    {
+      "type": "heading",
+      "text": "Leer, revisar, documentar",
+      "options": {
+        "style": "section",
+        "size": 29,
+        "line_height": 34,
+        "destination": "chapter-5",
+        "bookmark": true,
+        "space_after": 18
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Las notas y las referencias convierten el informe en una herramienta de trabajo. La revisión conserva contexto y autoría.",
+      "options": {
+        "style": "body",
+        "size": 11,
+        "line_height": 17,
+        "space_after": 24
+      }
+    },
+    {
+      "type": "html",
+      "content": "<style>th { background-color: #183B45; color: white; } td { padding: 10pt; } tr:nth-child(even) { background-color: #EDF4F3; }</style><table><tr><th>Etapa</th><th>Evidencia</th></tr><tr><td>Observación</td><td>Registro de rutas y entrevistas</td></tr><tr><td>Contraste</td><td>Comparación de periodos homogéneos</td></tr><tr><td>Revisión</td><td>Validación editorial y metodológica</td></tr></table>"
+    },
+    {
+      "type": "spacer",
+      "content": 22
+    },
+    {
+      "type": "heading",
+      "text": "Criterios de lectura",
+      "options": {
+        "style": "section",
+        "size": 19
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "La puntualidad se calcula sobre viajes programados. La inversión representa una distribución ilustrativa y no equivale a un presupuesto aprobado.",
+      "options": {
+        "style": "body"
+      }
+    },
+    {
+      "type": "footnote",
+      "content": "Todas las cantidades, personas y organizaciones de este cuaderno son ficticias.",
+      "options": {
+        "size": 9
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Los comentarios del PDF permiten continuar la conversación sin alterar el contenido de la página. El marcador de esta sección conserva la palabra “revisión” y sus acentos.",
+      "options": {
+        "style": "body"
+      }
+    },
+    {
+      "type": "spacer",
+      "content": 20
+    },
+    {
+      "type": "bibliography",
+      "entries": [
+        {
+          "author": "Equipo Lumen",
+          "title": "Cuaderno metodológico de movilidad",
+          "year": 2026
+        },
+        {
+          "author": "Equipo Lumen",
+          "title": "Protocolo de revisión editorial",
+          "year": 2026
+        }
+      ],
+      "options": {
+        "title": "Referencias de la demostración",
+        "size": 10,
+        "line_height": 16
+      }
+    },
+    {
+      "type": "annotation",
+      "annotation_type": "note",
+      "content": "Revisión: Peña, € y “comillas”. 日本語.",
+      "options": {
+        "x": 514,
+        "y": 570,
+        "width": 20,
+        "height": 20
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Referencias ficticias, incluidas para mostrar la jerarquía bibliográfica y el flujo de notas.",
+      "options": {
+        "style": "body",
+        "size": 9,
+        "color": "#557177"
+      }
+    },
+    {
+      "type": "page_break"
+    },
+    {
+      "type": "svg",
+      "content": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 491 690\"><text x=\"0\" y=\"10\" font-size=\"9\" font-weight=\"normal\" fill=\"#087F83\" text-anchor=\"start\">CUADERNO DE DISEÑO  /  06</text><text x=\"0\" y=\"61\" font-size=\"29\" font-weight=\"bold\" fill=\"#183B45\" text-anchor=\"start\">Revisar también es diseñar</text><text x=\"0\" y=\"95\" font-size=\"11\" font-weight=\"normal\" fill=\"#183B45\" text-anchor=\"start\">Campos editables con una retícula común, etiquetas claras</text><text x=\"0\" y=\"112\" font-size=\"11\" font-weight=\"normal\" fill=\"#183B45\" text-anchor=\"start\">y controles que mantienen su apariencia al exportar.</text><rect x=\"0\" y=\"145\" width=\"491\" height=\"448\" fill=\"#EDF4F3\"/><text x=\"18\" y=\"175\" font-size=\"8\" font-weight=\"bold\" fill=\"#557177\" text-anchor=\"start\">NOMBRE DE QUIEN REVISA</text><text x=\"264\" y=\"175\" font-size=\"8\" font-weight=\"bold\" fill=\"#557177\" text-anchor=\"start\">ÁREA</text><text x=\"18\" y=\"262\" font-size=\"8\" font-weight=\"bold\" fill=\"#557177\" text-anchor=\"start\">PRESUPUESTO</text><text x=\"264\" y=\"262\" font-size=\"8\" font-weight=\"bold\" fill=\"#557177\" text-anchor=\"start\">PAÍS</text><text x=\"18\" y=\"345\" font-size=\"9\" font-weight=\"bold\" fill=\"#087F83\" text-anchor=\"start\">ESTADO DE LA REVISIÓN</text><text x=\"49\" y=\"382\" font-size=\"11\" font-weight=\"normal\" fill=\"#183B45\" text-anchor=\"start\">Aprobado</text><text x=\"282\" y=\"382\" font-size=\"11\" font-weight=\"normal\" fill=\"#183B45\" text-anchor=\"start\">Requiere ajustes</text><text x=\"49\" y=\"433\" font-size=\"11\" font-weight=\"normal\" fill=\"#183B45\" text-anchor=\"start\">Confirmo que revisé los datos y las referencias.</text><text x=\"18\" y=\"481\" font-size=\"8\" font-weight=\"bold\" fill=\"#557177\" text-anchor=\"start\">FIRMA DE CONFORMIDAD</text><text x=\"18\" y=\"563\" font-size=\"9\" font-weight=\"normal\" fill=\"#557177\" text-anchor=\"start\">La firma se completa en un lector compatible.</text><text x=\"0\" y=\"634\" font-size=\"12\" font-weight=\"normal\" fill=\"#087F83\" text-anchor=\"start\">Peña · México · € · “Conforme”</text><text x=\"0\" y=\"661\" font-size=\"9\" font-weight=\"normal\" fill=\"#557177\" text-anchor=\"start\">Los datos visibles son de demostración; no constituyen una firma.</text></svg>",
+      "options": {
+        "width": 491,
+        "height": 690,
+        "space_after": 0
+      }
+    },
+    {
+      "type": "page_break"
+    },
+    {
+      "type": "paragraph",
+      "text": "CUADERNO DE DISEÑO  /  07",
+      "options": {
+        "style": "body",
+        "size": 9,
+        "color": "#087F83",
+        "space_after": 14
+      }
+    },
+    {
+      "type": "heading",
+      "text": "Un documento que continúa",
+      "options": {
+        "style": "section",
+        "size": 29,
+        "line_height": 34,
+        "destination": "chapter-7",
+        "bookmark": true,
+        "space_after": 18
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "La calidad se comprueba en el contenido, en la estructura y en la experiencia de lectura.",
+      "options": {
+        "style": "body",
+        "size": 11,
+        "line_height": 17,
+        "space_after": 24
+      }
+    },
+    {
+      "type": "table",
+      "columns": [
+        "CAPA",
+        "QUÉ PERMITE REVISAR"
+      ],
+      "rows": [
+        [
+          "Contenido",
+          "Texto, fórmulas, tablas y gráficas nativas."
+        ],
+        [
+          "Navegación",
+          "Marcadores y referencias entre páginas."
+        ],
+        [
+          "Interacción",
+          "Campos, opciones y comentarios de revisión."
+        ],
+        [
+          "Interoperabilidad",
+          "Lectura, inspección y transformación del PDF."
+        ],
+        [
+          "Presentación",
+          "Márgenes, ritmo vertical y alineaciones."
+        ]
+      ],
+      "options": {
+        "column_widths": [
+          130,
+          361
+        ],
+        "size": 9,
+        "padding": 8,
+        "row_height": 32,
+        "cell_line_height": 13,
+        "header_fill_color": "#183B45",
+        "header_color": "#FFFFFF",
+        "stripe_fill_color": "#EDF4F3",
+        "border_color": "#D7E3E2",
+        "repeat_header": true,
+        "space_after": 18
+      }
+    },
+    {
+      "type": "heading",
+      "text": "La siguiente edición empieza aquí",
+      "options": {
+        "style": "section",
+        "size": 22
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Este cuaderno complementa el informe Atlas de 27 páginas. El archivo .paperforge contiene el diseño completo; el ejecutor solo lo carga, genera el PDF y comprueba su estructura.",
+      "options": {
+        "style": "body"
+      }
+    },
+    {
+      "type": "spacer",
+      "content": 15
+    },
+    {
+      "type": "paragraph",
+      "text": "GENERAR  /  INSPECCIONAR  /  TRANSFORMAR",
+      "options": {
+        "style": "body",
+        "size": 9,
+        "color": "#087F83"
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Una base común para documentos que deben verse bien, conservar sus datos y seguir siendo útiles después de publicarse.",
+      "options": {
+        "style": "body",
+        "size": 15,
+        "line_height": 21
+      }
+    },
+    {
+      "type": "spacer",
+      "content": 20
+    },
+    {
+      "type": "qr_code",
+      "content": "https://hex.pm/packages/paper_forge",
+      "options": {
+        "width": 54,
+        "height": 54
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "PaperForge · Document engineering for the BEAM",
+      "options": {
+        "style": "body",
+        "size": 9,
+        "color": "#557177"
+      }
+    }
+  ]
+}

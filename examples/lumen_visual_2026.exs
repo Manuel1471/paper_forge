@@ -1,0 +1,11 @@
+# All design and sample data live in the .paperforge source.
+{:ok, source} = PaperForge.Declarative.load(Path.join(__DIR__, "lumen_visual_2026.paperforge"))
+{:ok, document, layout} = PaperForge.Declarative.render(source)
+output = Path.expand("../output/pdf/lumen-visual-2026.pdf", __DIR__)
+File.mkdir_p!(Path.dirname(output))
+PaperForge.write!(document, output)
+reopened = PaperForge.open!(output)
+8 = PaperForge.page_count(reopened)
+7 = map_size(PaperForge.AcroForm.export_data(reopened))
+%{"revisor_ñ" => "Lucía Peña", "país" => "MX", "estado" => "aprobado"} = PaperForge.AcroForm.export_data(reopened)
+IO.puts("Lumen: #{layout.pages} pages; fields and values verified. #{output}")
