@@ -1,7 +1,7 @@
 defmodule PaperForge.Import.HTML do
   @moduledoc "Imports well-formed HTML fragments and a validated CSS subset."
 
-  alias PaperForge.Import.{CSS, Markup}
+  alias PaperForge.Import.{CSS, Markup, XML}
 
   @spec parse(binary(), keyword()) :: {:ok, PaperForge.Flow.t()} | {:error, term()}
   def parse(source, options \\ []) when is_binary(source) do
@@ -15,8 +15,7 @@ defmodule PaperForge.Import.HTML do
   end
 
   defp scan(source) do
-    {root, _} = :xmerl_scan.string(String.to_charlist(source), quiet: true)
-    {:ok, root}
+    {:ok, XML.parse!(source)}
   rescue
     _ -> {:error, :invalid_html}
   catch
@@ -27,7 +26,7 @@ defmodule PaperForge.Import.HTML do
     embedded =
       root
       |> element_content()
-      |> collect_elements(:style)
+      |> collect_elements("style")
       |> Enum.map_join("\n", &element_text/1)
 
     external = Keyword.get(options, :css, "")
@@ -39,7 +38,7 @@ defmodule PaperForge.Import.HTML do
   end
 
   defp normalize({:xmlElement, name, _, _, _, _, _, _, _, _, _, _} = element) do
-    tag = name |> Atom.to_string() |> String.downcase()
+    tag = name |> to_string() |> String.downcase()
 
     %{
       tag: tag,
@@ -54,7 +53,7 @@ defmodule PaperForge.Import.HTML do
 
   defp attributes({:xmlElement, _, _, _, _, _, _, attributes, _, _, _, _}) do
     Map.new(attributes, fn {:xmlAttribute, name, _, _, _, _, _, _, value, _} ->
-      {name |> Atom.to_string() |> String.downcase(), to_string(value)}
+      {name |> to_string() |> String.downcase(), to_string(value)}
     end)
   end
 
@@ -83,11 +82,5 @@ defmodule PaperForge.Import.HTML do
     end)
   end
 
-  defp serialize_element(element) do
-    element
-    |> :xmerl.export_simple([:xmerl_lib.simplify_element(element)], :xmerl_xml)
-    |> IO.iodata_to_binary()
-  rescue
-    _ -> nil
-  end
+  defp serialize_element(element), do: XML.serialize(element)
 end

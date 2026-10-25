@@ -9,6 +9,7 @@ defmodule PaperForge.SVG do
   """
 
   alias PaperForge.Color
+  alias PaperForge.Import.XML
   alias PaperForge.Page
 
   @identity {1.0, 0.0, 0.0, 1.0, 0.0, 0.0}
@@ -16,7 +17,7 @@ defmodule PaperForge.SVG do
 
   @spec render(Page.t(), binary(), keyword()) :: Page.t()
   def render(%Page{} = page, svg, options) when is_binary(svg) and is_list(options) do
-    {root, _rest} = :xmerl_scan.string(:binary.bin_to_list(svg), quiet: true)
+    root = XML.parse!(svg)
     attrs = attributes(root)
     matrix = viewbox_matrix(attrs, options)
     clips = collect_clip_paths(root, matrix)
@@ -443,7 +444,7 @@ defmodule PaperForge.SVG do
     node
     |> xml_element(:attributes)
     |> Map.new(fn attribute ->
-      {attribute |> xml_attribute(:name) |> Atom.to_string(),
+      {attribute |> xml_attribute(:name) |> to_string(),
        attribute |> xml_attribute(:value) |> to_string()}
     end)
   end
@@ -454,7 +455,7 @@ defmodule PaperForge.SVG do
     |> Enum.filter(&(is_tuple(&1) and elem(&1, 0) == :xmlElement))
   end
 
-  defp element_name(node), do: node |> xml_element(:name) |> Atom.to_string()
+  defp element_name(node), do: node |> xml_element(:name) |> to_string()
 
   defp xml_element(node, :name), do: elem(node, 1)
   defp xml_element(node, :attributes), do: elem(node, 7)

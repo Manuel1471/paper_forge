@@ -86,7 +86,7 @@ defmodule PaperForge.Math do
       |> Enum.map(&(elem(do_measure(&1, size * 0.8), 0) + 10))
       |> Enum.max(fn -> 24 end)
 
-    {columns * cell_width + 20, max(length(rows), 1) * size * 1.4 + 8}
+    {columns * cell_width + 20, max(length(rows), 1) * matrix_row_height(rows, size) + 8}
   end
 
   defp do_measure({kind, base, script}, size) when kind in [:superscript, :subscript] do
@@ -101,7 +101,8 @@ defmodule PaperForge.Math do
     {uw, _} = if(upper, do: do_measure(upper, size * 0.55), else: {0, 0})
     operator_width = max(32, 25 + max(lw, uw))
 
-    {operator_width + bw + String.length(variable) * size * 0.56 + 10, max(bh, size * 2.55)}
+    {dw, _} = do_measure({:symbol, " d#{variable}"}, size)
+    {operator_width + bw + dw + 2, max(bh + size * 0.55, size * 2.55)}
   end
 
   defp draw(page, {:symbol, text}, x, y, size, color) do
@@ -111,6 +112,7 @@ defmodule PaperForge.Math do
        x: x,
        y: y + size,
        size: size,
+       font: :helvetica,
        color: color,
        origin: :top_left
      ), width}
@@ -119,13 +121,15 @@ defmodule PaperForge.Math do
   defp draw(page, {:row, items}, x, y, size, color) do
     row_height = items |> Enum.map(&elem(do_measure(&1, size), 1)) |> Enum.max(fn -> size end)
 
+    last_index = length(items) - 1
+
     items
     |> Enum.with_index()
     |> Enum.reduce({page, 0}, fn {item, index}, {current, offset} ->
       {_item_width, item_height} = do_measure(item, size)
       item_y = y + max((row_height - item_height) / 2, 0)
       {current, width} = draw(current, item, x + offset, item_y, size, color)
-      gap = if index < length(items) - 1, do: size * 0.35, else: 0
+      gap = if index < last_index, do: size * 0.35, else: 0
       {current, offset + width + gap}
     end)
   end
@@ -211,7 +215,8 @@ defmodule PaperForge.Math do
   defp draw(page, {:matrix, rows} = ast, x, y, size, color) do
     {width, height} = do_measure(ast, size)
     columns = rows |> Enum.map(&length/1) |> Enum.max(fn -> 1 end)
-    cell_width = (width - 20) / columns
+    cell_width = (width - 20) / max(columns, 1)
+    row_height = matrix_row_height(rows, size)
 
     page =
       page
@@ -259,7 +264,6 @@ defmodule PaperForge.Math do
         |> Enum.reduce(current, fn {cell, column_index}, cell_page ->
           {cell_width_actual, cell_height} = do_measure(cell, size * 0.8)
           cell_x = x + 10 + column_index * cell_width + (cell_width - cell_width_actual) / 2
-          row_height = size * 1.4
           cell_y = y + 4 + row_index * row_height + max((row_height - cell_height) / 2, 0)
 
           {cell_page, _} =
@@ -345,6 +349,14 @@ defmodule PaperForge.Math do
       )
 
     {page, width}
+  end
+
+  defp matrix_row_height(rows, size) do
+    rows
+    |> List.flatten()
+    |> Enum.map(&(elem(do_measure(&1, size * 0.8), 1) + 4))
+    |> Enum.max(fn -> size * 1.4 end)
+    |> max(size * 1.4)
   end
 
   defp script_gap(size), do: max(size * 0.07, 0.8)

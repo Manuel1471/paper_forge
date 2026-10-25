@@ -6,11 +6,16 @@ defmodule PaperForge.Scientific do
 
   alias PaperForge.Flow
 
-  defstruct flow: nil, equation_count: 0, citations: %{}, citation_order: []
+  defstruct flow: nil,
+            equation_count: 0,
+            equation_destinations: %{},
+            citations: %{},
+            citation_order: []
 
   @type t :: %__MODULE__{
           flow: Flow.t(),
           equation_count: non_neg_integer(),
+          equation_destinations: map(),
           citations: map(),
           citation_order: [binary()]
         }
@@ -35,14 +40,24 @@ defmodule PaperForge.Scientific do
       )
       |> Flow.math(ast, options)
 
-    %{scientific | flow: flow, equation_count: number}
+    %{
+      scientific
+      | flow: flow,
+        equation_count: number,
+        equation_destinations: Map.put(scientific.equation_destinations, number, destination)
+    }
   end
 
   @doc "Adds a page-aware reference such as `Equation 3, page 8`."
   @spec equation_reference(t(), pos_integer(), keyword()) :: t()
   def equation_reference(%__MODULE__{} = scientific, number, options \\ []) do
     text = Keyword.get(options, :text, "Equation #{number}, page {page}")
-    %{scientific | flow: Flow.reference(scientific.flow, "equation-#{number}", text: text)}
+    destination = Map.get(scientific.equation_destinations, number, "equation-#{number}")
+
+    %{
+      scientific
+      | flow: Flow.reference(scientific.flow, destination, Keyword.put(options, :text, text))
+    }
   end
 
   @doc "Registers a bibliography entry and returns its stable citation number."
