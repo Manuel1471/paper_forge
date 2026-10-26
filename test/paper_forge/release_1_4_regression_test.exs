@@ -146,7 +146,9 @@ defmodule PaperForge.Release14RegressionTest do
     matrix = Math.matrix([[fraction], [Math.symbol("next")]])
     {_width, height} = Math.measure(matrix, size: 16)
     {_width, fraction_height} = Math.measure(fraction, size: 16 * 0.8)
-    assert height >= 2 * (fraction_height + 4) + 8
+    {_, simple_height} = Math.measure(Math.symbol("next"), size: 16 * 0.8)
+    assert height >= fraction_height + simple_height
+    assert height < 2 * (fraction_height + 4) + 8
     page = Math.render(Page.new(origin: :top_left), matrix, x: 20, y: 20, size: 16)
     assert is_binary(Page.content(page))
     empty = Math.render(Page.new(origin: :top_left), Math.matrix([[]]), x: 20, y: 20)
@@ -159,7 +161,7 @@ defmodule PaperForge.Release14RegressionTest do
     {bw, bh} = Math.measure(body, size: 16)
     {dw, _} = Math.measure(Math.symbol(" dWWW"), size: 16)
     {width, height} = Math.measure(expression, size: 16)
-    assert width >= 32 + bw + dw + 2
+    assert width >= 16 * 1.55 + bw + dw
     assert height >= bh + 16 * 0.55
   end
 end

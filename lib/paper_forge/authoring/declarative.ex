@@ -884,7 +884,7 @@ defmodule PaperForge.Declarative do
       |> Flow.heading(
         title,
         Keyword.merge(
-          [level: Keyword.get(options, :level, 4)],
+          [level: Keyword.get(options, :level, 4), size: 9.5, weight: :regular, space_after: 6],
           Keyword.get(options, :heading_options, [])
         )
         |> Keyword.put(:destination, destination)
@@ -946,7 +946,7 @@ defmodule PaperForge.Declarative do
         flow,
         title,
         Keyword.merge(
-          [level: Keyword.get(options, :level, 2)],
+          [level: Keyword.get(options, :level, 2), size: 12, space_after: 8],
           Keyword.get(options, :heading_options, [])
         )
       )

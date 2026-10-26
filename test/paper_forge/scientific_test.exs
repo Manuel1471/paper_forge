@@ -3,6 +3,44 @@ defmodule PaperForge.ScientificTest do
 
   alias PaperForge.{Flow, Math, Scientific}
 
+  test "all math geometry scales proportionally instead of retaining fixed-size ornaments" do
+    x = Math.symbol("x")
+    fraction = Math.fraction(Math.symbol("1"), Math.symbol("3"))
+
+    for ast <- [
+          Math.root(x),
+          Math.root(Math.superscript(x, x), x),
+          Math.matrix([[fraction, x], [x, x]]),
+          Math.integral(x, x, fraction),
+          Math.row([Math.superscript(x, x), Math.symbol("="), fraction])
+        ] do
+      {w, h} = Math.measure(ast, size: 9)
+      {large_w, large_h} = Math.measure(ast, size: 18)
+      assert_in_delta large_w, 2 * w, 0.001
+      assert_in_delta large_h, 2 * h, 0.001
+    end
+  end
+
+  test "superscripts stay inside their measured top and rows align fraction rules with operators" do
+    ast =
+      Math.row([
+        Math.superscript(Math.symbol("x"), Math.symbol("2")),
+        Math.symbol("="),
+        Math.fraction(Math.symbol("1"), Math.symbol("3"))
+      ])
+
+    page = Math.render(PaperForge.Page.new(), ast, x: 20, y: 30, size: 11)
+
+    for {:text, _, options} <- page.operations do
+      assert options[:y] - options[:size] >= 30 - 0.0001
+    end
+
+    {:text, "=", opts} = Enum.find(page.operations, &match?({:text, "=", _}, &1))
+    {:line, rule} = Enum.find(page.operations, &match?({:line, _}, &1))
+    assert_in_delta rule[:y1], opts[:y] - 11 * 0.32, 0.001
+    assert rule[:width] < 0.5
+  end
+
   test "measures native scientific expressions and builds numbered references" do
     expression =
       Math.row([
@@ -45,7 +83,7 @@ defmodule PaperForge.ScientificTest do
     {_width, denominator_height} = Math.measure(denominator, size: size * 0.82)
     {_width, fraction_height} = Math.measure(fraction, size: size)
 
-    expected_gap = size * 0.28
+    expected_gap = size * 0.16
 
     assert_in_delta fraction_height,
                     numerator_height + denominator_height + expected_gap * 2,
@@ -58,7 +96,7 @@ defmodule PaperForge.ScientificTest do
     {width, _height} = Math.measure(Math.symbol(text), size: size)
 
     assert_in_delta width,
-                    PaperForge.TextMetrics.line_width(text, font: :helvetica, size: size),
+                    PaperForge.TextMetrics.line_width(text, font: :times_roman, size: size),
                     0.001
   end
 

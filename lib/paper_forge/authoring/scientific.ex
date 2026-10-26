@@ -35,7 +35,7 @@ defmodule PaperForge.Scientific do
       |> Flow.heading(
         label,
         Keyword.merge(
-          [level: Keyword.get(options, :level, 4), space_after: 4],
+          [level: Keyword.get(options, :level, 4), size: 9.5, weight: :regular, space_after: 6],
           Keyword.get(options, :heading_options, [])
         )
         |> Keyword.put(:destination, destination)
@@ -88,7 +88,10 @@ defmodule PaperForge.Scientific do
       Flow.heading(
         scientific.flow,
         Keyword.get(options, :title, "References"),
-        Keyword.merge([level: 2], Keyword.get(options, :heading_options, []))
+        Keyword.merge(
+          [level: 2, size: 12, space_after: 8],
+          Keyword.get(options, :heading_options, [])
+        )
       )
 
     flow =

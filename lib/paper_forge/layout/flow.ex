@@ -56,7 +56,7 @@ defmodule PaperForge.Flow do
   @spec math(t(), PaperForge.Math.ast(), keyword()) :: t()
   def math(%__MODULE__{} = flow, ast, options \\ []) do
     {width, measured_height} = PaperForge.Math.measure(ast, options)
-    height = Keyword.get(options, :height, measured_height + 8)
+    height = Keyword.get(options, :height, measured_height + 4)
 
     custom(
       flow,
@@ -72,7 +72,7 @@ defmodule PaperForge.Flow do
         PaperForge.Math.render(page, ast,
           x: x,
           y: context.block_y,
-          size: Keyword.get(options, :size, 14),
+          size: Keyword.get(options, :size, 11),
           color: Keyword.get(options, :color, PaperForge.Color.black())
         )
       end,
