@@ -121,7 +121,7 @@
       "type": {
         "body": 10,
         "field": 9.5,
-        "formula": 16
+        "formula": 12
       },
       "controls": {
         "field_height": 22
@@ -133,7 +133,7 @@
         "tokens": {
           "type": {
             "field": 10.5,
-            "formula": 18
+            "formula": 14
           },
           "controls": {
             "field_height": 28
@@ -798,7 +798,7 @@
       "options": {
         "space_after": 24,
         "style": "formula",
-        "size": 13
+        "size": 11
       }
     },
     {
