@@ -48,10 +48,24 @@ defmodule PaperForge.Chart do
   defp validate_dimensions!(options) do
     for key <- [:width, :height], do: positive!(Keyword.fetch!(options, key), key)
 
-    for {key, default} <- [chart_padding: 12, gap: 12, point_radius: 3, line_width: 2],
+    for {key, default} <- [
+          chart_padding: 12,
+          gap: 12,
+          point_radius: 3,
+          line_width: 2,
+          title_gap: 8,
+          legend_gap: 8
+        ],
         do: nonnegative!(Keyword.get(options, key, default), key)
 
-    for {key, default} <- [label_size: 8, value_size: 8, title_size: 14],
+    for {key, default} <- [
+          label_size: 8,
+          value_size: 8,
+          title_size: 14,
+          subtitle_size: 8,
+          legend_size: 8,
+          legend_marker_size: 7
+        ],
         do: positive!(Keyword.get(options, key, default), key)
   end
 
@@ -117,10 +131,10 @@ defmodule PaperForge.Chart do
     size =
       if key == :title,
         do: Keyword.get(options, :title_size, 14),
-        else: Keyword.get(options, :label_size, 8)
+        else: Keyword.get(options, :subtitle_size, Keyword.get(options, :label_size, 8))
 
     lines = TextWrapper.wrap(to_string(text), width: box.w, size: size, font: :helvetica)
-    height = length(lines) * size * 1.3 + 8
+    height = length(lines) * size * 1.3 + Keyword.get(options, :title_gap, 8)
     next = %{box | y: box.y + height, h: box.h - height}
     ensure_space!(next)
 
@@ -413,6 +427,9 @@ defmodule PaperForge.Chart do
   defp radial_data(page, series, box, type, total, options) do
     legend? = Keyword.get(options, :show_legend, true)
     diameter = min(box.h, if(legend?, do: box.w * 0.46, else: box.w))
+    requested = Keyword.get(options, :radial_size, diameter)
+    positive!(requested, :radial_size)
+    diameter = min(diameter, requested)
     radius = diameter / 2
     cx = if legend?, do: box.x + radius, else: box.x + box.w / 2
     cy = box.y + box.h / 2
@@ -454,8 +471,11 @@ defmodule PaperForge.Chart do
   end
 
   defp legend(page, series, box, total, options) do
-    size = Keyword.get(options, :label_size, 8)
-    width = box.w - 14
+    size = Keyword.get(options, :legend_size, Keyword.get(options, :label_size, 8))
+    gap = Keyword.get(options, :legend_gap, 8)
+    marker = Keyword.get(options, :legend_marker_size, 7)
+    indent = marker + 7
+    width = box.w - indent
 
     if width < 16,
       do:
@@ -474,7 +494,7 @@ defmodule PaperForge.Chart do
         TextWrapper.wrap(text, width: width, size: size, font: :helvetica)
       end)
 
-    required = Enum.sum(Enum.map(rows, &(length(&1) * size * 1.3 + 8)))
+    required = Enum.sum(Enum.map(rows, &(max(length(&1) * size * 1.3, marker) + gap)))
 
     if required > box.h,
       do:
@@ -490,15 +510,15 @@ defmodule PaperForge.Chart do
           current
           |> Page.rectangle(
             x: box.x,
-            y: y + 1,
-            width: 7,
-            height: 7,
+            y: y + max((size - marker) / 2, 0),
+            width: marker,
+            height: marker,
             fill: true,
             stroke: false,
             fill_color: Enum.at(palette, rem(i, length(palette)))
           )
           |> Page.text_box(Enum.join(lines, "\n"),
-            x: box.x + 14,
+            x: box.x + indent,
             y: y + size,
             width: width,
             size: size,
@@ -507,7 +527,7 @@ defmodule PaperForge.Chart do
             color: label_color(options)
           )
 
-        {current, y + length(lines) * size * 1.3 + 8}
+        {current, y + max(length(lines) * size * 1.3, marker) + gap}
       end)
 
     page

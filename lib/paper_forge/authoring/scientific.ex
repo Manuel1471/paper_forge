@@ -32,11 +32,14 @@ defmodule PaperForge.Scientific do
 
     flow =
       scientific.flow
-      |> Flow.heading(label,
-        level: Keyword.get(options, :level, 4),
-        destination: destination,
-        bookmark: false,
-        space_after: 4
+      |> Flow.heading(
+        label,
+        Keyword.merge(
+          [level: Keyword.get(options, :level, 4), space_after: 4],
+          Keyword.get(options, :heading_options, [])
+        )
+        |> Keyword.put(:destination, destination)
+        |> Keyword.put(:bookmark, false)
       )
       |> Flow.math(ast, Keyword.delete(options, :destination))
 
@@ -81,7 +84,12 @@ defmodule PaperForge.Scientific do
   @doc "Adds the numbered bibliography section."
   @spec bibliography(t(), keyword()) :: t()
   def bibliography(%__MODULE__{} = scientific, options \\ []) do
-    flow = Flow.heading(scientific.flow, Keyword.get(options, :title, "References"), level: 2)
+    flow =
+      Flow.heading(
+        scientific.flow,
+        Keyword.get(options, :title, "References"),
+        Keyword.merge([level: 2], Keyword.get(options, :heading_options, []))
+      )
 
     flow =
       scientific.citation_order

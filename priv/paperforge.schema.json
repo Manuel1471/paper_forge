@@ -94,6 +94,11 @@
         "name": {"type": "string", "minLength": 1},
         "page": {"type": "integer", "minimum": 1},
         "rect": {"$ref": "#/$defs/rect"},
+        "x": {"anyOf": [{"type": "number"}, {"type": "string", "pattern": "^\\$[A-Za-z_][\\w.]*$"}]},
+        "y": {"anyOf": [{"type": "number"}, {"type": "string", "pattern": "^\\$[A-Za-z_][\\w.]*$"}]},
+        "width": {"anyOf": [{"type": "number", "exclusiveMinimum": 0}, {"type": "string", "pattern": "^\\$[A-Za-z_][\\w.]*$"}]},
+        "height": {"anyOf": [{"type": "number", "exclusiveMinimum": 0}, {"type": "string", "pattern": "^\\$[A-Za-z_][\\w.]*$"}]},
+        "style": {"type": "string"},
         "origin": {"enum": ["bottom_left", "top_left"]},
         "value": {},
         "default": {},
@@ -138,7 +143,10 @@
         {
           "if": {"properties": {"type": {"const": "radio"}}},
           "then": {"required": ["choices"]},
-          "else": {"required": ["page", "rect"]}
+          "else": {"required": ["page"], "oneOf": [
+            {"required": ["rect"], "not": {"anyOf": [{"required": ["x"]}, {"required": ["y"]}, {"required": ["width"]}, {"required": ["height"]}]}},
+            {"required": ["x", "y", "width", "height"], "not": {"required": ["rect"]}}
+          ]}
         }
       ]
     },

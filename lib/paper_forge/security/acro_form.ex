@@ -448,6 +448,7 @@ defmodule PaperForge.AcroForm do
     border_width = non_negative_option!(options, :border_width, 1)
     radius = radius_option!(options, width, height)
     shape = inset_shape(width, height, radius, border_width)
+    paint = if border_width > 0, do: "B", else: "f"
 
     font = Keyword.get(options, :font, :helvetica)
 
@@ -495,7 +496,7 @@ defmodule PaperForge.AcroForm do
     {document, text_content, resources} = PageCompiler.compile(page, document)
 
     content =
-      "q 0 0 #{width} #{height} re W n #{background} rg #{border} RG #{border_width} w #{shape} B #{text_color} rg " <>
+      "q 0 0 #{width} #{height} re W n #{background} rg #{border} RG #{border_width} w #{shape} #{paint} #{text_color} rg " <>
         text_content <> " Q"
 
     stream =
@@ -585,6 +586,7 @@ defmodule PaperForge.AcroForm do
     border_width = non_negative_option!(options, :border_width, 1)
     check_width = non_negative_option!(options, :check_width, 1.4)
     radius = radius_option!(options, width, height)
+    paint = if border_width > 0, do: "B", else: "f"
     radio? = Keyword.get(options, :radio, false)
     side = min(width, height)
 
@@ -604,7 +606,7 @@ defmodule PaperForge.AcroForm do
       end
 
     off =
-      Stream.new("q #{background} rg #{border} RG #{border_width} w #{shape} B Q",
+      Stream.new("q #{background} rg #{border} RG #{border_width} w #{shape} #{paint} Q",
         dictionary: %{
           "Type" => {:name, "XObject"},
           "Subtype" => {:name, "Form"},
@@ -614,7 +616,7 @@ defmodule PaperForge.AcroForm do
 
     yes =
       Stream.new(
-        "q #{background} rg #{border} RG #{border_width} w #{shape} B #{mark} Q",
+        "q #{background} rg #{border} RG #{border_width} w #{shape} #{paint} #{mark} Q",
         dictionary: %{
           "Type" => {:name, "XObject"},
           "Subtype" => {:name, "Form"},

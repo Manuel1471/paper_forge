@@ -623,7 +623,26 @@ defmodule PaperForge.Layout.Engine do
 
   defp place_block(%Block{type: :footnote} = block, state) do
     size = Keyword.get(block.options, :size, 8)
-    line_height = Keyword.get(block.options, :line_height, 10)
+
+    unless is_number(size) and size > 0,
+      do: raise(ArgumentError, "footnote size must be positive")
+
+    line_height = Keyword.get(block.options, :line_height, size * 1.25)
+
+    unless is_number(line_height) and line_height >= size,
+      do:
+        raise(
+          ArgumentError,
+          "footnote size must be positive and line_height must be at least size"
+        )
+
+    for {key, default} <- [separator_height: 16, separator_length: 120, separator_width: 0.5] do
+      value = Keyword.get(block.options, key, default)
+
+      unless is_number(value) and value >= 0,
+        do: raise(ArgumentError, "#{key} must be non-negative")
+    end
+
     text = "#{block.content.number}. #{block.content.text}"
 
     lines =
@@ -728,7 +747,11 @@ defmodule PaperForge.Layout.Engine do
   defp place_footnote_lines(_block, [], state, _first?, _line_height), do: state
 
   defp place_footnote_lines(block, lines, state, first?, line_height) do
-    separator_height = if first?, do: Keyword.get(block.options, :separator_height, 16), else: 0
+    separator_height =
+      if first? and Keyword.get(block.options, :show_separator, true),
+        do: Keyword.get(block.options, :separator_height, 16),
+        else: 0
+
     ensure_fits_empty_page!(block, separator_height + line_height, state)
     capacity = floor(max(available_height(state) - separator_height, 0) / line_height)
 
@@ -1005,8 +1028,8 @@ defmodule PaperForge.Layout.Engine do
       colspan: Map.get(cell, :colspan, 1),
       rowspan: Map.get(cell, :rowspan, 1),
       align: Map.get(cell, :align),
-      valign: Map.get(cell, :valign, :top),
-      borders: Map.get(cell, :borders, :all),
+      valign: Map.get(cell, :valign),
+      borders: Map.get(cell, :borders),
       fill_color: Map.get(cell, :fill_color),
       color: Map.get(cell, :color)
     }
@@ -1019,7 +1042,7 @@ defmodule PaperForge.Layout.Engine do
       rowspan: 1,
       align: nil,
       valign: nil,
-      borders: :all,
+      borders: nil,
       fill_color: nil,
       color: nil
     }
@@ -1718,17 +1741,24 @@ defmodule PaperForge.Layout.Engine do
          page,
          %{type: :footnote, block: block, y: y, lines: lines} = placement,
          _context,
-         _document
+         document
        ) do
     page =
-      if placement.first? do
+      if placement.first? and Keyword.get(block.options, :show_separator, true) and
+           Keyword.get(block.options, :separator_width, 0.5) > 0 do
         Page.line(page,
           x1: placement.x,
           y1: placement.separator_y + 3,
-          x2: placement.x + min(placement.width, 120),
+          x2:
+            placement.x + min(placement.width, Keyword.get(block.options, :separator_length, 120)),
           y2: placement.separator_y + 3,
-          width: 0.5,
-          color: Keyword.get(block.options, :color, PaperForge.Color.gray(0.45))
+          width: Keyword.get(block.options, :separator_width, 0.5),
+          color:
+            Keyword.get(
+              block.options,
+              :separator_color,
+              Keyword.get(block.options, :color, PaperForge.Color.gray(0.45))
+            )
         )
       else
         page
@@ -1738,9 +1768,13 @@ defmodule PaperForge.Layout.Engine do
       x: placement.x,
       y: y + Keyword.get(block.options, :size, 8),
       width: placement.width,
-      height: length(lines) * Keyword.get(block.options, :line_height, 10),
+      height:
+        length(lines) *
+          Keyword.get(block.options, :line_height, Keyword.get(block.options, :size, 8) * 1.25),
       size: Keyword.get(block.options, :size, 8),
-      line_height: Keyword.get(block.options, :line_height, 10),
+      font: Keyword.get(block.options, :font, document.default_font),
+      line_height:
+        Keyword.get(block.options, :line_height, Keyword.get(block.options, :size, 8) * 1.25),
       color: Keyword.get(block.options, :color, PaperForge.Color.gray(0.3))
     )
   end
@@ -1781,6 +1815,7 @@ defmodule PaperForge.Layout.Engine do
         Enum.map(row.cells, fn cell ->
           cell
           |> Map.put(:content, Enum.join(cell.lines, "\n"))
+          |> Map.put(:borders, cell.borders || Keyword.get(block.options, :borders, :all))
           |> Map.delete(:lines)
         end)
       end)

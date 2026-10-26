@@ -19,7 +19,7 @@ defmodule PaperForge.Declarative.Validator do
                   ~w(type text content options columns rows min_rows max_rows cells count paragraphs ast annotation_type entries number name)
                 )
   @form_fields MapSet.new(
-                 ~w(type name page rect origin value default tooltip font font_size padding text_color text_align options choices calculation background_color border_color border_width border_radius check_color check_width)
+                 ~w(type name page rect x y width height style origin value default tooltip font font_size padding text_color text_align options choices calculation background_color border_color border_width border_radius check_color check_width)
                )
   @form_types ~w(text checkbox button radio list combo signature)
   @types ~w(any string number integer boolean list map)
@@ -448,10 +448,10 @@ defmodule PaperForge.Declarative.Validator do
           ) ++
           maybe(
             [],
-            type != "radio" and not valid_rect?(form["rect"]),
+            type != "radio" and not valid_form_geometry?(form),
             :invalid_form_rect,
             "#{item_path}.rect",
-            "form rect must contain four increasing numbers"
+            "use rect or x/y/width/height with positive dimensions"
           ) ++
           maybe(
             [],
@@ -519,6 +519,23 @@ defmodule PaperForge.Declarative.Validator do
         "font_size must be positive"
       )
   end
+
+  defp valid_form_geometry?(form) do
+    if Map.has_key?(form, "rect") do
+      valid_rect?(form["rect"]) and not Enum.any?(~w(x y width height), &Map.has_key?(form, &1))
+    else
+      coordinate?(form["x"]) and coordinate?(form["y"]) and
+        dimension?(form["width"]) and dimension?(form["height"])
+    end
+  end
+
+  defp coordinate?(value), do: is_number(value) or geometry_token?(value)
+  defp dimension?(value), do: (is_number(value) and value > 0) or geometry_token?(value)
+
+  defp geometry_token?(value) when is_binary(value),
+    do: Regex.match?(~r/^\$[A-Za-z_][\w.]*$/, value)
+
+  defp geometry_token?(_), do: false
 
   defp valid_rect?([x1, y1, x2, y2]),
     do: Enum.all?([x1, y1, x2, y2], &is_number/1) and x2 > x1 and y2 > y1
