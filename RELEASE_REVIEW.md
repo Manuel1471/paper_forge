@@ -109,3 +109,19 @@ Differential Credo adds no issues and documentation builds without warnings.
 See the compact-presentation section of `DECLARATIVE.md` for the options,
 precedence rules, dimension units, reusable styles and theme commands. Existing
 API defaults remain available; presentation changes are configured explicitly.
+
+## Math / Scientific visual follow-up: 2026-10-26
+
+The mathematical renderer now uses 11-point Times Roman by default, proportional
+ornaments and thinner rules. Rows align on a mathematical axis; superscripts fit
+inside their measured boxes. Mixed-height matrices reserve each row's own height
+and accumulate row offsets in a single traversal. Scientific label/heading
+defaults are reduced without removing explicit presentation overrides.
+
+The two-page `math_scientific_visual.paperforge` specimen covers fractions,
+scripts, radicals, integrals, matrices and nested expressions, plus a 9/11/14-point
+comparison. Both pages and Lumen's updated scientific page were rendered and
+visually checked. Independent pypdf readback confirms two pages, Times Roman
+resources and the page-one equation reference. The legacy Elixir 1.4 showcase
+still generates. Full validation: **410 tests/properties plus 2 fuzz cases**,
+differential Credo with no new issues, and documentation compiled without warnings.

@@ -94,6 +94,13 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
+- Math defaults to 11-point Times Roman, with proportional spacing and thin
+  rules. Scientific equation labels default to 9.5 points and bibliography
+  headings to 12; explicit sizes and heading options remain available.
+- Mathematical rows align on their axis, superscripts remain inside measured
+  bounds, and matrices use individual row heights instead of inflating every
+  row to match the tallest fraction. Added a dedicated declarative visual specimen.
+
 - Import now requires valid xref/trailer structure; incomplete files formerly
   accepted by the classic regex parser return errors. Obsolete incomplete-input
   limit tests were replaced with valid PDFs exercising actual limits.

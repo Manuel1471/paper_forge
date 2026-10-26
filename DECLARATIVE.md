@@ -691,3 +691,24 @@ mix run examples/lumen_visual_2026.exs comfortable
 Change `tokens.controls.height` to resize text/choice fields together, or change
 an individual field's height. Change shared styles to tune all tables, charts,
 formulas or notes. Explicit per-element options override those shared settings.
+
+### Math and Scientific typography
+
+Math now defaults to **11-point Times Roman**. Geometry scales with `size`,
+including fraction padding and rules, radicals, integral strokes/limits,
+script gaps and matrix brackets. Rows align on a mathematical axis rather than
+vertically centering unrelated bounding boxes. Superscripts remain within the
+measured box, and each matrix row reserves only its own required height.
+
+Equation labels default to 9.5 points; bibliography headings default to 12.
+Override `heading_options` independently of expression `size`. Explicit sizes
+are still honored. Named math styles are resolved before measuring the AST.
+
+```sh
+mix run examples/math_scientific_visual.exs
+```
+
+The corresponding `examples/math_scientific_visual.paperforge` contains fractions,
+powers, roots, integrals, mixed-height matrices and nested expressions, followed
+by a direct 9/11/14-point comparison. This remains a native measured Math AST;
+it does not implement full TeX typesetting or arbitrary mathematical font shaping.

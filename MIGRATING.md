@@ -19,6 +19,15 @@ metadata; the new `metadata/1` reads the existing Info dictionary.
 
 No new runtime dependency is required.
 
+### Math and Scientific presentation
+
+Math's default size changes from 14 to 11 points and its built-in typeface from
+Helvetica to Times Roman. Ornament dimensions now scale with size, so even
+expressions with an explicit size can occupy less space. Superscript and matrix
+bounds are corrected. Equation-label and bibliography-heading defaults are
+smaller; use `heading_options` to override them. Regenerate and visually review
+scientific documents whose page counts or absolute overlays depend on old metrics.
+
 ### Unicode strings, forms and declarative names
 
 PDF metadata, attachment names/descriptions, field strings and annotation text
