@@ -1,8 +1,9 @@
 """Independent checks after `mix run examples/lumen_visual_2026.exs` (pypdf)."""
+import sys
 from pathlib import Path
 from pypdf import PdfReader
 
-path = Path(__file__).resolve().parents[1] / 'output/pdf/lumen-visual-2026.pdf'
+path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[1] / 'output/pdf/lumen-visual-2026.pdf'
 pdf = PdfReader(path, strict=True)
 fields = pdf.get_fields()
 expected = {'revisor_ñ': 'Lucía Peña', 'área': 'Operación y diseño',
@@ -28,6 +29,7 @@ for widget in widgets:
     assert appearance.get_data()
     x1, y1, x2, y2 = widget['/Rect']
     assert 52 <= x1 < x2 <= 543 and 62 <= y1 < y2 <= 788
+    assert y2 - y1 <= 28, "Compact/comfortable widgets must not become oversized"
 for n, page in enumerate(pdf.pages, 1):
     assert f'{n} / 8' in page.extract_text()
     assert '�' not in page.extract_text()

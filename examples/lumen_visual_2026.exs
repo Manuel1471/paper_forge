@@ -1,7 +1,10 @@
 # All design and sample data live in the .paperforge source.
 {:ok, source} = PaperForge.Declarative.load(Path.join(__DIR__, "lumen_visual_2026.paperforge"))
-{:ok, document, layout} = PaperForge.Declarative.render(source)
-output = Path.expand("../output/pdf/lumen-visual-2026.pdf", __DIR__)
+theme = List.first(System.argv()) || Map.get(source, "theme", "compact")
+unless theme in ["compact", "comfortable"], do: raise("Use compact or comfortable")
+{:ok, document, layout} = PaperForge.Declarative.render(Map.put(source, "theme", theme))
+suffix = if theme == "compact", do: "", else: "-#{theme}"
+output = Path.expand("../output/pdf/lumen-visual-2026#{suffix}.pdf", __DIR__)
 File.mkdir_p!(Path.dirname(output))
 PaperForge.write!(document, output)
 reopened = PaperForge.open!(output)
