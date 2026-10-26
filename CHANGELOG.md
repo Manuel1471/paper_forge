@@ -9,6 +9,13 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- Shared form styles, inherited declarative styles and token-based x/y/width/height
+  geometry, with explicit local overrides and JSON Schema support.
+- Independent equation/bibliography heading options; configurable chart legend,
+  subtitle and radial sizing; configurable footnote typography and separators.
+- Compact/comfortable Lumen themes with smaller native controls, lighter table
+  dividers and centralized presentation tokens.
+
 - Eight-page Lumen visual notebook authored entirely in `.paperforge`, with
   independent checks for fields, appearances, Unicode and navigation.
 - Form font, size, padding, color and horizontal alignment options; measured
@@ -35,6 +42,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   seeds and arbitrary-byte mutations. New interoperability and migration guide.
 
 ### Fixed
+
+- Math styles now affect measured expressions before layout. Footnote line height
+  scales with font size and rendering uses the selected font. Table-wide border
+  and vertical-alignment settings reach cells that do not override them.
+- Zero-width form borders no longer render as hairlines.
 
 - PDFDocEncoding/Unicode metadata, attachment names and MIME types, annotation
   strings, form values and XMP titles; distinct Unicode CIDs for shared font glyphs.

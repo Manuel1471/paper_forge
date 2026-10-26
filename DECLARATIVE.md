@@ -604,3 +604,90 @@ data, inline reusable components, themes, navigation, a chart, a table, QR
 output, security policy, protection policy, and tagged-PDF preparation. The
 companion `examples/paper_forge_1_4_showcase.exs` demonstrates the same report
 domain with full low-level visual control.
+
+### Compact presentation and reusable styles
+
+Use `design_system.styles` to share presentation settings. Styles support
+`extends`; child styles override their parent, and explicit element options
+have the final say. Cycles and missing parent styles fail during compilation.
+Form fields now accept a named `style` as well as their individual appearance
+options. Fonts registered by the template can also be used inside styles.
+
+```json
+{
+  "design_system": {
+    "tokens": {"controls": {"height": 22}, "type": {"field": 9.5}},
+    "styles": {
+      "field": {
+        "font_size": "$type.field", "padding": 6,
+        "text_color": "#183B45", "border_color": "#DCE6E6",
+        "border_width": 0.6, "border_radius": 2
+      },
+      "amount": {"extends": "field", "text_align": "right"},
+      "table": {
+        "size": 9, "row_height": 25, "padding": 6,
+        "cell_line_height": 12, "cell_valign": "middle",
+        "borders": ["bottom"], "line_width": 0.35,
+        "stroke_color": "#DCE6E6"
+      }
+    }
+  },
+  "forms": [{
+    "type": "text", "name": "amount", "page": 1,
+    "origin": "top_left", "x": 52, "y": 180,
+    "width": 180, "height": "$controls.height",
+    "style": "amount", "value": "€ 125,000"
+  }]
+}
+```
+
+This is a configuration fragment; add the document's `version` and `blocks`.
+Form geometry accepts either `rect` or `x`, `y`, `width`, `height`, never both.
+The latter values may reference design tokens. Resolved width and height must be
+positive numbers. Coordinates and dimensions are PDF points (72 points = 1 inch).
+The field's rectangle controls its physical size; `font_size` controls its text.
+`border_width: 0` removes the stroke instead of drawing a PDF hairline.
+Root forms use explicit page coordinates, so leave room for them in page content.
+
+| Element | Controls |
+| --- | --- |
+| Forms | `style`, `x/y/width/height` or `rect`, `font`, `font_size`, `padding`, `text_align`, text/background/border/check colors, border/check widths, radius |
+| Tables | `width`, `column_widths`, `size`, `row_height`, `cell_line_height`, `padding`, `cell_align`, `cell_valign`, `borders`, `line_width`, `stroke_color`, body/header/stripe colors |
+| Charts | `width`, `height`, `chart_padding`, `title_size`, `subtitle_size`, `title_gap`, `label_size`, `value_size`, `legend_size`, `legend_gap`, `legend_marker_size`, `radial_size`, `inner_radius`, colors and line/point sizes |
+| Math / equations | `size`, `align`, `height`, spacing and color; `heading_options` controls the equation title independently |
+| Bibliography | Entry `size`, `line_height`, color and spacing; `heading_options` controls the section heading |
+| Footnotes | `size`, `font`, `line_height`, color, `show_separator`, `separator_height`, `separator_length`, `separator_width`, `separator_color` |
+
+Table `row_height` is a minimum: wrapping can require taller rows. Use `borders:
+"none"` or a list of `top`, `right`, `bottom`, `left`; individual cell borders
+still override the table setting. `cell_valign` also applies to structured cells
+without their own vertical alignment. `stroke_color` controls table dividers.
+
+For charts, `radial_size` is the maximum diameter of a pie/donut in points; it is
+bounded by the space available for the plot and legend. Legend typography is
+independent of axis labels. Insufficient space still fails explicitly rather
+than silently hiding content. Existing defaults are retained when options are
+omitted.
+
+```json
+{
+  "type": "equation",
+  "ast": {"symbol": "R = 73.67"},
+  "options": {
+    "size": 16, "align": "center",
+    "heading_options": {"size": 11, "color": "#557177", "space_after": 10}
+  }
+}
+```
+
+The Lumen source includes `compact` and `comfortable` themes. Both remain
+interactive; all visual settings live in the `.paperforge` file:
+
+```sh
+mix run examples/lumen_visual_2026.exs compact
+mix run examples/lumen_visual_2026.exs comfortable
+```
+
+Change `tokens.controls.height` to resize text/choice fields together, or change
+an individual field's height. Change shared styles to tune all tables, charts,
+formulas or notes. Explicit per-element options override those shared settings.

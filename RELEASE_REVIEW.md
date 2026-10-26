@@ -86,3 +86,26 @@ whole-list work; no speculative optimization replaced the verified behavior.
   outside the release scope described in `INTEROPERABILITY.md`.
 - Real-world producer files and additional reader implementations remain valuable
   compatibility inputs beyond the fixtures and examples exercised here.
+
+## Presentation follow-up: 2026-10-26
+
+The Lumen notebook now defaults to a compact profile: 22-point text/choice
+fields, 12-point selections, 25-point minimum table rows, 155-point chart panels,
+16-point formula text and separately controlled 11-point equation headings.
+A comfortable theme changes shared tokens/styles, including 28-point fields.
+All presentation settings remain in the `.paperforge` source. The runner only
+selects a theme, generates the output and checks its fields.
+
+Added six regression tests for inherited field styles, geometry tokens and theme
+overrides, invalid geometry/style cycles, independent formula heading sizes,
+chart legend/radial sizes, borderless fields/tables and footnote rendering.
+The full suite now passes **408 tests/properties**, plus **2 fuzz cases**.
+Both profiles pass independent field/value/appearance checks and retain eight
+pages. The published JSON Schema accepts the source and both geometry formats.
+All compact pages and detailed form/formula/table views were rendered and
+reviewed. Atlas still passes its 27-page generation and 13 independent checks.
+Differential Credo adds no issues and documentation builds without warnings.
+
+See the compact-presentation section of `DECLARATIVE.md` for the options,
+precedence rules, dimension units, reusable styles and theme commands. Existing
+API defaults remain available; presentation changes are configured explicitly.
