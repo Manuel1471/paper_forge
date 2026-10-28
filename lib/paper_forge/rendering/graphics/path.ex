@@ -14,6 +14,8 @@ defmodule PaperForge.Graphics.Path do
           | :close
 
   @spec command([segment()], keyword()) :: iodata()
+  def command(segments, clip_only: true), do: ["q\n", Enum.map(segments, &segment/1), "W n\n"]
+
   def command(segments, options) when is_list(segments) and is_list(options) do
     fill? = Keyword.get(options, :fill, false)
     stroke? = Keyword.get(options, :stroke, true)

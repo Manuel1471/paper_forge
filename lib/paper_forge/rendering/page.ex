@@ -173,6 +173,11 @@ defmodule PaperForge.Page do
     PaperForge.QRCode.draw(page, data, options)
   end
 
+  @doc "Clips drawing operations in the callback to a vector path in page coordinates."
+  def clip(%__MODULE__{} = page, segments, fun) when is_list(segments) and is_function(fun, 1) do
+    page |> add_operation({:clip_start, segments}) |> fun.() |> add_operation(:clip_end)
+  end
+
   @doc "Adds a vector path made of move, line, cubic curve, and close segments."
   @spec path(t(), [PaperForge.Graphics.Path.segment()], keyword()) :: t()
   def path(%__MODULE__{} = page, segments, options \\ [])
