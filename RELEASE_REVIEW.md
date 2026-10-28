@@ -219,3 +219,26 @@ alignment. The frozen historical benchmark was not edited or rerun for this work
   default QR throughput at four workers regressed in this short experiment.
   These measurements do not establish production service capacity.
 - Atomic visual compositions intentionally do not split across pages.
+
+## Hex release preparation (2026-10-28)
+
+- Reorganized the QR changelog entry under 1.5.0, added its comparison link,
+  corrected the visual-image content property in the guide, and prepared
+  RELEASE_1.5.0.md plus a separate Spanish publication runbook.
+- Included the gallery JPEG and formatter configuration in the Hex allowlist.
+  Kept benchmarks, generated outputs, test credentials and local logs out.
+- Hex archive inspection: 154 files, 654,336 archive bytes, 1,646,053 unpacked bytes.
+  No test keys/certificates or benchmark data included.
+- Extracted the actual archive into a clean temporary project, reused locked
+  dependency source downloads, and compiled it with MIX_ENV=prod. Ran both the
+  four-page visual gallery and the scientific example from the extracted package.
+  Scientific signing now accepts explicit environment paths and skips gracefully
+  when repository-only demo credentials are absent.
+- Formatting, dependency-lock checks, strict application compilation, 442 regular
+  checks, two fuzz checks, strict documentation generation and Hex publication
+  dry-run passed. Credo diff added no issues; 27 existing refactoring findings remain.
+  A clean dependency build emits existing sign_core warnings.
+- CI now runs on release branches and version tags, and checks documentation plus
+  a noninteractive Hex dry-run. No package, tag or GitHub Release was published.
+- Publication still requires refreshing the expired Hex session and GitHub write
+  access: the available SSH identity was denied access to the configured origin.
