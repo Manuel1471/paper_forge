@@ -1,3 +1,6 @@
+Code.require_file("support/core_probe.exs", __DIR__)
+alias PaperForge.BenchProbe
+BenchProbe.init()
 alias PaperForge.Flow
 
 cache_module = PaperForge.PerformanceCache
@@ -59,6 +62,8 @@ summarize = fn values ->
 
   %{
     median: Float.round(median * 1.0, 2),
+    mean: Float.round(Enum.sum(sorted) / count, 2),
+    p99: Float.round(percentile.(sorted, 0.99) * 1.0, 2),
     p95: Float.round(percentile.(sorted, 0.95) * 1.0, 2),
     min: Float.round(hd(sorted) * 1.0, 2),
     max: Float.round(List.last(sorted) * 1.0, 2)
@@ -66,6 +71,8 @@ summarize = fn values ->
 end
 
 sample = fn row_count ->
+  preparation_start = System.monotonic_time(:microsecond)
+
   rows =
     for index <- 1..row_count do
       [
@@ -76,6 +83,7 @@ sample = fn row_count ->
       ]
     end
 
+  preparation_us = System.monotonic_time(:microsecond) - preparation_start
   parent = self()
 
   worker =
@@ -115,12 +123,16 @@ sample = fn row_count ->
           {gc_count_after, gc_words_after, _} = :erlang.statistics(:garbage_collection)
           {:reductions, reductions_after} = Process.info(self(), :reductions)
 
+          expected = %{25 => 2, 500 => 18, 5000 => 179}[row_count]
+          BenchProbe.validate!(first_pdf, report.pages, expected)
           unless first_pdf == second_pdf, do: raise("non-deterministic PDF output")
 
           send(parent, {
             :sample,
             self(),
             %{
+              preparation_ms: preparation_us / 1000,
+              single_render_ms: (layout_us + cold_us) / 1000,
               layout_ms: layout_us / 1_000,
               cold_serialize_ms: cold_us / 1_000,
               warm_serialize_ms: warm_us / 1_000,
@@ -193,6 +205,7 @@ Enum.each(profiles, fn {name, rows} ->
   Enum.each(List.duplicate(:warmup, warmup_count), fn _ -> sample.(rows) end)
   samples = Enum.map(1..sample_count, fn _ -> sample.(rows) end)
 
+  Enum.each(samples, &BenchProbe.emit(Map.merge(&1, %{event: "latency_sample", profile: name})))
   first = hd(samples)
 
   report = %{
@@ -202,6 +215,8 @@ Enum.each(profiles, fn {name, rows} ->
     warmups: warmup_count,
     pages: first.pages,
     pdf_bytes: first.pdf_bytes,
+    preparation_ms: summarize.(Enum.map(samples, & &1.preparation_ms)),
+    single_render_ms: summarize.(Enum.map(samples, & &1.single_render_ms)),
     layout_ms: summarize.(Enum.map(samples, & &1.layout_ms)),
     cold_serialize_ms: summarize.(Enum.map(samples, & &1.cold_serialize_ms)),
     warm_serialize_ms: summarize.(Enum.map(samples, & &1.warm_serialize_ms)),
@@ -219,5 +234,8 @@ Enum.each(profiles, fn {name, rows} ->
     }
   }
 
+  BenchProbe.emit(Map.put(report, :event, "latency_summary"))
   IO.inspect(report, pretty: true, limit: :infinity)
 end)
+
+BenchProbe.close()
