@@ -166,5 +166,66 @@ defmodule PaperForge.ConcurrentTest do
     assert Enum.all?(results, &(&1.duration_us > 0))
   end
 
+  test "worker heap tuning remains opt-in and validates both entry points" do
+    supervisor = start_supervised!(Task.Supervisor)
+
+    for value <- [0, -1, :invalid] do
+      assert_raise ArgumentError, fn -> Concurrent.run([1], & &1, worker_heap_size: value) end
+
+      assert_raise ArgumentError, fn ->
+        Concurrent.start_job(supervisor, 1, & &1, worker_heap_size: value)
+      end
+    end
+
+    results =
+      Concurrent.run(1..10, fn id -> {id, Process.info(self(), :heap_size)} end,
+        worker_heap_size: 16_384
+      )
+
+    assert Enum.all?(results, fn result ->
+             {_id, {:heap_size, size}} = result.value
+             result.status == :ok and size >= 16_384
+           end)
+
+    assert_raise ArgumentError, fn -> Concurrent.run([1], & &1, retry_on: [:ok]) end
+  end
+
+  test "unordered stream preserves job identity and cleans up workers when halted" do
+    supervisor = start_supervised!(Task.Supervisor)
+    parent = self()
+
+    results =
+      Concurrent.stream(
+        supervisor,
+        1..5,
+        fn id ->
+          send(parent, {:worker_started, self()})
+          if id == 1, do: Process.sleep(20), else: Process.sleep(:infinity)
+          id
+        end,
+        max_concurrency: 3,
+        ordered: false,
+        timeout: :infinity
+      )
+      |> Enum.take(1)
+
+    assert [%Result{id: 0, index: 0, status: :ok, value: 1}] = results
+
+    for _ <- 1..3 do
+      assert_receive {:worker_started, pid}
+      ref = Process.monitor(pid)
+      assert_receive {:DOWN, ^ref, :process, ^pid, _}, 1_000
+    end
+  end
+
+  test "heap tuning keeps final fast-job resource checks active" do
+    [result] = Concurrent.run([1], & &1, worker_heap_size: 16_384, max_memory_bytes: 1_000)
+    assert result.status == :resource_limit
+    assert result.error.resource == :memory
+    [result] = Concurrent.run([1], & &1, worker_heap_size: 16_384, max_reductions: 1)
+    assert result.status == :resource_limit
+    assert result.error.resource == :reductions
+  end
+
   defp burn_reductions, do: burn_reductions()
 end
