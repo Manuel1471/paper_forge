@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+      - "release/**"
+    tags:
+      - "v*"
 
   pull_request:
     branches:
@@ -84,3 +87,11 @@ jobs:
 
       - name: Run Credo
         run: mix credo diff --strict --from-git-merge-base origin/main
+
+
+      - name: Validate documentation and Hex package
+        env:
+          MIX_ENV: dev
+        run: |
+          mix docs --warnings-as-errors
+          mix hex.publish --dry-run --yes
