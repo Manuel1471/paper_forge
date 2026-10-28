@@ -1,0 +1,890 @@
+{
+  "version": "1",
+  "metadata": {
+    "title": "PaperForge / Bloques visuales"
+  },
+  "page_templates": {
+    "gallery": {
+      "size": [
+        540,
+        720
+      ],
+      "margins": 36,
+      "footer": "PAPERFORGE / BLOQUES VISUALES                                  {page}"
+    }
+  },
+  "layout_options": {
+    "template": "gallery"
+  },
+  "blocks": [
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 9,
+        "color": "#087F83",
+        "space_after": 12
+      },
+      "content": "PAPERFORGE / VISUAL ELEMENTS     01"
+    },
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 30,
+        "color": "#183D46",
+        "space_after": 12,
+        "font": "times_roman"
+      },
+      "content": "Diseña con bloques,\nno con límites."
+    },
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 11,
+        "color": "#61787D",
+        "space_after": 22,
+        "line_height": 16
+      },
+      "content": "Texto, imagen y acciones dentro de una misma composición. El motor mide el contenido y conserva sus proporciones."
+    },
+    {
+      "type": "row",
+      "options": {
+        "column_widths": [
+          156,
+          296
+        ],
+        "gap": 16,
+        "valign": "middle",
+        "space_after": 24
+      },
+      "blocks": [
+        {
+          "type": "framed_image",
+          "options": {
+            "width": 156,
+            "height": 218,
+            "border_radius": 18,
+            "fit": "cover",
+            "focal_point": [
+              0.5,
+              0.3
+            ],
+            "space_after": 0
+          },
+          "content": "assets/sample_converted.jpg"
+        },
+        {
+          "type": "container",
+          "options": {
+            "padding": 18,
+            "gap": 12,
+            "background_color": "#EEF6F5",
+            "border_radius": 18,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "badge",
+              "options": {
+                "size": 8,
+                "color": "#087F83",
+                "space_after": 0
+              },
+              "content": "COLECCIÓN / 2026"
+            },
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 24,
+                "color": "#183D46",
+                "space_after": 0,
+                "font": "times_roman"
+              },
+              "content": "Una identidad\npropia"
+            },
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 10,
+                "color": "#183D46",
+                "space_after": 0,
+                "line_height": 15
+              },
+              "content": "Combina bloques y cambia colores, espacios, fuentes y dimensiones desde tu plantilla."
+            },
+            {
+              "type": "button",
+              "options": {
+                "link": "https://example.com/collection",
+                "background_color": "#087F83",
+                "color": "#FFFFFF",
+                "border_radius": 8,
+                "size": 10,
+                "space_after": 0,
+                "icon": "arrow_right"
+              },
+              "content": "Explorar la colección"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "options": {
+        "gap": 12,
+        "space_after": 20
+      },
+      "blocks": [
+        {
+          "type": "badge",
+          "options": {
+            "color": "#087F83"
+          },
+          "content": "VECTORIAL"
+        },
+        {
+          "type": "badge",
+          "options": {
+            "color": "#087F83"
+          },
+          "content": "CONFIGURABLE"
+        },
+        {
+          "type": "badge",
+          "options": {
+            "color": "#087F83"
+          },
+          "content": "REUTILIZABLE"
+        }
+      ]
+    },
+    {
+      "type": "rich_text",
+      "options": {
+        "size": 11,
+        "line_height": 17
+      },
+      "content": [
+        {
+          "text": "Una sola fuente de diseño. ",
+          "options": {
+            "weight": "bold"
+          }
+        },
+        {
+          "text": "El contenido fluye; el estilo permanece. ",
+          "options": {
+            "color": "#61787D"
+          }
+        },
+        {
+          "text": "Ver documentación",
+          "options": {
+            "link": "https://example.com/docs",
+            "underline": true,
+            "color": "#087F83"
+          }
+        }
+      ]
+    },
+    {
+      "type": "page_break",
+      "options": {}
+    },
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 9,
+        "color": "#087F83",
+        "space_after": 12
+      },
+      "content": "PAPERFORGE / VISUAL ELEMENTS     02"
+    },
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 30,
+        "color": "#183D46",
+        "space_after": 12,
+        "font": "times_roman"
+      },
+      "content": "Todo encuentra\nsu lugar."
+    },
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 11,
+        "color": "#61787D",
+        "space_after": 22,
+        "line_height": 16
+      },
+      "content": "Cuadrículas con bloques completos y filas con alineación vertical. Cada celda se mide según el ancho disponible."
+    },
+    {
+      "type": "grid",
+      "options": {
+        "columns": 2,
+        "gap": 16,
+        "space_after": 24
+      },
+      "blocks": [
+        {
+          "type": "container",
+          "options": {
+            "gap": 8,
+            "padding": 16,
+            "background_color": "#EEF6F5",
+            "border_radius": 14,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "icon",
+              "options": {
+                "size": 24,
+                "color": "#087F83",
+                "space_after": 0
+              },
+              "content": "check"
+            },
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 19,
+                "color": "#183D46",
+                "space_after": 0,
+                "font": "times_roman"
+              },
+              "content": "Claridad"
+            },
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 10,
+                "color": "#183D46",
+                "space_after": 0,
+                "line_height": 15
+              },
+              "content": "Medidas reales antes de dibujar."
+            }
+          ]
+        },
+        {
+          "type": "container",
+          "options": {
+            "gap": 8,
+            "padding": 16,
+            "background_color": "#EEF6F5",
+            "border_radius": 14,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "icon",
+              "options": {
+                "size": 24,
+                "color": "#087F83",
+                "space_after": 0
+              },
+              "content": "star"
+            },
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 19,
+                "color": "#183D46",
+                "space_after": 0,
+                "font": "times_roman"
+              },
+              "content": "Personalidad"
+            },
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 10,
+                "color": "#183D46",
+                "space_after": 0,
+                "line_height": 15
+              },
+              "content": "Colores, esquinas y tipografía propios."
+            }
+          ]
+        },
+        {
+          "type": "container",
+          "options": {
+            "gap": 8,
+            "padding": 16,
+            "background_color": "#EEF6F5",
+            "border_radius": 14,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "icon",
+              "options": {
+                "size": 24,
+                "color": "#087F83",
+                "space_after": 0
+              },
+              "content": "mail"
+            },
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 19,
+                "color": "#183D46",
+                "space_after": 0,
+                "font": "times_roman"
+              },
+              "content": "Conexión"
+            },
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 10,
+                "color": "#183D46",
+                "space_after": 0,
+                "line_height": 15
+              },
+              "content": "Acciones con enlaces clicables."
+            }
+          ]
+        },
+        {
+          "type": "container",
+          "options": {
+            "gap": 8,
+            "padding": 16,
+            "background_color": "#EEF6F5",
+            "border_radius": 14,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "icon",
+              "options": {
+                "size": 24,
+                "color": "#087F83",
+                "space_after": 0
+              },
+              "content": "user"
+            },
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 19,
+                "color": "#183D46",
+                "space_after": 0,
+                "font": "times_roman"
+              },
+              "content": "Identidad"
+            },
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 10,
+                "color": "#183D46",
+                "space_after": 0,
+                "line_height": 15
+              },
+              "content": "Imágenes y datos en la misma celda."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 8,
+        "color": "#087F83",
+        "space_after": 10
+      },
+      "content": "ALINEACIÓN INFERIOR"
+    },
+    {
+      "type": "row",
+      "options": {
+        "valign": "bottom",
+        "gap": 14
+      },
+      "blocks": [
+        {
+          "type": "container",
+          "options": {
+            "height": 55,
+            "background_color": "#F6F0E6",
+            "border_radius": 10,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 10,
+                "color": "#183D46",
+                "space_after": 0
+              },
+              "content": "Pequeño"
+            }
+          ]
+        },
+        {
+          "type": "container",
+          "options": {
+            "height": 80,
+            "background_color": "#EEF6F5",
+            "border_radius": 10,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 10,
+                "color": "#183D46",
+                "space_after": 0
+              },
+              "content": "Mediano"
+            }
+          ]
+        },
+        {
+          "type": "container",
+          "options": {
+            "height": 110,
+            "background_color": "#EAF0F7",
+            "border_radius": 10,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 10,
+                "color": "#183D46",
+                "space_after": 0
+              },
+              "content": "Amplio"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "page_break",
+      "options": {}
+    },
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 9,
+        "color": "#087F83",
+        "space_after": 12
+      },
+      "content": "PAPERFORGE / VISUAL ELEMENTS     03"
+    },
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 30,
+        "color": "#183D46",
+        "space_after": 12,
+        "font": "times_roman"
+      },
+      "content": "Capas con\npropósito."
+    },
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 11,
+        "color": "#61787D",
+        "space_after": 22,
+        "line_height": 16
+      },
+      "content": "Coloca textos y códigos sobre una imagen, con coordenadas locales y fondos que protegen la legibilidad."
+    },
+    {
+      "type": "overlay",
+      "options": {
+        "height": 230,
+        "space_after": 22
+      },
+      "blocks": [
+        {
+          "type": "framed_image",
+          "options": {
+            "width": 468,
+            "height": 230,
+            "border_radius": 18,
+            "fit": "cover",
+            "focal_point": [
+              0.5,
+              0.25
+            ],
+            "space_after": 0
+          },
+          "content": "assets/sample_converted.jpg"
+        },
+        {
+          "type": "container",
+          "options": {
+            "width": 266,
+            "offset_x": 18,
+            "offset_y": 112,
+            "padding": 14,
+            "gap": 5,
+            "background_color": "#FFFFFF",
+            "border_radius": 12,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 9,
+                "color": "#087F83",
+                "space_after": 0
+              },
+              "content": "NATURA"
+            },
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 23,
+                "color": "#183D46",
+                "space_after": 0,
+                "font": "times_roman"
+              },
+              "content": "La fuerza de\nlo esencial."
+            }
+          ]
+        },
+        {
+          "type": "container",
+          "options": {
+            "width": 98,
+            "offset_x": 350,
+            "offset_y": 114,
+            "padding": 8,
+            "gap": 0,
+            "background_color": "#FFFFFF",
+            "border_radius": 12,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "qr_code",
+              "options": {
+                "size": 82,
+                "space_after": 0
+              },
+              "content": "https://example.com/natura"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "options": {
+        "column_widths": [
+          120,
+          332
+        ],
+        "gap": 16,
+        "valign": "middle"
+      },
+      "blocks": [
+        {
+          "type": "framed_image",
+          "options": {
+            "width": 108,
+            "height": 108,
+            "shape": "circle",
+            "fit": "cover",
+            "focal_point": [
+              0.5,
+              0.23
+            ],
+            "caption": "Recorte circular",
+            "caption_size": 9,
+            "space_after": 0
+          },
+          "content": "assets/sample_converted.jpg"
+        },
+        {
+          "type": "container",
+          "options": {
+            "padding": 12,
+            "gap": 10,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 17,
+                "color": "#183D46",
+                "space_after": 0,
+                "font": "times_roman"
+              },
+              "content": "Un encuadre, muchas posibilidades"
+            },
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 10,
+                "color": "#183D46",
+                "space_after": 0,
+                "line_height": 15
+              },
+              "content": "Ajusta el punto focal, conserva la imagen completa o recórtala al marco. El pie de imagen ocupa su propio espacio."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "page_break",
+      "options": {}
+    },
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 9,
+        "color": "#087F83",
+        "space_after": 12
+      },
+      "content": "PAPERFORGE / VISUAL ELEMENTS     04"
+    },
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 30,
+        "color": "#183D46",
+        "space_after": 12,
+        "font": "times_roman"
+      },
+      "content": "Detalles que\ncompletan el diseño."
+    },
+    {
+      "type": "paragraph",
+      "options": {
+        "size": 11,
+        "color": "#61787D",
+        "space_after": 22,
+        "line_height": 16
+      },
+      "content": "Formas nativas, iconos SVG y texto enriquecido. Combina también tablas y gráficas del motor existente."
+    },
+    {
+      "type": "row",
+      "options": {
+        "gap": 20,
+        "space_after": 24
+      },
+      "blocks": [
+        {
+          "type": "shape",
+          "options": {
+            "shape": "rectangle",
+            "height": 54,
+            "border_radius": 12,
+            "color": "#087F83",
+            "space_after": 0
+          }
+        },
+        {
+          "type": "shape",
+          "options": {
+            "shape": "circle",
+            "height": 54,
+            "color": "#B2894E",
+            "space_after": 0
+          }
+        },
+        {
+          "type": "shape",
+          "options": {
+            "shape": "polygon",
+            "points": [
+              [
+                0.5,
+                0
+              ],
+              [
+                1,
+                0.5
+              ],
+              [
+                0.5,
+                1
+              ],
+              [
+                0,
+                0.5
+              ]
+            ],
+            "height": 54,
+            "color": "#C2DCD8",
+            "space_after": 0
+          }
+        },
+        {
+          "type": "shape",
+          "options": {
+            "shape": "line",
+            "height": 54,
+            "color": "#183D46",
+            "line_width": 2,
+            "space_after": 0
+          }
+        }
+      ]
+    },
+    {
+      "type": "rich_text",
+      "options": {
+        "size": 12,
+        "line_height": 20,
+        "space_after": 24
+      },
+      "content": [
+        {
+          "text": "Texto con énfasis. ",
+          "options": {
+            "weight": "bold"
+          }
+        },
+        {
+          "text": "Una nota en cursiva. ",
+          "options": {
+            "style": "italic"
+          }
+        },
+        {
+          "text": "Antes",
+          "options": {
+            "strikethrough": true,
+            "color": "#8B9698"
+          }
+        },
+        {
+          "text": "  Ahora, más claro.",
+          "options": {
+            "underline": true,
+            "color": "#087F83"
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "options": {
+        "gap": 16
+      },
+      "blocks": [
+        {
+          "type": "container",
+          "options": {
+            "padding": 12,
+            "gap": 10,
+            "border_width": 0.6,
+            "border_color": "#D8E4E3",
+            "border_radius": 12,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 17,
+                "color": "#183D46",
+                "space_after": 0,
+                "font": "times_roman"
+              },
+              "content": "Lectura rápida"
+            },
+            {
+              "type": "table",
+              "options": {
+                "size": 9,
+                "padding": 7,
+                "header_fill_color": "#EEF6F5",
+                "borders": "bottom",
+                "space_after": 0
+              },
+              "columns": [
+                "Bloque",
+                "Estado"
+              ],
+              "rows": [
+                [
+                  "Texto",
+                  "Listo"
+                ],
+                [
+                  "Imagen",
+                  "Listo"
+                ],
+                [
+                  "QR",
+                  "Listo"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "container",
+          "options": {
+            "padding": 12,
+            "gap": 10,
+            "background_color": "#EEF6F5",
+            "border_radius": 12,
+            "space_after": 0
+          },
+          "blocks": [
+            {
+              "type": "paragraph",
+              "options": {
+                "size": 17,
+                "color": "#183D46",
+                "space_after": 0,
+                "font": "times_roman"
+              },
+              "content": "Una vista general"
+            },
+            {
+              "type": "chart",
+              "options": {
+                "chart_type": "bar",
+                "height": 140,
+                "show_legend": false,
+                "label_size": 8,
+                "space_after": 0
+              },
+              "content": [
+                {
+                  "label": "A",
+                  "value": 30
+                },
+                {
+                  "label": "B",
+                  "value": 65
+                },
+                {
+                  "label": "C",
+                  "value": 90
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
