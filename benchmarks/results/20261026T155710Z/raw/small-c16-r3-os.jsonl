@@ -1,0 +1,5 @@
+{"elapsed_seconds": 0.0023662919993512332, "cpu_seconds": 0.0, "cpu_percent": null, "rss_bytes": 1179648}
+{"elapsed_seconds": 1.006632499999796, "cpu_seconds": 6.37, "cpu_percent": 634.2939699905922, "rss_bytes": 164298752}
+{"elapsed_seconds": 2.0120259169998462, "cpu_seconds": 15.55, "cpu_percent": 913.075403595918, "rss_bytes": 160677888}
+{"elapsed_seconds": 3.016684458999407, "cpu_seconds": 24.88, "cpu_percent": 928.673734404388, "rss_bytes": 161497088}
+{"elapsed_seconds": 4.025694958999338, "cpu_seconds": 34.3, "cpu_percent": 933.5879061715057, "rss_bytes": 158777344}

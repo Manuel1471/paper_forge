@@ -9,14 +9,16 @@ defmodule PaperForge.SVG do
   """
 
   alias PaperForge.Color
+  alias PaperForge.Import.XML
   alias PaperForge.Page
+  alias PaperForge.TextMetrics
 
   @identity {1.0, 0.0, 0.0, 1.0, 0.0, 0.0}
   @kappa 0.552_284_749_8
 
   @spec render(Page.t(), binary(), keyword()) :: Page.t()
   def render(%Page{} = page, svg, options) when is_binary(svg) and is_list(options) do
-    {root, _rest} = :xmerl_scan.string(String.to_charlist(svg), quiet: true)
+    root = XML.parse!(svg)
     attrs = attributes(root)
     matrix = viewbox_matrix(attrs, options)
     clips = collect_clip_paths(root, matrix)
@@ -65,7 +67,17 @@ defmodule PaperForge.SVG do
     text = node_text(node) |> String.trim()
     {x, y} = transform_point(number(attrs["x"], 0), number(attrs["y"], 0), matrix)
     size = number(Map.get(style, "font-size"), 12) * matrix_scale(matrix)
-    estimated_width = String.length(text) * size * 0.55
+
+    font =
+      case {svg_weight(Map.get(style, "font-weight")),
+            svg_font_style(Map.get(style, "font-style"))} do
+        {:bold, :italic} -> :helvetica_bold_oblique
+        {:bold, _} -> :helvetica_bold
+        {_, :italic} -> :helvetica_oblique
+        _ -> :helvetica
+      end
+
+    estimated_width = TextMetrics.width(text, font: font, size: size)
 
     x =
       case Map.get(style, "text-anchor", attrs["text-anchor"]) do
@@ -76,9 +88,10 @@ defmodule PaperForge.SVG do
 
     Page.text(page, text,
       x: x,
-      y: y - size,
+      y: y,
       size: size,
       color: color(Map.get(style, "fill", "black")),
+      font: font,
       weight: svg_weight(Map.get(style, "font-weight")),
       style: svg_font_style(Map.get(style, "font-style")),
       origin: :top_left
@@ -443,7 +456,7 @@ defmodule PaperForge.SVG do
     node
     |> xml_element(:attributes)
     |> Map.new(fn attribute ->
-      {attribute |> xml_attribute(:name) |> Atom.to_string(),
+      {attribute |> xml_attribute(:name) |> to_string(),
        attribute |> xml_attribute(:value) |> to_string()}
     end)
   end
@@ -454,7 +467,7 @@ defmodule PaperForge.SVG do
     |> Enum.filter(&(is_tuple(&1) and elem(&1, 0) == :xmlElement))
   end
 
-  defp element_name(node), do: node |> xml_element(:name) |> Atom.to_string()
+  defp element_name(node), do: node |> xml_element(:name) |> to_string()
 
   defp xml_element(node, :name), do: elem(node, 1)
   defp xml_element(node, :attributes), do: elem(node, 7)

@@ -190,7 +190,8 @@ defmodule PaperForge.Writer do
         object_size = IO.iodata_length(encoded_object)
         :ok = IO.binwrite(io, encoded_object)
 
-        {Map.put(offsets, object.id, current_offset), current_offset + object_size}
+        {Map.put(offsets, object.id, {current_offset, object.generation}),
+         current_offset + object_size}
       end)
 
     {:ok, offsets, next_offset}
@@ -235,7 +236,7 @@ defmodule PaperForge.Writer do
           Map.put(
             offsets,
             object.id,
-            current_offset
+            {current_offset, object.generation}
           )
 
         updated_offset =
@@ -266,33 +267,24 @@ defmodule PaperForge.Writer do
     ]
   end
 
-  defp encode_cross_reference(
-         maximum_object_id,
-         offsets
-       ) do
-    entries =
-      if maximum_object_id > 0 do
-        Enum.map(
-          1..maximum_object_id,
-          fn object_id ->
-            encode_cross_reference_entry(
-              object_id,
-              offsets
-            )
-          end
-        )
-      else
-        []
-      end
+  defp encode_cross_reference(_maximum_object_id, offsets) do
+    sections =
+      [0 | Enum.sort(Map.keys(offsets))]
+      |> Enum.with_index()
+      |> Enum.chunk_by(fn {id, index} -> id - index end)
+      |> Enum.map(fn group ->
+        [{first, _} | _] = group
 
-    [
-      "xref\n",
-      "0 ",
-      Integer.to_string(maximum_object_id + 1),
-      "\n",
-      "0000000000 65535 f \n",
-      entries
-    ]
+        entries =
+          Enum.map(group, fn
+            {0, _} -> "0000000000 65535 f \n"
+            {id, _} -> encode_cross_reference_entry(id, offsets)
+          end)
+
+        [Integer.to_string(first), " ", Integer.to_string(length(group)), "\n", entries]
+      end)
+
+    ["xref\n", sections]
   end
 
   defp encode_cross_reference_entry(
@@ -303,11 +295,11 @@ defmodule PaperForge.Writer do
            offsets,
            object_id
          ) do
-      {:ok, offset} ->
+      {:ok, {offset, generation}} ->
         [
           pad_offset(offset),
           " ",
-          "00000",
+          String.pad_leading(Integer.to_string(generation), 5, "0"),
           " n \n"
         ]
 

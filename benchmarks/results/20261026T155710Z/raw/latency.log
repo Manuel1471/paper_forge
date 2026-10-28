@@ -1,0 +1,276 @@
+%{
+  profile: :small,
+  reductions: %{
+    max: 321974.0,
+    min: 321909.0,
+    median: 321938.0,
+    mean: 321939.48,
+    p99: 321970.0,
+    p95: 321962.0
+  },
+  runtime: %{otp: "29", schedulers: 10, elixir: "1.20.2", mix_env: :prod},
+  cache: %{flate: %{hits: 2, misses: 2}, text_width: %{hits: 324, misses: 101}},
+  rows: 25,
+  pages: 2,
+  preparation_ms: %{
+    max: 0.08,
+    min: 0.0,
+    median: 0.01,
+    mean: 0.01,
+    p99: 0.04,
+    p95: 0.02
+  },
+  single_render_ms: %{
+    max: 8.86,
+    min: 1.89,
+    median: 2.02,
+    mean: 2.24,
+    p99: 5.14,
+    p95: 3.17
+  },
+  layout_ms: %{
+    max: 8.17,
+    min: 1.68,
+    median: 1.77,
+    mean: 1.97,
+    p99: 4.35,
+    p95: 2.74
+  },
+  cold_serialize_ms: %{
+    max: 0.91,
+    min: 0.2,
+    median: 0.25,
+    mean: 0.27,
+    p99: 0.79,
+    p95: 0.4
+  },
+  warm_serialize_ms: %{
+    max: 0.2,
+    min: 0.03,
+    median: 0.04,
+    mean: 0.04,
+    p99: 0.1,
+    p95: 0.05
+  },
+  total_ms: %{
+    max: 8.96,
+    min: 1.93,
+    median: 2.06,
+    mean: 2.28,
+    p99: 5.19,
+    p95: 3.22
+  },
+  garbage_collections: %{
+    max: 36.0,
+    min: 35.0,
+    median: 35.0,
+    mean: 35.02,
+    p99: 36.0,
+    p95: 35.0
+  },
+  reclaimed_words: %{
+    max: 343209.0,
+    min: 343209.0,
+    median: 343209.0,
+    mean: 343209.0,
+    p99: 343209.0,
+    p95: 343209.0
+  },
+  pdf_bytes: 4536,
+  peak_process_memory_bytes: %{
+    max: 1117272.0,
+    min: 605944.0,
+    median: 1115836.0,
+    mean: 1110788.4,
+    p99: 1117272.0,
+    p95: 1117208.0
+  },
+  samples: 100,
+  warmups: 10
+}
+%{
+  profile: :medium,
+  reductions: %{
+    max: 5446119.0,
+    min: 5401994.0,
+    median: 5403165.5,
+    mean: 5404742.87,
+    p99: 5440813.0,
+    p95: 5407894.0
+  },
+  runtime: %{otp: "29", schedulers: 10, elixir: "1.20.2", mix_env: :prod},
+  cache: %{
+    flate: %{hits: 18, misses: 18},
+    text_width: %{hits: 6077, misses: 1126}
+  },
+  rows: 500,
+  pages: 18,
+  preparation_ms: %{
+    max: 0.53,
+    min: 0.18,
+    median: 0.21,
+    mean: 0.22,
+    p99: 0.35,
+    p95: 0.26
+  },
+  single_render_ms: %{
+    max: 99.72,
+    min: 37.54,
+    median: 38.2,
+    mean: 40.16,
+    p99: 84.85,
+    p95: 41.68
+  },
+  layout_ms: %{
+    max: 95.91,
+    min: 34.11,
+    median: 34.71,
+    mean: 36.62,
+    p99: 79.56,
+    p95: 37.97
+  },
+  cold_serialize_ms: %{
+    max: 5.3,
+    min: 3.31,
+    median: 3.5,
+    mean: 3.54,
+    p99: 3.88,
+    p95: 3.76
+  },
+  warm_serialize_ms: %{
+    max: 0.17,
+    min: 0.12,
+    median: 0.13,
+    mean: 0.13,
+    p99: 0.17,
+    p95: 0.15
+  },
+  total_ms: %{
+    max: 99.87,
+    min: 37.67,
+    median: 38.33,
+    mean: 40.29,
+    p99: 85.01,
+    p95: 41.84
+  },
+  garbage_collections: %{
+    max: 133.0,
+    min: 131.0,
+    median: 132.0,
+    mean: 131.94,
+    p99: 132.0,
+    p95: 132.0
+  },
+  reclaimed_words: %{
+    max: 6554550.0,
+    min: 6554169.0,
+    median: 6554402.0,
+    mean: 6554385.73,
+    p99: 6554402.0,
+    p95: 6554402.0
+  },
+  pdf_bytes: 62416,
+  peak_process_memory_bytes: %{
+    max: 9591632.0,
+    min: 9576672.0,
+    median: 9581344.0,
+    mean: 9582371.28,
+    p99: 9591424.0,
+    p95: 9591424.0
+  },
+  samples: 100,
+  warmups: 10
+}
+%{
+  profile: :large,
+  reductions: %{
+    max: 56523721.0,
+    min: 55533571.0,
+    median: 55562086.0,
+    mean: 55609627.58,
+    p99: 56103704.0,
+    p95: 55805183.0
+  },
+  runtime: %{otp: "29", schedulers: 10, elixir: "1.20.2", mix_env: :prod},
+  cache: %{
+    flate: %{hits: 179, misses: 179},
+    text_width: %{hits: 50343, misses: 21148}
+  },
+  rows: 5000,
+  pages: 179,
+  preparation_ms: %{
+    max: 6.58,
+    min: 1.22,
+    median: 2.02,
+    mean: 1.89,
+    p99: 4.21,
+    p95: 2.5
+  },
+  single_render_ms: %{
+    max: 1248.06,
+    min: 816.03,
+    median: 825.98,
+    mean: 845.03,
+    p99: 1043.62,
+    p95: 921.48
+  },
+  layout_ms: %{
+    max: 1155.74,
+    min: 769.24,
+    median: 778.71,
+    mean: 797.04,
+    p99: 996.1,
+    p95: 868.58
+  },
+  cold_serialize_ms: %{
+    max: 92.33,
+    min: 46.21,
+    median: 46.82,
+    mean: 47.99,
+    p99: 70.98,
+    p95: 50.69
+  },
+  warm_serialize_ms: %{
+    max: 5.23,
+    min: 2.77,
+    median: 2.97,
+    mean: 3.0,
+    p99: 3.49,
+    p95: 3.25
+  },
+  total_ms: %{
+    max: 1253.29,
+    min: 818.93,
+    median: 828.99,
+    mean: 848.04,
+    p99: 1046.55,
+    p95: 924.58
+  },
+  garbage_collections: %{
+    max: 180.0,
+    min: 180.0,
+    median: 180.0,
+    mean: 180.0,
+    p99: 180.0,
+    p95: 180.0
+  },
+  reclaimed_words: %{
+    max: 68593382.0,
+    min: 68593370.0,
+    median: 68593382.0,
+    mean: 68593380.08,
+    p99: 68593382.0,
+    p95: 68593382.0
+  },
+  pdf_bytes: 616481,
+  peak_process_memory_bytes: %{
+    max: 81034896.0,
+    min: 80966824.0,
+    median: 81020920.0,
+    mean: 81013722.16,
+    p99: 81034800.0,
+    p95: 81034160.0
+  },
+  samples: 100,
+  warmups: 10
+}

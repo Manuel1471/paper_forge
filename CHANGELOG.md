@@ -5,6 +5,148 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-22
+
+### Configurable primitives and concurrent rendering
+
+- Replace experimental business-specific compositions with reusable visual blocks:
+  containers, rows, columns, block grids, overlays, shapes, SVG icons, badges,
+  linked buttons and clipped/captioned images.
+- Measure nested layouts once, align unequal cells, preserve nested navigation,
+  and reject overflowing atomic compositions.
+- Resolve rich-text styles, design tokens and embedded-font metrics consistently;
+  support underline and strikethrough.
+- Store block children once and hash child identities to avoid repeated tree copies.
+- Consolidate worker telemetry sampling and batch aggregation; expose optional
+  initial worker heap sizing while retaining the conservative default.
+- Add a four-page declarative visual gallery and regression/benchmark coverage.
+
+### 1.0 / 1.1 layout and runtime review
+
+- Check resource budgets when fast concurrent jobs finish and retain their final
+  memory sample; prevent negative minor-GC deltas after counter resets.
+- Preserve reentrant cache writes and avoid duplicate FIFO eviction entries.
+- Render explicit endnotes, preserve their typography/spacing, and configure
+  endnote and table-of-contents headings independently.
+- Fit TOC leaders using actual glyph widths and honor indentation and entry gaps.
+- Add a three-page native declarative editorial example and regression coverage.
+
+### 1.2 / 1.3 compatibility and presentation review
+
+- Preserve term types in compiled-template cache keys; avoid recursive map-to-list copies.
+- Let explicit runtime themes override the template default, including `theme: nil`.
+- Resolve chained design tokens with cycle, missing-reference and depth checks.
+- Add theme-driven watermark size, color, opacity, angle, margins and offsets,
+  rotation-aware centering, automatic fitting and isolated page resources.
+- Preserve third-party PieceInfo during protection and include it in fingerprints.
+- Make fingerprints stable across writing/reopening compressed PDFs and Unicode
+  strings, with incremental hashing of canonical PDF objects.
+- Add compact and comfortable variants of a native `.paperforge` example and
+  regression coverage for configuration, placement and integrity checks.
+
+### Added
+
+- Shared form styles, inherited declarative styles and token-based x/y/width/height
+  geometry, with explicit local overrides and JSON Schema support.
+- Independent equation/bibliography heading options; configurable chart legend,
+  subtitle and radial sizing; configurable footnote typography and separators.
+- Compact/comfortable Lumen themes with smaller native controls, lighter table
+  dividers and centralized presentation tokens.
+
+- Eight-page Lumen visual notebook authored entirely in `.paperforge`, with
+  independent checks for fields, appearances, Unicode and navigation.
+- Form font, size, padding, color and horizontal alignment options; measured
+  text fitting, centered button labels and circular radio controls.
+- Center/right alignment for measured math blocks within the current column.
+
+- Native vector chart engine with signed scales, readable ticks, bounded dense
+  categories, fractional labels, smooth pie/donut sectors and validated legends.
+- Declarative groups and sections with page options, expanded chart/navigation
+  options, and a 27-page Atlas report authored in `.paperforge` with a chart gallery.
+
+- PDF Interoperability & Transformation Engine: `open/2`, `open!/2`, `page_count/1`,
+  `metadata/1`, `forms/1`, `annotations/1`, `attachments/1`, `outlines/1`,
+  `signatures/1`, and structured `analyze/1`.
+- Byte-oriented syntax reader and xref-driven object loading: xref streams,
+  compressed object streams, hybrid references, incremental trailer chains,
+  active generations, sparse object IDs, and inherited page resources.
+- Bounded Flate, ASCIIHex, ASCII85 and RunLength decoding, filter chains and PNG
+  predictors. Standard AES-256 R5/R6 password authentication and decryption.
+- `mix paper_forge.inspect` with human-readable/JSON reports and password-env input.
+- Page deletion, rotation, reordering, extraction, merging, resource-preserving
+  watermarks, selective metadata updates and graph normalization.
+- Independent libqpdf/pypdf fixtures, targeted regression tests, expanded fuzz
+  seeds and arbitrary-byte mutations. New interoperability and migration guide.
+
+### Fixed
+
+- Math styles now affect measured expressions before layout. Footnote line height
+  scales with font size and rendering uses the selected font. Table-wide border
+  and vertical-alignment settings reach cells that do not override them.
+- Zero-width form borders no longer render as hairlines.
+
+- PDFDocEncoding/Unicode metadata, attachment names and MIME types, annotation
+  strings, form values and XMP titles; distinct Unicode CIDs for shared font glyphs.
+- Form edits now regenerate appearances; flattening preserves selected appearance
+  streams, Unicode fonts, empty fields and non-widget annotations.
+- Bounded HTML/SVG parsing without input-driven atoms; UTF-8 and inline SVG are
+  preserved. SVG anchors now use actual font metrics.
+- Consistent declarative style/template identifiers and custom equation references.
+- Nested matrix row heights and integral bounds; centered radial chart legends,
+  inset form borders and proportional selection marks.
+
+- Outline titles now use UTF-16BE PDF strings, preserving accented and Unicode
+  bookmark labels in readers such as macOS Preview. Independent Atlas readback
+  now compares bookmark titles against the original headings.
+
+- SVG UTF-8 parsing and text baseline positioning; zero-height bars and
+  overflowing dense chart geometry; radial legend visibility.
+
+- Writer xref generations now match object headers; sparse IDs no longer cause
+  allocation proportional to the largest object number.
+- Object boundaries no longer depend on regex matches inside strings or streams.
+  Root and Info come from trailers; older/free objects do not override active ones.
+- Nested page imports retain inherited resources without importing sibling pages
+  through Parent backlinks. Reachable stale/broken references fail explicitly.
+- Literal-string octal escapes and line continuation, integer precision, old/new
+  PDF headers, cyclic stream lengths and decompression resource bounds.
+
+- Automatic layout now reserves wrapped heading heights, scales default leading
+  with text/run sizes, and positions text baselines inside allocated boxes.
+- Padded paragraphs recalculate capacity after page changes; spacers, separators
+  and custom blocks honor bottom margins. Keep-together groups use actual
+  pagination and no longer introduce unrelated page breaks.
+- Column rendering honors `:size` and `width: :content`; empty columns and
+  oversized rich-text glyphs terminate safely. Split table rows and footnotes
+  reject impossible minimum heights instead of overflowing.
+- Legacy flow/table pagination no longer forces content into insufficient space;
+  header-only tables retain their content. Margin structs are validated.
+- Placement bounds exclude preceding spacing and footnote separators; redundant
+  empty page breaks no longer desynchronize page references. String headers and
+  footers are positioned inside their margins.
+
+- Standard Helvetica/Times/Courier content now encodes Latin accents and Windows-1252
+  punctuation as WinAnsi bytes, matching the font dictionary instead of emitting UTF-8.
+  Unsupported characters raise `FontError` and require an appropriate embedded font.
+
+### Changed
+
+- Math defaults to 11-point Times Roman, with proportional spacing and thin
+  rules. Scientific equation labels default to 9.5 points and bibliography
+  headings to 12; explicit sizes and heading options remain available.
+- Mathematical rows align on their axis, superscripts remain inside measured
+  bounds, and matrices use individual row heights instead of inflating every
+  row to match the tallest fraction. Added a dedicated declarative visual specimen.
+
+- Import now requires valid xref/trailer structure; incomplete files formerly
+  accepted by the classic regex parser return errors. Obsolete incomplete-input
+  limit tests were replaced with valid PDFs exercising actual limits.
+- The new reader accepts PDF 1.0–1.7 and 2.0 headers; this is not a claim that every
+  version-specific feature is interpreted. Existing authoring APIs remain intact.
+- Output remains a complete rewrite. Append-only editing, signature verification,
+  automatic malformed-file repair, XFA, RC4/AES-128 import, LZW/TIFF predictors and
+  document-level catalog merging remain outside this release's supported scope.
+
 ## [1.4.5] - 2026-08-26
 
 ### Added
@@ -80,6 +222,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Corrected table-cell baseline placement for both top-left and bottom-left
   page origins. Text now respects cell padding and vertical alignment instead
   of leaking across the upper row border.
+- Made the parser fuzz mutator safe after repeated truncation. Byte-flip
+  mutations now always select an existing byte, preventing the test harness
+  itself from raising before a shortened PDF reaches the parser.
 
 ## [1.4.4] - 2026-08-18
 
@@ -1323,3 +1468,13 @@ establishes the public API and Semantic Versioning contract for 1.x.
 [0.3.0]: https://github.com/Manuel1471/paper_forge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.1.0
+
+### QR invitation rendering follow-up
+
+- Added native `Page.qr_code/3` and configurable square size, alignment, quiet
+  zone, correction level and colors for flow and `.paperforge` QR blocks.
+- Batch QR dark runs into a single vector path with rectangle subpaths, avoiding
+  hundreds of separate graphics-state operations. Added a white background by
+  default to preserve the quiet zone on colored pages.
+- Added a data-driven invitation example, module-equivalence regressions and an
+  independent macOS Vision scan fixture for UUIDs, URLs and Unicode text.

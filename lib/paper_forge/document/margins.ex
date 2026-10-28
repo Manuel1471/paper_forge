@@ -50,7 +50,7 @@ defmodule PaperForge.Margins do
   """
   @spec new(number() | keyword() | t()) :: t()
   def new(%__MODULE__{} = margins) do
-    margins
+    margins |> to_keyword() |> new()
   end
 
   def new(value)

@@ -1,0 +1,312 @@
+diff --git a/lib/paper_forge/authoring/declarative.ex b/lib/paper_forge/authoring/declarative.ex
+index f940bbb..b278227 100644
+--- a/lib/paper_forge/authoring/declarative.ex
++++ b/lib/paper_forge/authoring/declarative.ex
+@@ -1487,10 +1487,17 @@ defmodule PaperForge.Declarative do
+           text
+ 
+         map when is_map(map) ->
+-          ensure_known_keys!(map, ~w(text opacity size color angle), "protection.watermark")
++          ensure_known_keys!(
++            map,
++            ~w(text opacity size color angle margin fit offset_x offset_y),
++            "protection.watermark"
++          )
+ 
+           map
+-          |> keyword_map(~w(text opacity size color angle), "protection.watermark")
++          |> keyword_map(
++            ~w(text opacity size color angle margin fit offset_x offset_y),
++            "protection.watermark"
++          )
+           |> Enum.map(fn
+             {:color, "#" <> _ = color} -> {:color, parse_color_tuple(color)}
+             pair -> pair
+diff --git a/lib/paper_forge/authoring/declarative/cache.ex b/lib/paper_forge/authoring/declarative/cache.ex
+index a383d86..79b6033 100644
+--- a/lib/paper_forge/authoring/declarative/cache.ex
++++ b/lib/paper_forge/authoring/declarative/cache.ex
+@@ -30,19 +30,8 @@ defmodule PaperForge.Declarative.Cache do
+   @spec hash(term()) :: binary()
+   def hash(value) do
+     value
+-    |> canonical()
+     |> :erlang.term_to_binary([:deterministic])
+     |> then(&:crypto.hash(:sha256, &1))
+     |> Base.encode16(case: :lower)
+   end
+-
+-  defp canonical(map) when is_map(map),
+-    do: map |> Enum.map(fn {key, value} -> {key, canonical(value)} end) |> Enum.sort()
+-
+-  defp canonical(list) when is_list(list), do: Enum.map(list, &canonical/1)
+-
+-  defp canonical(tuple) when is_tuple(tuple),
+-    do: tuple |> Tuple.to_list() |> Enum.map(&canonical/1) |> List.to_tuple()
+-
+-  defp canonical(value), do: value
+ end
+diff --git a/lib/paper_forge/authoring/declarative/validator.ex b/lib/paper_forge/authoring/declarative/validator.ex
+index efa75ca..4f5f635 100644
+--- a/lib/paper_forge/authoring/declarative/validator.ex
++++ b/lib/paper_forge/authoring/declarative/validator.ex
+@@ -32,7 +32,7 @@ defmodule PaperForge.Declarative.Validator do
+                       ~w(algorithm reason location contact_info timestamp tsa_url visible multiple)
+                     )
+   @protection_fields MapSet.new(~w(identifier modified_at watermark policy))
+-  @watermark_fields MapSet.new(~w(text opacity size color angle))
++  @watermark_fields MapSet.new(~w(text opacity size color angle margin fit offset_x offset_y))
+   @policy_fields MapSet.new(
+                    ~w(allowed_uri_schemes allowed_hosts allow_attachments max_attachments max_attachment_bytes allowed_attachment_mimes)
+                  )
+diff --git a/lib/paper_forge/security/protection.ex b/lib/paper_forge/security/protection.ex
+index 591a3c0..c0df745 100644
+--- a/lib/paper_forge/security/protection.ex
++++ b/lib/paper_forge/security/protection.ex
+@@ -8,6 +8,7 @@ defmodule PaperForge.Protection do
+ 
+   alias PaperForge.Document
+   alias PaperForge.Fonts.WinAnsi
++  alias PaperForge.PDF.Graph
+   alias PaperForge.Reference
+   alias PaperForge.Stream
+ 
+@@ -60,9 +61,17 @@ defmodule PaperForge.Protection do
+     unless is_binary(text) and text != "",
+       do: raise(ArgumentError, "watermark text cannot be empty")
+ 
+-    unless opacity >= 0 and opacity <= 1,
++    unless is_number(opacity) and opacity >= 0 and opacity <= 1,
+       do: raise(ArgumentError, "watermark opacity must be 0..1")
+ 
++    margin = Keyword.get(options, :margin, 36)
++    fit = Keyword.get(options, :fit, true)
++    offset_x = Keyword.get(options, :offset_x, 0)
++    offset_y = Keyword.get(options, :offset_y, 0)
++
++    validate_watermark_geometry!(size, angle, margin, fit, offset_x, offset_y)
++    validate_watermark_color!(color)
++
+     {document, font_ref} =
+       Document.add_object(document, %{
+         "Type" => {:name, "Font"},
+@@ -78,43 +87,84 @@ defmodule PaperForge.Protection do
+         "CA" => opacity
+       })
+ 
+-    Enum.reduce(page_references(document), document, fn page_ref, current ->
+-      page = Document.fetch_object!(current, page_ref).value
+-      [_, _, width, height] = Map.fetch!(page, "MediaBox")
+-      command = watermark_command(text, width, height, size, angle, color)
+-      filters = if current.compress, do: [:flate], else: []
+-      {current, stream_ref} = Document.add_object(current, Stream.new(command, filters: filters))
+-
+-      Document.update_object(current, page_ref, fn dictionary ->
+-        resources = Map.get(dictionary, "Resources", %{})
+-
+-        resources =
+-          resources
+-          |> Map.update(
+-            "Font",
+-            %{"PFWatermark" => font_ref},
+-            &Map.put(&1, "PFWatermark", font_ref)
+-          )
+-          |> Map.update(
+-            "ExtGState",
+-            %{"PFWatermarkGS" => state_ref},
+-            &Map.put(&1, "PFWatermarkGS", state_ref)
+-          )
+-
+-        contents =
+-          case Map.get(dictionary, "Contents") do
+-            list when is_list(list) -> list ++ [stream_ref]
+-            %Reference{} = reference -> [reference, stream_ref]
+-            nil -> [stream_ref]
+-          end
+-
+-        dictionary
+-        |> Map.put("Resources", resources)
+-        |> Map.put("Contents", contents)
+-      end)
++    Enum.reduce(Graph.pages!(document), document, fn page, current ->
++      watermark_page(
++        current,
++        page,
++        {font_ref, state_ref},
++        {text, size, angle, color, margin, fit, offset_x, offset_y}
++      )
++    end)
++  end
++
++  defp watermark_page(
++         current,
++         page,
++         {font_ref, state_ref},
++         {text, size, angle, color, margin, fit, offset_x, offset_y}
++       ) do
++    dictionary = page.dictionary
++    box = Graph.resolve!(current, dictionary["CropBox"] || dictionary["MediaBox"])
++    [x0, y0, x1, y1] = box
++    resources = Graph.resolve!(current, dictionary["Resources"]) || %{}
++    fonts = Graph.resolve!(current, resources["Font"]) || %{}
++    states = Graph.resolve!(current, resources["ExtGState"]) || %{}
++    font_name = unique_name(fonts, "PFWatermark")
++    state_name = unique_name(states, "PFWatermarkGS")
++
++    command =
++      watermark_command(
++        text,
++        {x0, y0, x1, y1},
++        size,
++        angle,
++        color,
++        {margin, fit, offset_x, offset_y},
++        {font_name, state_name}
++      )
++
++    filters = if current.compress, do: [:flate], else: []
++    {current, before} = Document.add_object(current, Stream.new("q\n"))
++
++    {current, stream_ref} =
++      Document.add_object(current, Stream.new("Q\n" <> command, filters: filters))
++
++    contents =
++      case Graph.resolve!(current, dictionary["Contents"]) do
++        nil -> []
++        %Stream{} -> [dictionary["Contents"]]
++        list when is_list(list) -> list
++      end
++
++    Document.update_object(current, page.reference, fn value ->
++      value
++      |> Map.put(
++        "Resources",
++        resources
++        |> Map.put("Font", Map.put(fonts, font_name, font_ref))
++        |> Map.put("ExtGState", Map.put(states, state_name, state_ref))
++      )
++      |> Map.put("Contents", [before | contents] ++ [stream_ref])
+     end)
+   end
+ 
++  defp validate_watermark_geometry!(size, angle, margin, fit, offset_x, offset_y) do
++    valid = Enum.all?([size, angle, margin, offset_x, offset_y], &is_number/1)
++
++    unless valid and size > 0 and margin >= 0 and is_boolean(fit),
++      do: raise(ArgumentError, "invalid watermark size, angle, margin, fit or offsets")
++  end
++
++  defp validate_watermark_color!({red, green, blue}) do
++    unless Enum.all?([red, green, blue], &(is_number(&1) and &1 >= 0 and &1 <= 1)),
++      do: raise(ArgumentError, "watermark color must contain three numbers in 0..1")
++  end
++
++  defp validate_watermark_color!(_), do: raise(ArgumentError, "invalid watermark color")
++
++  defp unique_name(map, name),
++    do: if(Map.has_key?(map, name), do: unique_name(map, name <> "_"), else: name)
++
+   @doc "Returns a stable SHA-256 fingerprint of the document's semantic PDF objects."
+   @spec fingerprint(Document.t()) :: binary()
+   def fingerprint(%Document{} = document) do
+@@ -194,21 +244,59 @@ defmodule PaperForge.Protection do
+   defp format_uuid(<<a::binary-8, b::binary-4, c::binary-4, d::binary-4, e::binary-12>>),
+     do: Enum.join([a, b, c, d, e], "-")
+ 
+-  defp watermark_command(text, width, height, size, angle, {red, green, blue}) do
++  defp watermark_command(
++         text,
++         {x0, y0, x1, y1},
++         size,
++         angle,
++         {red, green, blue},
++         {margin, fit, offset_x, offset_y},
++         {font_name, state_name}
++       ) do
+     radians = angle * :math.pi() / 180
+     cosine = Float.round(:math.cos(radians), 6)
+     sine = Float.round(:math.sin(radians), 6)
+-    estimated_width = String.length(text) * size * 0.55
++    width = PaperForge.TextMetrics.width(text, font: :helvetica_bold, size: size)
++    height = size * 0.718
++    rotated_width = abs(cosine) * width + abs(sine) * height
++    rotated_height = abs(sine) * width + abs(cosine) * height
++    available_width = x1 - x0 - 2 * margin - 2 * abs(offset_x)
++    available_height = y1 - y0 - 2 * margin - 2 * abs(offset_y)
++
++    if fit and (available_width <= 0 or available_height <= 0),
++      do: raise(ArgumentError, "watermark margins and offsets leave no space")
++
++    scale =
++      if fit,
++        do:
++          min(
++            1,
++            min(
++              available_width / rotated_width,
++              available_height / rotated_height
++            )
++          ),
++        else: 1
++
++    size = size * scale
++    width = width * scale
++    height = height * scale
++    origin_x = (x0 + x1) / 2 + offset_x - cosine * width / 2 + sine * height / 2
++    origin_y = (y0 + y1) / 2 + offset_y - sine * width / 2 - cosine * height / 2
+ 
+     IO.iodata_to_binary([
+-      "/Artifact BMC\nq\n/PFWatermarkGS gs\n",
++      "/Artifact BMC\nq\n/",
++      state_name,
++      " gs\n",
+       number(red),
+       " ",
+       number(green),
+       " ",
+       number(blue),
+       " rg\n",
+-      "BT\n/PFWatermark ",
++      "BT\n/",
++      font_name,
++      " ",
+       number(size),
+       " Tf\n",
+       number(cosine),
+@@ -219,9 +307,9 @@ defmodule PaperForge.Protection do
+       " ",
+       number(cosine),
+       " ",
+-      number(width / 2 - estimated_width / 2),
++      number(origin_x),
+       " ",
+-      number(height / 2),
++      number(origin_y),
+       " Tm\n",
+       "(",
+       escape(WinAnsi.encode!(text, :helvetica_bold)),
+@@ -366,7 +454,4 @@ defmodule PaperForge.Protection do
+       |> :erlang.float_to_binary(decimals: 4)
+       |> String.trim_trailing("0")
+       |> String.trim_trailing(".")
+-
+-  defp page_references(document),
+-    do: Document.fetch_object!(document, document.pages_reference).value["Kids"]
+ end
+diff --git a/priv/paperforge.schema.json b/priv/paperforge.schema.json
+index 59445d2..a47a9d7 100644
+--- a/priv/paperforge.schema.json
++++ b/priv/paperforge.schema.json
+@@ -202,7 +202,11 @@
+                 "opacity": {"type": "number", "minimum": 0, "maximum": 1},
+                 "size": {"type": "number", "exclusiveMinimum": 0},
+                 "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+-                "angle": {"type": "number"}
++                "angle": {"type": "number"},
++                "margin": {"type": "number", "minimum": 0},
++                "fit": {"type": "boolean"},
++                "offset_x": {"type": "number"},
++                "offset_y": {"type": "number"}
+               }
+             }
+           ]

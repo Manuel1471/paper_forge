@@ -6,11 +6,16 @@ defmodule PaperForge.Scientific do
 
   alias PaperForge.Flow
 
-  defstruct flow: nil, equation_count: 0, citations: %{}, citation_order: []
+  defstruct flow: nil,
+            equation_count: 0,
+            equation_destinations: %{},
+            citations: %{},
+            citation_order: []
 
   @type t :: %__MODULE__{
           flow: Flow.t(),
           equation_count: non_neg_integer(),
+          equation_destinations: map(),
           citations: map(),
           citation_order: [binary()]
         }
@@ -27,22 +32,35 @@ defmodule PaperForge.Scientific do
 
     flow =
       scientific.flow
-      |> Flow.heading(label,
-        level: Keyword.get(options, :level, 4),
-        destination: destination,
-        bookmark: false,
-        space_after: 4
+      |> Flow.heading(
+        label,
+        Keyword.merge(
+          [level: Keyword.get(options, :level, 4), size: 9.5, weight: :regular, space_after: 6],
+          Keyword.get(options, :heading_options, [])
+        )
+        |> Keyword.put(:destination, destination)
+        |> Keyword.put(:bookmark, false)
       )
-      |> Flow.math(ast, options)
+      |> Flow.math(ast, Keyword.delete(options, :destination))
 
-    %{scientific | flow: flow, equation_count: number}
+    %{
+      scientific
+      | flow: flow,
+        equation_count: number,
+        equation_destinations: Map.put(scientific.equation_destinations, number, destination)
+    }
   end
 
   @doc "Adds a page-aware reference such as `Equation 3, page 8`."
   @spec equation_reference(t(), pos_integer(), keyword()) :: t()
   def equation_reference(%__MODULE__{} = scientific, number, options \\ []) do
     text = Keyword.get(options, :text, "Equation #{number}, page {page}")
-    %{scientific | flow: Flow.reference(scientific.flow, "equation-#{number}", text: text)}
+    destination = Map.get(scientific.equation_destinations, number, "equation-#{number}")
+
+    %{
+      scientific
+      | flow: Flow.reference(scientific.flow, destination, Keyword.put(options, :text, text))
+    }
   end
 
   @doc "Registers a bibliography entry and returns its stable citation number."
@@ -66,7 +84,15 @@ defmodule PaperForge.Scientific do
   @doc "Adds the numbered bibliography section."
   @spec bibliography(t(), keyword()) :: t()
   def bibliography(%__MODULE__{} = scientific, options \\ []) do
-    flow = Flow.heading(scientific.flow, Keyword.get(options, :title, "References"), level: 2)
+    flow =
+      Flow.heading(
+        scientific.flow,
+        Keyword.get(options, :title, "References"),
+        Keyword.merge(
+          [level: 2, size: 12, space_after: 8],
+          Keyword.get(options, :heading_options, [])
+        )
+      )
 
     flow =
       scientific.citation_order

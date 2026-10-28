@@ -94,10 +94,16 @@
         "name": {"type": "string", "minLength": 1},
         "page": {"type": "integer", "minimum": 1},
         "rect": {"$ref": "#/$defs/rect"},
+        "x": {"anyOf": [{"type": "number"}, {"type": "string", "pattern": "^\\$[A-Za-z_][\\w.]*$"}]},
+        "y": {"anyOf": [{"type": "number"}, {"type": "string", "pattern": "^\\$[A-Za-z_][\\w.]*$"}]},
+        "width": {"anyOf": [{"type": "number", "exclusiveMinimum": 0}, {"type": "string", "pattern": "^\\$[A-Za-z_][\\w.]*$"}]},
+        "height": {"anyOf": [{"type": "number", "exclusiveMinimum": 0}, {"type": "string", "pattern": "^\\$[A-Za-z_][\\w.]*$"}]},
+        "style": {"type": "string"},
         "origin": {"enum": ["bottom_left", "top_left"]},
         "value": {},
         "default": {},
         "tooltip": {"type": "string"},
+        "font": {"type": "string"},
         "options": {"type": "array"},
         "background_color": {"type": "string"},
         "border_color": {"type": "string"},
@@ -105,6 +111,10 @@
         "border_radius": {"type": "number", "minimum": 0},
         "check_color": {"type": "string"},
         "check_width": {"type": "number", "minimum": 0},
+        "font_size": {"type": "number", "exclusiveMinimum": 0},
+        "padding": {"type": "number", "minimum": 0},
+        "text_color": {"type": "string"},
+        "text_align": {"enum": ["left", "center", "right"]},
         "choices": {
           "type": "array",
           "minItems": 1,
@@ -133,7 +143,10 @@
         {
           "if": {"properties": {"type": {"const": "radio"}}},
           "then": {"required": ["choices"]},
-          "else": {"required": ["page", "rect"]}
+          "else": {"required": ["page"], "oneOf": [
+            {"required": ["rect"], "not": {"anyOf": [{"required": ["x"]}, {"required": ["y"]}, {"required": ["width"]}, {"required": ["height"]}]}},
+            {"required": ["x", "y", "width", "height"], "not": {"required": ["rect"]}}
+          ]}
         }
       ]
     },
@@ -186,10 +199,14 @@
               "required": ["text"],
               "properties": {
                 "text": {"type": "string", "minLength": 1},
-                "opacity": {"type": "number", "minimum": 0, "maximum": 1},
-                "size": {"type": "number", "exclusiveMinimum": 0},
-                "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
-                "angle": {"type": "number"}
+                "opacity": {"anyOf":[{"type":"number","minimum":0,"maximum":1},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "size": {"anyOf":[{"type":"number","exclusiveMinimum":0},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "color": {"anyOf":[{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "angle": {"anyOf":[{"type":"number"},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "margin": {"anyOf":[{"type":"number","minimum":0},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "fit": {"anyOf":[{"type":"boolean"},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "offset_x": {"anyOf":[{"type":"number"},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "offset_y": {"anyOf":[{"type":"number"},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]}
               }
             }
           ]
@@ -274,6 +291,7 @@
       "additionalProperties": false,
       "properties": {
         "type": {"type": "string"},
+        "name": {"type": "string"},
         "text": {},
         "content": {},
         "options": {"type": "object"},

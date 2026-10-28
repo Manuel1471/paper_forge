@@ -1,5 +1,89 @@
 # Migrating PaperForge
 
+## Migrating from 1.4 to 1.5
+
+Existing authoring APIs remain available. `PaperForge.metadata/2` still writes
+metadata; the new `metadata/1` reads the existing Info dictionary.
+
+- Use `open/2` for a path, or `Interoperability.parse_pdf/2` for bytes.
+- Valid xref tables/streams and trailers are now required. The former regex
+  importer sometimes accepted incomplete files; 1.5 deliberately rejects them.
+- Parsing preserves the active object generation and follows incremental revisions.
+- Stream limits now cover supported decompressed content as well as encoded bytes.
+  `max_total_decoded_bytes` defaults to 200 MB. Review custom workload limits.
+- Open supported encrypted PDFs with `password:` before transforming or composing.
+  Rewriting produces unencrypted output unless new writer `security:` options are set.
+- Writing is a full rewrite; existing signatures and linearization are not preserved.
+- Review [`INTEROPERABILITY.md`](INTEROPERABILITY.md) for feature and compatibility
+  boundaries, including page-level composition and unsupported encryption handlers.
+
+No new runtime dependency is required.
+
+### Math and Scientific presentation
+
+Math's default size changes from 14 to 11 points and its built-in typeface from
+Helvetica to Times Roman. Ornament dimensions now scale with size, so even
+expressions with an explicit size can occupy less space. Superscript and matrix
+bounds are corrected. Equation-label and bibliography-heading defaults are
+smaller; use `heading_options` to override them. Regenerate and visually review
+scientific documents whose page counts or absolute overlays depend on old metrics.
+
+### Unicode strings, forms and declarative names
+
+PDF metadata, attachment names/descriptions, field strings and annotation text
+now distinguish PDFDocEncoding from UTF-16BE. `metadata/1` still returns the raw
+Info dictionary; use `PaperForge.StringEncoding.decode/1` for its text values.
+Embedded TrueType fonts now assign distinct CIDs to Unicode characters even when
+they share a glyph (for example Ω and Ω). Serialized font bytes will change.
+
+Form edits refresh appearances, and flattening reuses their selected appearance
+streams, including empty fields and radio/checkbox states. Missing appearances
+for nonempty fields fail explicitly. Appearance styling is retained while editing
+the authored in-memory document; arbitrary imported form typography is not fully
+reconstructed. Flattening intentionally removes interactive widgets.
+
+Compiled declarative styles and page-template names now consistently use string
+keys. Code inspecting the compiled struct should use `compiled.styles["body"]`
+instead of `compiled.styles[:body]`. Elixir authoring APIs still accept atom names.
+HTML/SVG import uses bounded XML parsing without creating atoms from input names;
+external DTD loading is skipped and entity declarations are rejected. Limits are
+10 MB, 128 nesting levels,
+and 100,000 elements. This remains a supported markup subset, not a browser.
+
+### Standard-font text encoding
+
+Helvetica, Times and Courier now encode supported Unicode text to WinAnsi before
+writing content streams. Accents, the euro sign, bullets and smart punctuation
+render correctly. Raw UTF-8 bytes are no longer written under a WinAnsi font.
+Characters outside that encoding raise `FontError`; register an embedded font
+with the required glyphs. Symbol and ZapfDingbats retain their native encoding.
+
+### Automatic layout corrections
+
+Review generated PDFs when upgrading: corrected wrapping and line heights can
+change page counts. Default line height now follows `:size`; rich text uses the
+largest run size. An explicit `:line_height` still overrides that default.
+Automatic text positions describe the top of their allocated area; baselines
+are offset into it. Low-level `Page.text/3` and `Page.text_box/3` keep their
+existing baseline coordinate semantics.
+
+Automatic layout, `layout_flow`, and paginated tables require `origin: :top_left`
+(the default). Passing `:bottom_left` now raises rather than producing invalid
+pagination; use `Page` primitives for manual bottom-left layouts. String headers
+and footers require enough margin for their font size (10.8 points for the
+unified engine's 9-point templates). Custom template callbacks and explicit
+block `:x`/`:y` remain caller-positioned and can draw outside flow bounds.
+
+`keep_together` groups that cannot fit on one empty page raise `LayoutError`.
+Legacy tables reject a header/body combination that cannot fit. Placement
+`:height` excludes `:space_before` and, for footnotes, the separator area.
+A single glyph wider than its text box is retained, like plain text wrapping;
+choose a wider box or smaller font when strict horizontal containment is needed.
+
+Run `mix run examples/layout_boundaries.exs` to generate a visual regression
+sample with red content bounds, wrapped headings, padded text, columns and tables.
+
+
 ## Migrating from 1.3 to 1.4
 
 PaperForge 1.4 is backward compatible with the documented 1.3 public API.
@@ -154,3 +238,54 @@ object identity mismatches, invalid page trees, and page-count mismatches.
 The same immutable document produces the same PDF bytes. Dynamic metadata such
 as `DateTime.utc_now/0` is caller-controlled and must be fixed explicitly when
 reproducible artifacts are required.
+
+### Charts and SVG text
+
+Cartesian charts now include axes and grid lines by default; use `show_axes: false`
+and `show_grid: false` for the previous minimal appearance. Negative values use a
+shared zero baseline. Pie/donut negative values and legends too large for their
+panel now raise errors instead of silently producing misleading or clipped marks.
+Category labels may be sampled; all data marks remain present. `tick_count` is an
+approximate target for readable intervals. SVG text now uses its specified baseline
+and accepts UTF-8 source correctly; remove manual vertical offsets used to compensate
+for the previous one-font-size shift.
+
+### Declarative cache identity and protection watermarks
+
+Compiled template hashes now preserve map/list type distinctions. Clear any
+application-persisted template identifiers generated by older releases when
+upgrading; the built-in process-local cache starts empty in a new process.
+
+Protection watermarks now fit within page margins by default and use actual
+font metrics for rotation-aware centering. Set `fit: false` to retain intentional
+oversizing. Review pagination-independent overlays when comparing old output;
+`margin`, `offset_x` and `offset_y` provide explicit placement controls.
+
+### Theme precedence and integrity fingerprints
+
+An explicitly supplied `theme:` now overrides the template's default theme.
+Pass `theme: nil` for the base design system. Missing/cyclic token references
+now fail compilation instead of leaking unresolved strings or nil into layout.
+
+Protection fingerprints now use canonical PDF serialization and include
+third-party PieceInfo, document references and object generations. The checksum
+value itself is the only excluded catalog field. Older stored fingerprints use
+a different calculation; regenerate them from a trusted original when upgrading.
+Fingerprints are checksums, not authenticated digital signatures. The corrected
+calculation is tested across compression, Unicode metadata and write/reopen.
+
+### 1.0 / 1.1 navigation, notes and concurrent budgets
+
+Explicit endnote lists now render their own entries; previously the layout
+silently substituted collected footnotes. Empty lists retain automatic collection.
+Endnote default typography is now compact and options are preserved; review
+pagination if relying on the previous heading/entry defaults. Index leaders use
+font measurements instead of character counts, and entry spacing is respected.
+
+Concurrent jobs report their final memory snapshot before exiting, including
+jobs too fast for the polling sampler. Completed jobs exceeding memory or
+reductions budgets return `:resource_limit` instead of an apparent success.
+Budgets remain sampled/cooperative resource controls, not hard OS allocation
+limits. Peak memory can still miss brief transient allocations. The legacy
+per-job minor-GC delta is clamped at zero when the runtime resets its counter;
+it is not a VM-wide GC total.

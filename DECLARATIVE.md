@@ -309,6 +309,28 @@ accent or `colors` for a reusable palette. `show_values`, `line_width`,
 the declarative format. `chart_padding` reserves interior space around marks,
 value labels, and axis labels; it defaults to `12` points.
 
+### Chart scales and document sections (1.5)
+
+Cartesian charts include zero and support negative values. `show_axes` and
+`show_grid` default to true. `tick_count` (2–10, default 5) is a target: the
+renderer selects readable numeric intervals. `y_min` and `y_max` must contain
+zero and every value. `value_decimals` (0–6), `value_prefix`, `value_suffix`,
+`label_size`, `value_size`, `title_size`, `title`, and `subtitle` control labels.
+Dense categories sample labels while preserving every data point. Scatter uses
+categorical X positions, not numeric X/Y pairs. Pie/donut data must be
+nonnegative; empty and all-zero series display explicit messages. Disable
+`show_legend` to center a radial chart without its legend. `show_values: false`
+hides numeric labels, including values and percentages in radial legends.
+An undersized plot or legend raises an error instead of overflowing.
+
+`group` contains `blocks` and accepts `options.keep_together`. `section` contains
+`blocks`, an optional `name`, and `options.page_options` (size, margins, header,
+footer). Nested children obey the same validation and compilation budgets as
+ordinary blocks. For a full-bleed cover followed by paginated body pages, see
+[`examples/atlas_2026.paperforge`](examples/atlas_2026.paperforge). Navigation
+supports `levels`, `level_styles` keyed by heading level, and
+`single_line_entries` to flatten explicit newlines in contents entries.
+
 ### Imported Markup And Math
 
 `html` accepts the documented safe HTML/CSS subset and `markdown` accepts
@@ -393,7 +415,26 @@ top-left page origin.
 The rectangle controls the physical field size. Compact web-like controls can
 use heights around 18-21 points for text and 11-14 points for checkboxes.
 Appearance options include `background_color`, `border_color`, `border_width`,
-`border_radius`, `check_color`, and `check_width`.
+`border_radius`, `check_color`, and `check_width`. Text appearances also accept
+`font` (a built-in or declared font), positive `font_size`, `text_color`,
+`text_align` (`left`, `center`, `right`), and non-negative `padding`. Single-line
+values shrink to fit their rectangle without changing the stored field value.
+Buttons center their labels by default. Radio controls are circular, and strokes
+are inset so their borders remain visible. Use a font covering the intended
+characters for non-Latin visible values; field names and tooltips use PDF Unicode
+strings independently of the appearance font.
+
+Math blocks accept `align: "center"` or `"right"` to position the measured
+expression within its layout column. The default remains left-aligned.
+
+The eight-page [Lumen visual notebook](examples/lumen_visual_2026.paperforge)
+combines imported narrative, charts, tables, centered formulas, notes and a
+symmetrical interactive review form. Generate and verify it with:
+
+```sh
+mix run examples/lumen_visual_2026.exs
+python3 examples/verify_lumen.py  # optional independent check; requires pypdf
+```
 
 An `annotation` block accepts `annotation_type`: `note`, `highlight`,
 `underline`, `strikeout`, `stamp`, `free_text`, `square`, `circle`, `ink`, or
@@ -563,3 +604,207 @@ data, inline reusable components, themes, navigation, a chart, a table, QR
 output, security policy, protection policy, and tagged-PDF preparation. The
 companion `examples/paper_forge_1_4_showcase.exs` demonstrates the same report
 domain with full low-level visual control.
+
+### Compact presentation and reusable styles
+
+Use `design_system.styles` to share presentation settings. Styles support
+`extends`; child styles override their parent, and explicit element options
+have the final say. Cycles and missing parent styles fail during compilation.
+Form fields now accept a named `style` as well as their individual appearance
+options. Fonts registered by the template can also be used inside styles.
+
+```json
+{
+  "design_system": {
+    "tokens": {"controls": {"height": 22}, "type": {"field": 9.5}},
+    "styles": {
+      "field": {
+        "font_size": "$type.field", "padding": 6,
+        "text_color": "#183B45", "border_color": "#DCE6E6",
+        "border_width": 0.6, "border_radius": 2
+      },
+      "amount": {"extends": "field", "text_align": "right"},
+      "table": {
+        "size": 9, "row_height": 25, "padding": 6,
+        "cell_line_height": 12, "cell_valign": "middle",
+        "borders": ["bottom"], "line_width": 0.35,
+        "stroke_color": "#DCE6E6"
+      }
+    }
+  },
+  "forms": [{
+    "type": "text", "name": "amount", "page": 1,
+    "origin": "top_left", "x": 52, "y": 180,
+    "width": 180, "height": "$controls.height",
+    "style": "amount", "value": "€ 125,000"
+  }]
+}
+```
+
+This is a configuration fragment; add the document's `version` and `blocks`.
+Form geometry accepts either `rect` or `x`, `y`, `width`, `height`, never both.
+The latter values may reference design tokens. Resolved width and height must be
+positive numbers. Coordinates and dimensions are PDF points (72 points = 1 inch).
+The field's rectangle controls its physical size; `font_size` controls its text.
+`border_width: 0` removes the stroke instead of drawing a PDF hairline.
+Root forms use explicit page coordinates, so leave room for them in page content.
+
+| Element | Controls |
+| --- | --- |
+| Forms | `style`, `x/y/width/height` or `rect`, `font`, `font_size`, `padding`, `text_align`, text/background/border/check colors, border/check widths, radius |
+| Tables | `width`, `column_widths`, `size`, `row_height`, `cell_line_height`, `padding`, `cell_align`, `cell_valign`, `borders`, `line_width`, `stroke_color`, body/header/stripe colors |
+| Charts | `width`, `height`, `chart_padding`, `title_size`, `subtitle_size`, `title_gap`, `label_size`, `value_size`, `legend_size`, `legend_gap`, `legend_marker_size`, `radial_size`, `inner_radius`, colors and line/point sizes |
+| Math / equations | `size`, `align`, `height`, spacing and color; `heading_options` controls the equation title independently |
+| Bibliography | Entry `size`, `line_height`, color and spacing; `heading_options` controls the section heading |
+| Footnotes | `size`, `font`, `line_height`, color, `show_separator`, `separator_height`, `separator_length`, `separator_width`, `separator_color` |
+
+Table `row_height` is a minimum: wrapping can require taller rows. Use `borders:
+"none"` or a list of `top`, `right`, `bottom`, `left`; individual cell borders
+still override the table setting. `cell_valign` also applies to structured cells
+without their own vertical alignment. `stroke_color` controls table dividers.
+
+For charts, `radial_size` is the maximum diameter of a pie/donut in points; it is
+bounded by the space available for the plot and legend. Legend typography is
+independent of axis labels. Insufficient space still fails explicitly rather
+than silently hiding content. Existing defaults are retained when options are
+omitted.
+
+```json
+{
+  "type": "equation",
+  "ast": {"symbol": "R = 73.67"},
+  "options": {
+    "size": 16, "align": "center",
+    "heading_options": {"size": 11, "color": "#557177", "space_after": 10}
+  }
+}
+```
+
+The Lumen source includes `compact` and `comfortable` themes. Both remain
+interactive; all visual settings live in the `.paperforge` file:
+
+```sh
+mix run examples/lumen_visual_2026.exs compact
+mix run examples/lumen_visual_2026.exs comfortable
+```
+
+Change `tokens.controls.height` to resize text/choice fields together, or change
+an individual field's height. Change shared styles to tune all tables, charts,
+formulas or notes. Explicit per-element options override those shared settings.
+
+### Math and Scientific typography
+
+Math now defaults to **11-point Times Roman**. Geometry scales with `size`,
+including fraction padding and rules, radicals, integral strokes/limits,
+script gaps and matrix brackets. Rows align on a mathematical axis rather than
+vertically centering unrelated bounding boxes. Superscripts remain within the
+measured box, and each matrix row reserves only its own required height.
+
+Equation labels default to 9.5 points; bibliography headings default to 12.
+Override `heading_options` independently of expression `size`. Explicit sizes
+are still honored. Named math styles are resolved before measuring the AST.
+
+```sh
+mix run examples/math_scientific_visual.exs
+```
+
+The corresponding `examples/math_scientific_visual.paperforge` contains fractions,
+powers, roots, integrals, mixed-height matrices and nested expressions, followed
+by a direct 9/11/14-point comparison. This remains a native measured Math AST;
+it does not implement full TeX typesetting or arbitrary mathematical font shaping.
+
+### Watermark fitting and placement (1.5)
+
+`protection.watermark` accepts `margin` (36 points by default), `fit` (true),
+`offset_x` and `offset_y` (zero). `size` is the maximum font size when fitting
+is enabled. Fitting uses the rotated text bounds inside the page crop box;
+positive offsets move right/up in PDF coordinates. Set `fit: false` for an
+intentional oversized watermark. Existing `angle`, `color` and `opacity`
+controls remain available. Text uses Helvetica Bold with WinAnsi coverage.
+
+See `examples/design_protection_review.paperforge` for a complete compact
+example using named styles, tokens, table rules and a restrained watermark.
+
+### Runtime themes and token aliases
+
+The template's `theme` is a default. An explicit application choice takes
+precedence, without editing or duplicating the source:
+
+```elixir
+PaperForge.Declarative.render(template, data, theme: "comfortable")
+PaperForge.Declarative.render(template, data, theme: nil) # base design system
+```
+
+Tokens can refer to other tokens, including nested paths (`"$type.body"`).
+Missing references, cycles and chains exceeding 32 references fail compilation.
+Watermark presentation properties also accept token references; watermark text
+remains literal/interpolated text, so a label such as `$100` is not a token.
+
+Run `mix run examples/design_protection_review.exs` to generate compact and
+comfortable PDFs from one template. The runner reopens both files and verifies
+their page count and protection fingerprint.
+
+### Navigation and endnote presentation (1.0 / 1.1 review)
+
+`table_of_contents` accepts `heading_options` for its title independently of
+entry `size`, `color`, `line_height`, `space_after` and `level_styles`.
+Leader counts now use real font metrics and the available page/column width;
+`indent` works without supplying an absolute `x`. Custom entry formatters keep
+full control of their text.
+
+`endnotes` retains explicitly supplied `content` entries (`number` / `text`).
+With no entries, it collects preceding footnotes as before. Entry options now
+preserve font, size, color, width, line height and spacing. `heading_options`
+controls the heading independently. Defaults are a 12-point heading and
+9-point entries, with proportional line height.
+
+Generate the complete native example with:
+
+```sh
+mix run examples/editorial_1_0_1_1.exs
+```
+
+Its three pages cover the linked index, a footnote and explicit endnotes.
+
+### QR invitations supplied as data
+
+A client only supplies `qr_code` (a UUID, URL or text); presentation remains in
+`.paperforge`. See `examples/qr_invitation.paperforge` and its data-only runner.
+
+```json
+{"type":"qr_code","content":"{{qr_code}}","options":{
+  "size":108,"align":"center","level":"h","quiet_zone":4,
+  "color":"#183B45","background_color":"#FFFFFF","space_after":12
+}}
+```
+
+Declare `qr_code` as a required string variable. `size` is the entire square in
+PDF points (72 points = 1 inch), including the quiet zone. It can also be a typed
+variable (`"{{qr_size}}"`) or design token. Alignment is `left`, `center`, or
+`right`; explicit `x` overrides alignment. Flow chooses `y` and reserves the
+square's height; use `Page.qr_code/3` for explicit x/y coordinates. The native API
+supports both page origins. A size larger than the flow's available width fails
+rather than overlapping the margin.
+
+`level` accepts `l`, `m` (default), `q`, `h`. `quiet_zone` accepts 4–32 modules.
+The default background is white; native `background_color: nil` is transparent.
+Legacy `width`/`height` remain supported: their minimum is the square size,
+with 120-point defaults. Explicit `size` takes precedence. Colors, payload length
+and physical printed size affect scan reliability; keep strong contrast and
+verify your final print size. Empty payloads are rejected. The QR contains the
+supplied value verbatim; issuance, redemption and duplicate-use checks belong to
+the application.
+
+For repeated rendering, load the template once outside the request loop and
+supply new data to `PaperForge.Declarative.render/3`. Use bounded concurrency
+(`PaperForge.Concurrent.run/3`) rather than launching an unbounded task per PDF.
+Local QR throughput measurements and their limitations are recorded in
+`benchmarks/results/qr-optimization/comparison.md`.
+
+## Configurable visual primitives
+
+See [Visual blocks](VISUAL_BLOCKS.md) for containers, rows, columns, block grids,
+overlays, vector shapes and icons, badges, linked buttons and clipped images.
+The four-page example lives in `examples/visual_blocks.paperforge`.
+Compositions are measured once and paginate atomically; oversized compositions
+return an error. Existing flow blocks remain suitable for multipage content.

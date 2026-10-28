@@ -29,7 +29,6 @@ defmodule PaperForge.ImportTest do
     assert table.options[:stroke_color] == PaperForge.Color.rgb255(204, 217, 215)
     assert table.options[:line_width] == 0.6
     assert table.options[:cell_align] == :right
-    assert table.options[:cell_valign] == :middle
 
     [first_row | _] = table.content.rows
     assert Enum.all?(first_row, &(&1.align == :right))

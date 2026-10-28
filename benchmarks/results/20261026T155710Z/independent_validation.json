@@ -1,0 +1,16 @@
+[
+  {
+    "file": "minimal-true.pdf",
+    "pages": 1,
+    "bytes": 684,
+    "parser": "pypdf",
+    "strict": true
+  },
+  {
+    "file": "small-true.pdf",
+    "pages": 2,
+    "bytes": 4536,
+    "parser": "pypdf",
+    "strict": true
+  }
+]

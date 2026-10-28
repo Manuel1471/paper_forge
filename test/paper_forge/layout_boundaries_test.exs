@@ -1,0 +1,340 @@
+defmodule PaperForge.LayoutBoundariesTest do
+  use ExUnit.Case, async: true
+
+  alias PaperForge.{Flow, Margins, Page}
+
+  defp layout(fun) do
+    PaperForge.layout(PaperForge.new(), fun, page_options: [size: {200, 200}, margins: 20])
+  end
+
+  test "fixed height blocks move before crossing the bottom margin" do
+    for append <- [
+          &Flow.spacer(&1, 20),
+          &Flow.separator(&1, height: 20),
+          &Flow.custom(&1, fn page, _ -> page end, height: 20)
+        ] do
+      {_, report} = layout(fn flow -> append.(Flow.spacer(flow, 150)) end)
+      assert report.pages == 2
+      assert List.last(report.placements).y == 20
+    end
+  end
+
+  test "headings reserve all wrapped lines before the following paragraph" do
+    {_, report} =
+      layout(fn flow ->
+        flow
+        |> Flow.heading("A long heading that wraps over several lines", size: 20)
+        |> Flow.paragraph("Following")
+      end)
+
+    [heading, following] = report.placements
+    assert length(heading.lines) > 1
+    assert following.y >= heading.y + length(heading.lines) * 27
+  end
+
+  test "default line height scales with the requested font size" do
+    {_, report} = layout(&Flow.paragraph(&1, "One\nTwo", size: 30))
+    assert hd(report.placements).height >= 81
+  end
+
+  test "pagination recalculates capacity after moving a padded paragraph" do
+    lines = Enum.map_join(1..20, "\n", &"Line #{&1}")
+
+    {_, report} =
+      layout(fn flow ->
+        flow |> Flow.spacer(120) |> Flow.paragraph(lines, size: 10, line_height: 12, padding: 10)
+      end)
+
+    assert report.pages == 3
+    text = Enum.filter(report.placements, &(&1.type == :paragraph))
+    assert Enum.flat_map(text, & &1.lines) == String.split(lines, "\n")
+    assert Enum.all?(text, &(&1.y + &1.height <= 180))
+    assert length(hd(text).lines) == 11
+  end
+
+  test "a nearly full page does not force a single line onto the next page" do
+    lines = Enum.map_join(1..10, "\n", &"Line #{&1}")
+
+    {_, report} =
+      layout(fn flow ->
+        flow |> Flow.spacer(150) |> Flow.paragraph(lines, line_height: 12, min_lines_at_top: 1)
+      end)
+
+    assert report.pages == 2
+    assert length(List.last(report.placements).lines) == 10
+  end
+
+  test "keep together includes padding and paragraph spacing" do
+    {_, report} =
+      layout(fn flow ->
+        flow
+        |> Flow.spacer(80)
+        |> Flow.keep_together(fn group ->
+          Enum.reduce(1..3, group, fn n, acc ->
+            Flow.paragraph(acc, "Paragraph #{n}", line_height: 10, padding: 10)
+          end)
+        end)
+      end)
+
+    text = Enum.filter(report.placements, &(&1.type == :paragraph))
+    assert Enum.map(text, & &1.page_number) == [2, 2, 2]
+  end
+
+  test "margin structs are validated like keyword margins" do
+    assert_raise ArgumentError, fn -> Page.new(margins: %Margins{left: -1}) end
+    assert_raise ArgumentError, fn -> Margins.new(%Margins{top: "20"}) end
+  end
+
+  test "legacy flow moves a line when only a fraction of its height remains" do
+    {_, report} =
+      PaperForge.layout_flow(
+        PaperForge.new(),
+        ["First", "Second"],
+        [size: {100, 100}, margins: 20],
+        line_height: 40,
+        gap: 0
+      )
+
+    assert report.pages_added == 2
+  end
+
+  test "legacy flow rejects a line taller than the content area" do
+    assert_raise ArgumentError, fn ->
+      PaperForge.layout_flow(PaperForge.new(), ["Text"], [size: {100, 100}, margins: 20],
+        line_height: 70
+      )
+    end
+  end
+
+  test "legacy tables retain header-only data" do
+    document =
+      PaperForge.add_table(
+        PaperForge.new(compress: false),
+        [["Header"]],
+        [size: {100, 100}, margins: 20],
+        repeat_header: true
+      )
+
+    assert PaperForge.to_binary(document) =~ "(Header)"
+  end
+
+  test "legacy tables reject a header and row that cannot fit together" do
+    assert_raise ArgumentError, fn ->
+      PaperForge.add_table(
+        PaperForge.new(),
+        [["Header"], ["Body"]],
+        [size: {100, 100}, margins: 20],
+        repeat_header: true,
+        row_height: 40
+      )
+    end
+  end
+
+  test "columns use the requested font size and content width during measurement and rendering" do
+    {_, report} =
+      layout(&Flow.columns(&1, 2, ["First\nSecond", "Third"], size: 20, width: :content))
+
+    assert hd(report.placements).height == 64
+    assert Page.content(hd(report.rendered_pages)) =~ "20 Tf"
+  end
+
+  test "empty columns do not crash" do
+    {_, report} = layout(&Flow.columns(&1, 2, []))
+    assert report.pages <= 1
+  end
+
+  test "keep together measures the table header and all rows" do
+    {_, report} =
+      layout(fn flow ->
+        flow
+        |> Flow.spacer(90)
+        |> Flow.keep_together(fn group ->
+          group
+          |> Flow.paragraph("Title", size: 10)
+          |> Flow.table(["Header"], [["One"], ["Two"]], row_height: 24)
+        end)
+      end)
+
+    assert report.placements
+           |> Enum.reject(&(&1.type == :spacer))
+           |> Enum.map(& &1.page_number)
+           |> Enum.uniq() == [2]
+  end
+
+  test "oversized keep together groups fail even after preceding content" do
+    assert_raise PaperForge.LayoutError, fn ->
+      layout(fn flow ->
+        flow
+        |> Flow.spacer(10)
+        |> Flow.keep_together(fn group ->
+          group |> Flow.spacer(100) |> Flow.spacer(100)
+        end)
+      end)
+    end
+  end
+
+  test "split table rows never force a line below a tall header" do
+    assert_raise PaperForge.TableError, fn ->
+      layout(
+        &Flow.table(&1, [String.duplicate("Header\n", 12)], [[String.duplicate("Body\n", 20)]],
+          row_split: :split,
+          cell_line_height: 12
+        )
+      )
+    end
+  end
+
+  test "rich text reserves height for the largest run" do
+    {_, report} = layout(&Flow.rich_text(&1, [{"Large\nText", [size: 30]}]))
+    assert hd(report.placements).height >= 81
+  end
+
+  @tag timeout: 1_000
+  test "a rich-text glyph wider than its box terminates like plain text wrapping" do
+    {_, report} = layout(&Flow.rich_text(&1, [{"W", [size: 30]}], width: 1))
+    assert hd(hd(report.placements).lines) |> hd() |> Map.fetch!(:text) == "W"
+  end
+
+  test "automatic text baselines sit inside their allocated boxes" do
+    {_, report} =
+      layout(fn flow ->
+        flow
+        |> Flow.paragraph("Box", size: 20, padding: 4)
+        |> Flow.rich_text([{"Inline", [size: 18]}])
+        |> Flow.columns(1, ["Column"], size: 12)
+      end)
+
+    [paragraph, rich, column] = report.placements
+    operations = hd(report.rendered_pages).operations
+    {:text_box, "Box", options} = Enum.find(operations, &match?({:text_box, "Box", _}, &1))
+    assert options[:y] == paragraph.y + 4 + 20
+    {:text, "Inline", options} = Enum.find(operations, &match?({:text, "Inline", _}, &1))
+    assert options[:y] == rich.y + 18
+    {:text_box, "Column", options} = Enum.find(operations, &match?({:text_box, "Column", _}, &1))
+    assert options[:y] == column.y + 12
+  end
+
+  test "keep together does not add page breaks when its children fit" do
+    {_, report} =
+      layout(fn flow ->
+        flow
+        |> Flow.paragraph("Before")
+        |> Flow.keep_together(fn group -> Flow.paragraph(group, "Inside") end)
+        |> Flow.paragraph("After")
+      end)
+
+    assert report.pages == 1
+    assert Enum.map(report.placements, & &1.block.content) == ["Before", "Inside", "After"]
+  end
+
+  test "leading and repeated page breaks preserve physical page numbers" do
+    {_, report} =
+      layout(fn flow ->
+        flow
+        |> Flow.page_break()
+        |> Flow.paragraph("First")
+        |> Flow.page_break()
+        |> Flow.page_break()
+        |> Flow.paragraph("Second")
+      end)
+
+    assert report.pages == 2
+    assert Enum.map(report.placements, & &1.page_number) == [1, 2]
+  end
+
+  test "space before is outside the reported text box" do
+    {_, report} =
+      layout(&Flow.paragraph(&1, "Text", line_height: 12, space_before: 20, space_after: 4))
+
+    [placement] = report.placements
+    assert placement.y == 40
+    assert placement.height == 16
+  end
+
+  test "a footnote must fit at least its separator and one line" do
+    assert_raise PaperForge.LayoutError, fn ->
+      layout(&Flow.footnote(&1, "Note", separator_height: 155))
+    end
+  end
+
+  test "footnote placement bounds exclude its separator" do
+    {_, report} = layout(&Flow.footnote(&1, "Note"))
+    assert Enum.all?(report.placements, &(&1.y + &1.height <= 180))
+  end
+
+  test "automatic layout rejects an incompatible origin instead of silently overflowing" do
+    assert_raise ArgumentError, ~r/automatic layout requires/, fn ->
+      PaperForge.layout(PaperForge.new(), &Flow.paragraph(&1, "Text"),
+        page_options: [origin: :bottom_left]
+      )
+    end
+
+    assert Page.new(origin: :bottom_left).origin == :bottom_left
+  end
+
+  test "automatic template text fits inside small margins" do
+    {_, report} =
+      PaperForge.layout(PaperForge.new(), &Flow.paragraph(&1, "Body"),
+        page_options: [size: {200, 200}, margins: 12],
+        header: "Header",
+        footer: "Footer"
+      )
+
+    operations = hd(report.rendered_pages).operations
+    {:text, "Header", header} = Enum.find(operations, &match?({:text, "Header", _}, &1))
+    {:text, "Footer", footer} = Enum.find(operations, &match?({:text, "Footer", _}, &1))
+    assert header[:y] - header[:size] >= 0
+    assert header[:y] + header[:size] * 0.2 <= 12
+    assert footer[:y] - footer[:size] >= 188
+    assert footer[:y] + footer[:size] * 0.2 <= 200
+  end
+
+  test "template text reports margins too small to contain it" do
+    assert_raise ArgumentError, ~r/header requires a margin/, fn ->
+      PaperForge.layout(PaperForge.new(), &Flow.paragraph(&1, "Body"),
+        page_options: [margins: 0],
+        header: "Header"
+      )
+    end
+  end
+
+  test "automatic placement remains inside asymmetric margins across page orientations" do
+    for orientation <- [:portrait, :landscape], size <- [9, 14, 22] do
+      {_, report} =
+        PaperForge.layout(
+          PaperForge.new(),
+          fn flow ->
+            Enum.reduce(1..18, flow, fn n, current ->
+              current
+              |> Flow.paragraph("Block #{n}\nSecond line",
+                size: size,
+                padding: 4,
+                space_before: 3
+              )
+              |> Flow.separator(height: 8)
+            end)
+          end,
+          page_options: [
+            size: {240, 300},
+            orientation: orientation,
+            margins: [top: 24, right: 36, bottom: 30, left: 18]
+          ]
+        )
+
+      Enum.each(report.placements, fn placement ->
+        page = Enum.at(report.rendered_pages, placement.page_number - 1)
+        assert placement.x >= Page.content_left(page)
+        assert placement.x + placement.width <= page.width - page.margins.right
+        assert placement.y >= Page.content_top(page)
+        assert placement.y + placement.height <= Page.content_bottom(page) + 0.000001
+      end)
+
+      text =
+        report.placements
+        |> Enum.filter(&(&1.type == :paragraph))
+        |> Enum.flat_map(& &1.lines)
+
+      assert text == Enum.flat_map(1..18, &["Block #{&1}", "Second line"])
+    end
+  end
+end

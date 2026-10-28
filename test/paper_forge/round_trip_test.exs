@@ -25,7 +25,14 @@ defmodule PaperForge.RoundTripTest do
   end
 
   property "text-only documents survive writer to binary to parser round trips" do
-    check all(text <- string(:printable, min_length: 1, max_length: 96), max_runs: 30) do
+    check all(
+            text <-
+              string([32..126, 160..255, 0x20AC..0x20AC, 0x2022..0x2022],
+                min_length: 1,
+                max_length: 96
+              ),
+            max_runs: 30
+          ) do
       document = sample_document(text)
 
       assert {:ok, parsed} = document |> PaperForge.to_binary() |> Interoperability.parse_pdf()

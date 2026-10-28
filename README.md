@@ -26,6 +26,10 @@ The same engine also powers reusable
 [`.paperforge` templates](https://github.com/Manuel1471/paper_forge/blob/main/examples/paper_forge_1_4_showcase.paperforge) and
 [scientific documents](https://github.com/Manuel1471/paper_forge/blob/main/examples/investigacion.paperforge).
 
+The 1.5 release also includes [Atlas 2026](https://github.com/Manuel1471/paper_forge/blob/release/v1.5.0/examples/ATLAS_REPORT.md), a 27-page
+report authored in [`atlas_2026.paperforge`](examples/atlas_2026.paperforge),
+with a 120-row register, six chart types and reproducible readback checks.
+
 PaperForge is a document platform for Elixir applications. It turns structured
 content into native PDF object graphs, measured layouts, interactive forms,
 secure deliverables, imported documents, and production rendering workflows.
@@ -33,11 +37,30 @@ secure deliverables, imported documents, and production rendering workflows.
 No browser, wkhtmltopdf, Chromium, ImageMagick, Ghostscript, or external
 rendering service is required.
 
-PaperForge 1.4 provides a stable public API for pure-Elixir PDF authoring,
+PaperForge 1.5 provides a stable public API for pure-Elixir PDF authoring,
 versioned declarative templates, reusable design systems, AES-256 document
 security, PAdES digital signatures, tamper-evident protection, tagged PDF output, bounded concurrent
 rendering, production telemetry, and reproducible performance tooling.
 Documented public modules follow Semantic Versioning throughout the 1.x series.
+
+## Existing PDF Analysis And Transformation
+
+PaperForge 1.5.0 establishes the **PDF Interoperability & Transformation Engine**:
+
+```elixir
+{:ok, pdf} = PaperForge.open("contract.pdf")
+{:ok, analysis} = PaperForge.analyze(pdf)
+
+pdf
+|> PaperForge.rotate_pages([1], 90)
+|> PaperForge.add_watermark("CONFIDENTIAL")
+|> PaperForge.update_metadata(title: "Reviewed contract")
+|> PaperForge.write!("reviewed.pdf")
+```
+
+Inspect documents from the terminal with `mix paper_forge.inspect document.pdf`.
+See [`INTEROPERABILITY.md`](INTEROPERABILITY.md) for the inspection API, supported
+PDF structures, encryption, limits, transformations and explicit scope boundaries.
 
 ## Performance Snapshot
 
@@ -118,14 +141,14 @@ require browsers, external rendering engines, or native compilation.
 
 The default test suite covers unit, integration, and property-based invariants.
 The opt-in parser fuzz profile mutates known-good PDFs and verifies that the
-classic importer either returns a document or a structured error without
+PDF reader either returns a document or a structured error without
 raising or allocating atoms:
 
 ```bash
 MIX_ENV=test mix test.fuzz
 ```
 
-All document writers and classic-PDF imports support bounded resource use.
+All document writers and PDF imports support bounded resource use.
 Document-level limits apply by default and can be tightened for one writer
 call; parser aliases preserve the original `:max_depth` and `:max_stream_size`
 options while exposing more descriptive names:
@@ -149,8 +172,8 @@ PaperForge.Interoperability.parse_pdf(pdf,
 ```
 
 Writer stream limits measure source stream data before PaperForge applies PDF
-filters. The classic parser applies the same bound to raw source stream bytes;
-compressed third-party stream payloads remain bounded by `:max_file_size`.
+filters. The PDF reader bounds encoded and supported decoded streams, and also
+applies a cumulative `:max_total_decoded_bytes` budget.
 See [Production Hardening](#production-hardening) for operational guidance.
 
 ## Design Principles
@@ -244,7 +267,7 @@ PaperForge.render(document, timeout: 30_000)
 PaperForge.write(document, "report.pdf", timeout: 30_000)
 ```
 
-The classic PDF importer also accepts defensive input limits:
+The PDF reader also accepts defensive input limits:
 
 ```elixir
 PaperForge.Interoperability.parse_pdf(binary,
@@ -256,8 +279,9 @@ PaperForge.Interoperability.parse_pdf(binary,
 )
 ```
 
-Limits are enforced before importing objects. Encrypted PDFs and object streams
-remain explicitly unsupported by the pure-Elixir classic parser.
+Limits are enforced during object loading and stream decoding. Cross-reference
+streams, compressed objects, hybrid references and supported AES-256 encrypted
+inputs are covered in [`INTEROPERABILITY.md`](INTEROPERABILITY.md).
 See [Production Hardening](#production-hardening) for the `PF8xxx` error
 taxonomy, parser circuit breaker, long-running soak profile, and production
 guidance.
@@ -291,7 +315,7 @@ Future directions
 | Navigation | Linked tables of contents, internal links, named destinations, page-aware references, outlines, and bookmarks |
 | Images | JPEG and PNG, alpha soft masks, EXIF orientation, deduplication, `:contain`/`:cover`, focal points, alignment, and numbered captions |
 | Graphics | Lines, rectangles, circles, scientific charts, QR codes, barcodes, and SVG paths, curves, transforms, groups, viewBox, clipping, styles, and text |
-| Interoperability | CommonMark Markdown and an HTML/CSS subset to Layout IR, classic PDF page import, ordered composition, and reusable resource inventories |
+| Interoperability | CommonMark Markdown and an HTML/CSS subset to Layout IR, existing PDF page import, ordered composition, and reusable resource inventories |
 | Scientific documents | Native Math AST, fractions, roots, matrices, integrals, numbered equations, bibliography entries, citations, footnotes, and page-aware references |
 | PDF features | AcroForm fields and data workflows, review annotations, metadata, links, attachments, footnotes, endnotes, compression, and PDF 1.4 through 1.7 headers |
 | Security | AES-256 passwords and permissions, provider-backed PAdES signatures, watermarks, fingerprints, identifiers, and link/attachment policies |
@@ -319,9 +343,9 @@ Future directions
 
 ## Import, Science, Forms, And Review
 
-PaperForge 1.4 can turn CommonMark or a practical HTML/CSS subset into the same
-Layout IR used by native `Flow` blocks. It can also import pages from classic,
-unencrypted PDFs, compose documents in order, and inventory reusable resources.
+PaperForge can turn CommonMark or a practical HTML/CSS subset into the same
+Layout IR used by native `Flow` blocks. It can also open existing PDFs, analyze
+object graphs, transform pages, compose documents and inventory resources.
 
 ```elixir
 {:ok, intro} = PaperForge.Import.markdown("# Study results\n\nMeasured in Elixir.")
@@ -2050,8 +2074,8 @@ only when the product is ready.
 
 - Expand the current safe HTML/CSS subset with paged-media rules, flexbox,
   grid, generated content, and a complete browser-style cascade.
-- Add encrypted and compressed-object-stream PDF import, source outline and
-  AcroForm catalog merging, and higher-level resource editing.
+- Expand encryption and filter coverage, source outline and AcroForm catalog
+  merging, incremental writing, and higher-level resource editing.
 - Add XFA only if a maintainable security and compatibility model emerges;
   standard AcroForms are the supported interactive-form format.
 

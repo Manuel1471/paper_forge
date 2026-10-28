@@ -67,7 +67,7 @@ defmodule PaperForge.Compliance do
       when is_binary(text) and text != "" do
     Document.update_object(document, image_reference, fn
       %Stream{} = stream ->
-        Stream.put(stream, "Alt", text)
+        Stream.put(stream, "Alt", PaperForge.StringEncoding.auto(text))
 
       other ->
         raise ArgumentError,
@@ -305,8 +305,8 @@ defmodule PaperForge.Compliance do
 
   defp metadata_title(document) do
     case Document.fetch_object!(document, document.info_reference).value["Title"] do
-      value when is_binary(value) -> value
-      _ -> nil
+      nil -> nil
+      value -> PaperForge.StringEncoding.decode(value)
     end
   end
 

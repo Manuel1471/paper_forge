@@ -34,29 +34,28 @@ defmodule PaperForge.InteroperabilityTest do
   end
 
   test "applies explicit parsing resource limits before importing objects" do
-    pdf = "%PDF-1.7\n1 0 obj\n<<>>\nendobj\n"
+    alias PaperForge.Test.PDFFixture, as: Fixture
+    pdf = Fixture.classic(Fixture.objects())
 
     assert {:error, {:max_file_size_exceeded, 8}} =
              Interoperability.parse_pdf(pdf, max_file_size: 8)
 
-    assert {:error, {:max_objects_exceeded, 1}} =
-             Interoperability.parse_pdf(pdf <> "2 0 obj\n<<>>\nendobj\n", max_objects: 1)
-
+    assert {:error, {:max_objects_exceeded, 1}} = Interoperability.parse_pdf(pdf, max_objects: 1)
     assert {:error, :invalid_parse_limits} = Interoperability.parse_pdf(pdf, max_objects: 0)
+    nested = Fixture.classic(Fixture.objects() ++ [{4, 0, "[[[[0]]]]"}])
 
-    nested = "%PDF-1.7\n" <> String.duplicate("[", 4)
-    assert {:error, {:max_depth_exceeded, 3}} = Interoperability.parse_pdf(nested, max_depth: 3)
+    for option <- [:max_depth, :max_recursion_depth] do
+      assert {:error, {:max_depth_exceeded, 3}} =
+               Interoperability.parse_pdf(nested, [{option, 3}])
+    end
 
-    assert {:error, {:max_depth_exceeded, 3}} =
-             Interoperability.parse_pdf(nested, max_recursion_depth: 3)
+    stream =
+      Fixture.classic(Fixture.objects() ++ [{4, 0, "<< /Length 5 >>\nstream\n12345\nendstream"}])
 
-    stream = "%PDF-1.7\n1 0 obj\n<<>>\nstream\n12345\nendstream\nendobj\n"
-
-    assert {:error, {:max_stream_size_exceeded, 4}} =
-             Interoperability.parse_pdf(stream, max_stream_size: 4)
-
-    assert {:error, {:max_stream_size_exceeded, 4}} =
-             Interoperability.parse_pdf(stream, max_uncompressed_stream_bytes: 4)
+    for option <- [:max_stream_size, :max_uncompressed_stream_bytes] do
+      assert {:error, {:max_stream_size_exceeded, 4}} =
+               Interoperability.parse_pdf(stream, [{option, 4}])
+    end
   end
 
   test "rejects zero, negative, and malformed page selections" do

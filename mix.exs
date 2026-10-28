@@ -1,7 +1,7 @@
 defmodule PaperForge.MixProject do
   use Mix.Project
 
-  @version "1.4.5"
+  @version "1.5.0"
   @source_url "https://github.com/Manuel1471/paper_forge"
 
   def project do
@@ -9,6 +9,7 @@ defmodule PaperForge.MixProject do
       app: :paper_forge,
       version: @version,
       elixir: "~> 1.20",
+      test_ignore_filters: [~r/test\/support\//],
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
@@ -70,8 +71,10 @@ defmodule PaperForge.MixProject do
         "CODE_OF_CONDUCT.md",
         "BENCHMARKS.md",
         "DECLARATIVE.md",
+        "VISUAL_BLOCKS.md",
         "PHOENIX.md",
         "MIGRATING.md",
+        "INTEROPERABILITY.md",
         "PRODUCTION.md",
         "LICENSE"
       ]
@@ -87,13 +90,16 @@ defmodule PaperForge.MixProject do
       assets: %{"docs" => "docs"},
       extras: [
         "README.md",
+        "examples/ATLAS_REPORT.md",
         "CHANGELOG.md",
         "CONTRIBUTING.md",
         "CODE_OF_CONDUCT.md",
         "BENCHMARKS.md",
         "DECLARATIVE.md",
+        "VISUAL_BLOCKS.md",
         "PHOENIX.md",
         "MIGRATING.md",
+        "INTEROPERABILITY.md",
         "PRODUCTION.md",
         "LICENSE"
       ]

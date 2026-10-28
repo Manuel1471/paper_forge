@@ -10,9 +10,12 @@ defmodule PaperForge.Graphics.Path do
           {:move_to, number(), number()}
           | {:line_to, number(), number()}
           | {:curve_to, number(), number(), number(), number(), number(), number()}
+          | {:rectangle, number(), number(), number(), number()}
           | :close
 
   @spec command([segment()], keyword()) :: iodata()
+  def command(segments, clip_only: true), do: ["q\n", Enum.map(segments, &segment/1), "W n\n"]
+
   def command(segments, options) when is_list(segments) and is_list(options) do
     fill? = Keyword.get(options, :fill, false)
     stroke? = Keyword.get(options, :stroke, true)
@@ -56,6 +59,9 @@ defmodule PaperForge.Graphics.Path do
       number(y3),
       " c\n"
     ]
+
+  defp segment({:rectangle, x, y, width, height}),
+    do: [number(x), " ", number(y), " ", number(width), " ", number(height), " re\n"]
 
   defp segment(:close), do: "h\n"
 

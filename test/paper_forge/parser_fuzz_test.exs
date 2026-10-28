@@ -12,9 +12,14 @@ defmodule PaperForge.ParserFuzzTest do
   end
 
   property "mutated PDFs are accepted or rejected without creating input atoms" do
-    baseline = valid_pdf()
+    seeds = [
+      valid_pdf(),
+      File.read!(Path.expand("../fixtures/interoperability/object-streams.pdf", __DIR__)),
+      File.read!(Path.expand("../fixtures/interoperability/incremental.pdf", __DIR__))
+    ]
 
     check all(
+            baseline <- member_of(seeds),
             mutations <- list_of(mutation(), min_length: 1, max_length: 12),
             suffix <- string(:alphanumeric, min_length: 12, max_length: 32),
             max_runs: 80
@@ -29,6 +34,7 @@ defmodule PaperForge.ParserFuzzTest do
 
       result =
         Interoperability.parse_pdf(pdf,
+          timeout: 1000,
           max_file_size: 200_000,
           max_objects: 500,
           max_recursion_depth: 24,
@@ -59,7 +65,7 @@ defmodule PaperForge.ParserFuzzTest do
     one_of([
       constant(:truncate),
       constant(:append),
-      constant(:flip),
+      tuple({constant(:flip), integer(0..100_000)}),
       constant(:nest)
     ])
   end
@@ -67,10 +73,11 @@ defmodule PaperForge.ParserFuzzTest do
   defp mutate(:truncate, pdf), do: binary_part(pdf, 0, div(byte_size(pdf), 2))
   defp mutate(:append, pdf), do: pdf <> "\n999 0 obj\n<< /Fuzz (value) >>\nendobj\n"
 
-  defp mutate(:flip, <<>>), do: <<0>>
+  defp mutate(:flip, pdf), do: mutate({:flip, 17}, pdf)
+  defp mutate({:flip, _}, <<>>), do: <<0>>
 
-  defp mutate(:flip, pdf) do
-    position = min(rem(byte_size(pdf), 17), byte_size(pdf) - 1)
+  defp mutate({:flip, offset}, pdf) do
+    position = rem(offset, byte_size(pdf))
     <<head::binary-size(^position), byte, tail::binary>> = pdf
     head <> <<Bitwise.bxor(byte, 0x5A)>> <> tail
   end

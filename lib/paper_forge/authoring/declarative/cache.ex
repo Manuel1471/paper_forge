@@ -30,19 +30,8 @@ defmodule PaperForge.Declarative.Cache do
   @spec hash(term()) :: binary()
   def hash(value) do
     value
-    |> canonical()
     |> :erlang.term_to_binary([:deterministic])
     |> then(&:crypto.hash(:sha256, &1))
     |> Base.encode16(case: :lower)
   end
-
-  defp canonical(map) when is_map(map),
-    do: map |> Enum.map(fn {key, value} -> {key, canonical(value)} end) |> Enum.sort()
-
-  defp canonical(list) when is_list(list), do: Enum.map(list, &canonical/1)
-
-  defp canonical(tuple) when is_tuple(tuple),
-    do: tuple |> Tuple.to_list() |> Enum.map(&canonical/1) |> List.to_tuple()
-
-  defp canonical(value), do: value
 end

@@ -1,0 +1,135 @@
+{
+  "version": "1",
+  "variables": {
+    "qr_code": {
+      "type": "string",
+      "required": true
+    },
+    "guest_name": {
+      "type": "string",
+      "default": "María García"
+    },
+    "qr_size": {
+      "type": "number",
+      "default": 108
+    }
+  },
+  "metadata": {
+    "title": "Noche de encuentros / Invitación"
+  },
+  "page_templates": {
+    "invitation": {
+      "size": [
+        360,
+        540
+      ],
+      "margins": 36
+    }
+  },
+  "layout_options": {
+    "template": "invitation"
+  },
+  "blocks": [
+    {
+      "type": "paragraph",
+      "text": "A T L A S   /   E N C U E N T R O S",
+      "options": {
+        "size": 9,
+        "align": "center",
+        "color": "#91734B",
+        "space_after": 28,
+        "line_height": 12.6
+      }
+    },
+    {
+      "type": "heading",
+      "text": "Una noche\npara celebrar",
+      "options": {
+        "size": 30,
+        "align": "center",
+        "color": "#183B45",
+        "space_after": 18,
+        "line_height": 42.0
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Nos encantará compartirla contigo",
+      "options": {
+        "size": 10,
+        "align": "center",
+        "color": "#647579",
+        "space_after": 8,
+        "line_height": 14.0
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "{{guest_name}}",
+      "options": {
+        "size": 18,
+        "align": "center",
+        "color": "#183B45",
+        "space_after": 24,
+        "line_height": 25.2
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "24 OCTUBRE 2026  /  19:30 H",
+      "options": {
+        "size": 10,
+        "align": "center",
+        "color": "#91734B",
+        "space_after": 8,
+        "line_height": 14.0
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Jardín del Museo · Monterrey",
+      "options": {
+        "size": 11,
+        "align": "center",
+        "color": "#183B45",
+        "space_after": 26,
+        "line_height": 15.399999999999999
+      }
+    },
+    {
+      "type": "qr_code",
+      "content": "{{qr_code}}",
+      "options": {
+        "size": "{{qr_size}}",
+        "align": "center",
+        "level": "h",
+        "quiet_zone": 4,
+        "color": "#183B45",
+        "background_color": "#FFFFFF",
+        "space_after": 12
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "TU PASE PERSONAL",
+      "options": {
+        "size": 9,
+        "align": "center",
+        "color": "#91734B",
+        "space_after": 6,
+        "line_height": 12.6
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Presenta este código a tu llegada.\nUna invitación, un momento especial.",
+      "options": {
+        "size": 9,
+        "align": "center",
+        "color": "#647579",
+        "space_after": 0,
+        "line_height": 12.6
+      }
+    }
+  ]
+}

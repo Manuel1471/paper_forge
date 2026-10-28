@@ -102,7 +102,7 @@ defmodule PaperForge.DocumentTest do
       assert_raise ArgumentError,
                    ~r/unsupported PDF version/,
                    fn ->
-                     Document.new(pdf_version: "2.0")
+                     Document.new(pdf_version: "3.0")
                    end
     end
 

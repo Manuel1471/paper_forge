@@ -16,10 +16,10 @@ defmodule PaperForge.Declarative.Validator do
   ))
   @control_fields MapSet.new(~w(if then else for blocks component props slots variant slot))
   @block_fields MapSet.new(
-                  ~w(type text content options columns rows min_rows max_rows cells count paragraphs ast annotation_type entries number)
+                  ~w(type text content options columns rows min_rows max_rows cells count paragraphs ast annotation_type entries number name)
                 )
   @form_fields MapSet.new(
-                 ~w(type name page rect origin value default tooltip options choices calculation background_color border_color border_width border_radius check_color check_width)
+                 ~w(type name page rect x y width height style origin value default tooltip font font_size padding text_color text_align options choices calculation background_color border_color border_width border_radius check_color check_width)
                )
   @form_types ~w(text checkbox button radio list combo signature)
   @types ~w(any string number integer boolean list map)
@@ -32,7 +32,7 @@ defmodule PaperForge.Declarative.Validator do
                       ~w(algorithm reason location contact_info timestamp tsa_url visible multiple)
                     )
   @protection_fields MapSet.new(~w(identifier modified_at watermark policy))
-  @watermark_fields MapSet.new(~w(text opacity size color angle))
+  @watermark_fields MapSet.new(~w(text opacity size color angle margin fit offset_x offset_y))
   @policy_fields MapSet.new(
                    ~w(allowed_uri_schemes allowed_hosts allow_attachments max_attachments max_attachment_bytes allowed_attachment_mimes)
                  )
@@ -448,10 +448,10 @@ defmodule PaperForge.Declarative.Validator do
           ) ++
           maybe(
             [],
-            type != "radio" and not valid_rect?(form["rect"]),
+            type != "radio" and not valid_form_geometry?(form),
             :invalid_form_rect,
             "#{item_path}.rect",
-            "form rect must contain four increasing numbers"
+            "use rect or x/y/width/height with positive dimensions"
           ) ++
           maybe(
             [],
@@ -477,7 +477,7 @@ defmodule PaperForge.Declarative.Validator do
 
   defp form_appearance_errors(form, path) do
     numeric_errors =
-      Enum.flat_map(~w(border_width border_radius check_width), fn key ->
+      Enum.flat_map(~w(border_width border_radius check_width padding font_size), fn key ->
         value = form[key]
 
         maybe(
@@ -490,7 +490,7 @@ defmodule PaperForge.Declarative.Validator do
       end)
 
     color_errors =
-      Enum.flat_map(~w(background_color border_color check_color), fn key ->
+      Enum.flat_map(~w(background_color border_color check_color text_color), fn key ->
         value = form[key]
 
         maybe(
@@ -502,8 +502,40 @@ defmodule PaperForge.Declarative.Validator do
         )
       end)
 
-    numeric_errors ++ color_errors
+    numeric_errors ++
+      color_errors ++
+      maybe(
+        [],
+        form["text_align"] not in [nil, "left", "center", "right"],
+        :invalid_form_appearance,
+        "#{path}.text_align",
+        "text_align must be left, center, or right"
+      ) ++
+      maybe(
+        [],
+        form["font_size"] == 0,
+        :invalid_form_appearance,
+        "#{path}.font_size",
+        "font_size must be positive"
+      )
   end
+
+  defp valid_form_geometry?(form) do
+    if Map.has_key?(form, "rect") do
+      valid_rect?(form["rect"]) and not Enum.any?(~w(x y width height), &Map.has_key?(form, &1))
+    else
+      coordinate?(form["x"]) and coordinate?(form["y"]) and
+        dimension?(form["width"]) and dimension?(form["height"])
+    end
+  end
+
+  defp coordinate?(value), do: is_number(value) or geometry_token?(value)
+  defp dimension?(value), do: (is_number(value) and value > 0) or geometry_token?(value)
+
+  defp geometry_token?(value) when is_binary(value),
+    do: Regex.match?(~r/^\$[A-Za-z_][\w.]*$/, value)
+
+  defp geometry_token?(_), do: false
 
   defp valid_rect?([x1, y1, x2, y2]),
     do: Enum.all?([x1, y1, x2, y2], &is_number/1) and x2 > x1 and y2 > y1
@@ -538,6 +570,23 @@ defmodule PaperForge.Declarative.Validator do
 
         Map.has_key?(node, "slot") ->
           []
+
+        node["type"] in [
+          "group",
+          "section",
+          "container",
+          "row",
+          "column",
+          "block_grid",
+          "grid",
+          "overlay",
+          "shape",
+          "icon",
+          "badge",
+          "button",
+          "framed_image"
+        ] ->
+          block_errors(Map.get(node, "blocks", []), "#{path}.blocks")
 
         Map.has_key?(node, "type") ->
           []

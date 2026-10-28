@@ -1,0 +1,158 @@
+{
+  "version": "1",
+  "metadata": {
+    "title": "PaperForge / Protección y diseño reutilizable"
+  },
+  "page_templates": {
+    "paper": {
+      "size": [
+        420,
+        595
+      ],
+      "margins": 36,
+      "header": "PAPERFORGE / DISEÑO + PROTECCIÓN",
+      "footer": "REVISIÓN 1.2 + 1.3 / {page} de {total}"
+    }
+  },
+  "layout_options": {
+    "template": "paper"
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "text": "Un documento, una identidad",
+      "options": {
+        "style": "title"
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Tipografía contenida, márgenes constantes y una marca de agua que conserva el centro al girar. El tamaño máximo se adapta al área disponible.",
+      "options": {
+        "style": "body"
+      }
+    },
+    {
+      "type": "heading",
+      "text": "Controles de presentación",
+      "options": {
+        "size": 13,
+        "color": "#247E83",
+        "space_before": 20
+      }
+    },
+    {
+      "type": "table",
+      "columns": [
+        "Control",
+        "Uso"
+      ],
+      "rows": [
+        [
+          "size",
+          "Tamaño máximo en puntos"
+        ],
+        [
+          "fit",
+          "Ajuste automático sin recortes"
+        ],
+        [
+          "margin",
+          "Espacio libre en el borde"
+        ],
+        [
+          "offset_x / offset_y",
+          "Posición relativa al centro"
+        ],
+        [
+          "opacity / color",
+          "Contraste y color"
+        ],
+        [
+          "angle",
+          "Rotación en grados"
+        ]
+      ],
+      "options": {
+        "column_widths": [
+          130,
+          218
+        ],
+        "size": 9,
+        "padding": 8,
+        "borders": "bottom",
+        "border_width": 0.35
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "La misma plantilla permite elegir un tema compacto o uno de lectura amplia. Sus colores, tipografía y marca de agua se ajustan desde tokens, sin duplicar el documento.",
+      "options": {
+        "style": "body",
+        "space_before": 24
+      }
+    }
+  ],
+  "protection": {
+    "watermark": {
+      "text": "REVISIÓN INTERNA",
+      "size": "$watermark.size",
+      "opacity": "$watermark.opacity",
+      "angle": "$watermark.angle",
+      "margin": "$watermark.margin",
+      "fit": true,
+      "color": "$watermark.color"
+    }
+  },
+  "design_system": {
+    "tokens": {
+      "ink": "#183B45",
+      "muted": "#557177",
+      "type": {
+        "body": 10,
+        "leading": 15,
+        "title": 21
+      },
+      "watermark": {
+        "size": 36,
+        "opacity": 0.07,
+        "angle": 35,
+        "margin": 44,
+        "color": "$ink"
+      }
+    },
+    "styles": {
+      "title": {
+        "size": "$type.title",
+        "color": "$ink",
+        "space_after": 14
+      },
+      "body": {
+        "size": "$type.body",
+        "line_height": "$type.leading",
+        "color": "$muted",
+        "space_after": 14
+      }
+    },
+    "themes": {
+      "compact": {},
+      "comfortable": {
+        "tokens": {
+          "type": {
+            "body": 12,
+            "leading": 18,
+            "title": 23
+          },
+          "ink": "#234A66",
+          "muted": "#4D6270",
+          "watermark": {
+            "size": 30,
+            "angle": 0,
+            "opacity": 0.06
+          }
+        }
+      }
+    }
+  },
+  "theme": "compact"
+}

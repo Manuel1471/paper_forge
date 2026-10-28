@@ -115,6 +115,11 @@ defmodule PaperForge.PageCompiler do
     )
   end
 
+  defp compile_operation(page, document, resources, {:clip_start, segments}),
+    do: {document, clip_command(page, segments), resources}
+
+  defp compile_operation(_page, document, resources, :clip_end), do: {document, "Q\n", resources}
+
   defp compile_operation(page, document, resources, {:text, text, options}) do
     font_key = Document.resolve_text_font_key(document, options, text)
 
@@ -305,6 +310,11 @@ defmodule PaperForge.PageCompiler do
     {document, [], resources}
   end
 
+  defp compile_local_operation(page, {:clip_start, segments}, _fonts),
+    do: clip_command(page, segments)
+
+  defp compile_local_operation(_page, :clip_end, _fonts), do: "Q\n"
+
   defp compile_local_operation(page, {:text, text, options}, font_resources) do
     font_key =
       Keyword.get(options, :font, :helvetica)
@@ -460,6 +470,30 @@ defmodule PaperForge.PageCompiler do
     |> Circle.command()
   end
 
+  defp clip_command(page, segments) do
+    segments =
+      Enum.map(segments, fn
+        {:move_to, x, y} ->
+          {:move_to, x, Coordinates.point_y(page.height, y, page.origin)}
+
+        {:line_to, x, y} ->
+          {:line_to, x, Coordinates.point_y(page.height, y, page.origin)}
+
+        {:curve_to, x1, y1, x2, y2, x3, y3} ->
+          {:curve_to, x1, Coordinates.point_y(page.height, y1, page.origin), x2,
+           Coordinates.point_y(page.height, y2, page.origin), x3,
+           Coordinates.point_y(page.height, y3, page.origin)}
+
+        {:rectangle, x, y, w, h} ->
+          {:rectangle, x, Coordinates.box_y(page.height, y, h, page.origin), w, h}
+
+        :close ->
+          :close
+      end)
+
+    Path.command(segments, clip_only: true)
+  end
+
   defp compile_path_operation(page, segments, options) do
     origin = Keyword.get(options, :origin, page.origin)
 
@@ -474,6 +508,9 @@ defmodule PaperForge.PageCompiler do
         {:curve_to, x1, Coordinates.point_y(page.height, y1, origin), x2,
          Coordinates.point_y(page.height, y2, origin), x3,
          Coordinates.point_y(page.height, y3, origin)}
+
+      {:rectangle, x, y, width, height} ->
+        {:rectangle, x, Coordinates.box_y(page.height, y, height, origin), width, height}
 
       :close ->
         :close

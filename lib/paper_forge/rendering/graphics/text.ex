@@ -14,7 +14,9 @@ defmodule PaperForge.Graphics.Text do
   alias PaperForge.Color
   alias PaperForge.Font
   alias PaperForge.FontError
+  alias PaperForge.Fonts.Builtin
   alias PaperForge.Fonts.TrueType
+  alias PaperForge.Fonts.WinAnsi
   alias PaperForge.Graphics
   alias PaperForge.Serializer
   alias PaperForge.TextMetrics
@@ -180,8 +182,8 @@ defmodule PaperForge.Graphics.Text do
       |> String.to_charlist()
       |> Enum.map(fn codepoint ->
         case TrueType.glyph_id(font, codepoint) do
-          {:ok, glyph_id} ->
-            <<glyph_id::16-big>>
+          {:ok, _glyph_id} ->
+            <<Map.fetch!(font.unicode_to_cid, codepoint)::16-big>>
 
           :error ->
             raise FontError, {:missing_glyph, font_key, codepoint}
@@ -194,8 +196,11 @@ defmodule PaperForge.Graphics.Text do
     }
   end
 
-  defp encode_text(text, _font_key, _font_instance) do
-    text
+  defp encode_text(text, font_key, _font_instance) do
+    case Builtin.fetch!(font_key).encoding do
+      :win_ansi -> WinAnsi.encode!(text, font_key)
+      :builtin -> text
+    end
   end
 
   defp calculate_x(

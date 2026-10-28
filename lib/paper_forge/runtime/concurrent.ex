@@ -66,6 +66,7 @@ defmodule PaperForge.Concurrent do
           | {:retry_on, [Result.status()]}
           | {:max_memory_bytes, pos_integer() | :infinity}
           | {:max_reductions, pos_integer() | :infinity}
+          | {:worker_heap_size, pos_integer()}
 
   @doc """
   Executes all jobs and returns their isolated results.
@@ -173,6 +174,7 @@ defmodule PaperForge.Concurrent do
     timeout = Keyword.get(options, :timeout, 30_000)
     id = Keyword.get(options, :id, 0)
     execution_options = execution_options(options, timeout)
+    validate_options!(1, timeout, fn _, _ -> id end, fn _ -> :ok end, execution_options)
 
     Task.Supervisor.async_nolink(supervisor, fn ->
       execute(job, 0, id, renderer, execution_options)
@@ -217,7 +219,7 @@ defmodule PaperForge.Concurrent do
     {pid, monitor} =
       :erlang.spawn_opt(
         fn ->
-          :erlang.garbage_collect()
+          if limits.worker_heap_size == 233, do: :erlang.garbage_collect()
           {:reductions, reductions_before} = Process.info(self(), :reductions)
           {:garbage_collection, gc_before} = Process.info(self(), :garbage_collection)
 
@@ -245,10 +247,11 @@ defmodule PaperForge.Concurrent do
           send(
             parent,
             {token, outcome, reductions_after - reductions_before,
-             Keyword.fetch!(gc_after, :minor_gcs) - Keyword.fetch!(gc_before, :minor_gcs)}
+             max(0, Keyword.fetch!(gc_after, :minor_gcs) - Keyword.fetch!(gc_before, :minor_gcs)),
+             process_memory(self())}
           )
         end,
-        [:link, :monitor]
+        [:link, :monitor, {:min_heap_size, limits.worker_heap_size}]
       )
 
     receive_result(
@@ -280,20 +283,47 @@ defmodule PaperForge.Concurrent do
     wait = poll_interval(started_at, timeout)
 
     receive do
-      {^token, outcome, reductions, garbage_collections} ->
+      {^token, outcome, reductions, garbage_collections, final_memory} ->
         Process.demonitor(monitor, [:flush])
-        memory = process_memory(pid)
+        memory = max(peak_memory, final_memory)
 
-        result(
-          id,
-          index,
-          outcome,
-          started_at,
-          reductions,
-          garbage_collections,
-          attempt,
-          max(peak_memory, memory)
-        )
+        cond do
+          limit_exceeded?(final_memory, limits.max_memory_bytes) ->
+            limited_result(
+              id,
+              index,
+              started_at,
+              attempt,
+              memory,
+              :memory,
+              final_memory,
+              limits.max_memory_bytes
+            )
+
+          limit_exceeded?(reductions, limits.max_reductions) ->
+            limited_result(
+              id,
+              index,
+              started_at,
+              attempt,
+              memory,
+              :reductions,
+              reductions,
+              limits.max_reductions
+            )
+
+          true ->
+            result(
+              id,
+              index,
+              outcome,
+              started_at,
+              reductions,
+              garbage_collections,
+              attempt,
+              memory
+            )
+        end
 
       {:DOWN, ^monitor, :process, ^pid, reason} ->
         result(
@@ -308,8 +338,7 @@ defmodule PaperForge.Concurrent do
         )
     after
       wait ->
-        memory = process_memory(pid)
-        reductions = process_reductions(pid)
+        {memory, reductions} = process_sample(pid)
         peak_memory = max(peak_memory, memory)
 
         cond do
@@ -415,18 +444,14 @@ defmodule PaperForge.Concurrent do
       retry_delay: Keyword.get(options, :retry_delay, 0),
       retry_on: Keyword.get(options, :retry_on, [:error]),
       max_memory_bytes: Keyword.get(options, :max_memory_bytes, :infinity),
-      max_reductions: Keyword.get(options, :max_reductions, :infinity)
+      max_reductions: Keyword.get(options, :max_reductions, :infinity),
+      worker_heap_size: Keyword.get(options, :worker_heap_size, 233)
     }
   end
 
   defp validate_options!(max_concurrency, timeout, job_id, on_result, execution_options) do
-    unless is_integer(max_concurrency) and max_concurrency > 0 do
-      raise ArgumentError, "max_concurrency must be a positive integer"
-    end
-
-    unless timeout == :infinity or (is_integer(timeout) and timeout >= 0) do
-      raise ArgumentError, "timeout must be :infinity or a non-negative integer"
-    end
+    positive_integer!(max_concurrency, :max_concurrency)
+    validate_timeout!(timeout)
 
     unless is_function(job_id, 2),
       do: raise(ArgumentError, "job_id must be a function of arity 2")
@@ -434,19 +459,38 @@ defmodule PaperForge.Concurrent do
     unless is_function(on_result, 1),
       do: raise(ArgumentError, "on_result must be a function of arity 1")
 
-    unless is_integer(execution_options.max_attempts) and execution_options.max_attempts > 0,
-      do: raise(ArgumentError, "max_attempts must be a positive integer")
+    positive_integer!(execution_options.max_attempts, :max_attempts)
+    positive_integer!(execution_options.worker_heap_size, :worker_heap_size)
 
     unless is_integer(execution_options.retry_delay) and execution_options.retry_delay >= 0,
       do: raise(ArgumentError, "retry_delay must be a non-negative integer")
 
-    Enum.each([:max_memory_bytes, :max_reductions], fn key ->
-      value = Map.fetch!(execution_options, key)
+    validate_retries!(execution_options.retry_on)
 
-      unless value == :infinity or (is_integer(value) and value > 0),
-        do: raise(ArgumentError, "#{key} must be :infinity or a positive integer")
-    end)
+    Enum.each(
+      [:max_memory_bytes, :max_reductions],
+      &validate_limit!(Map.fetch!(execution_options, &1), &1)
+    )
   end
+
+  defp positive_integer!(value, _) when is_integer(value) and value > 0, do: :ok
+  defp positive_integer!(_, key), do: raise(ArgumentError, "#{key} must be a positive integer")
+  defp validate_timeout!(:infinity), do: :ok
+  defp validate_timeout!(value) when is_integer(value) and value >= 0, do: :ok
+
+  defp validate_timeout!(_),
+    do: raise(ArgumentError, "timeout must be :infinity or a non-negative integer")
+
+  defp validate_limit!(:infinity, _), do: :ok
+  defp validate_limit!(value, key), do: positive_integer!(value, key)
+
+  defp validate_retries!(values) when is_list(values) do
+    unless Enum.all?(values, &(&1 in [:error, :timeout, :resource_limit, :cancelled])),
+      do: raise(ArgumentError, "retry_on must contain supported failure statuses")
+  end
+
+  defp validate_retries!(_),
+    do: raise(ArgumentError, "retry_on must be a list of failure statuses")
 
   defp poll_interval(_started_at, :infinity), do: 5
 
@@ -461,17 +505,21 @@ defmodule PaperForge.Concurrent do
   defp process_memory(pid) do
     case Process.info(pid, [:memory, :binary]) do
       [memory: bytes, binary: binaries] ->
-        bytes + Enum.sum(Enum.map(binaries, fn {_reference, size, _references} -> size end))
+        Enum.reduce(binaries, bytes, fn {_reference, size, _references}, total -> total + size end)
 
       nil ->
         0
     end
   end
 
-  defp process_reductions(pid) do
-    case Process.info(pid, :reductions) do
-      {:reductions, reductions} -> reductions
-      nil -> 0
+  defp process_sample(pid) do
+    case Process.info(pid, [:memory, :binary, :reductions]) do
+      [memory: bytes, binary: binaries, reductions: reductions] ->
+        {Enum.reduce(binaries, bytes, fn {_ref, size, _count}, total -> total + size end),
+         reductions}
+
+      nil ->
+        {0, 0}
     end
   end
 
@@ -508,19 +556,25 @@ defmodule PaperForge.Concurrent do
   end
 
   defp emit_batch_complete(results, started_at, options) do
-    status_counts = Enum.frequencies_by(results, & &1.status)
+    {measurements, status_counts} =
+      Enum.reduce(
+        results,
+        {%{jobs: 0, bytes: 0, memory: 0, reductions: 0, gc: 0}, %{}},
+        fn result, {metrics, counts} ->
+          {%{
+             jobs: metrics.jobs + 1,
+             bytes: metrics.bytes + result_bytes(result),
+             memory: max(metrics.memory, result.peak_memory_bytes),
+             reductions: metrics.reductions + result.reductions,
+             gc: metrics.gc + result.garbage_collections
+           }, Map.update(counts, result.status, 1, &(&1 + 1))}
+        end
+      )
 
-    measurements = %{
-      duration: System.monotonic_time() - started_at,
-      jobs: length(results),
-      bytes: Enum.sum(Enum.map(results, &result_bytes/1)),
-      memory: Enum.max(Enum.map(results, & &1.peak_memory_bytes), fn -> 0 end),
-      reductions: Enum.sum(Enum.map(results, & &1.reductions)),
-      gc: Enum.sum(Enum.map(results, & &1.garbage_collections))
-    }
+    measurements = Map.put(measurements, :duration, System.monotonic_time() - started_at)
 
     metadata = %{
-      status: if(Map.get(status_counts, :ok, 0) == length(results), do: :ok, else: :error),
+      status: if(Map.get(status_counts, :ok, 0) == measurements.jobs, do: :ok, else: :error),
       statuses: status_counts,
       max_concurrency: Keyword.get(options, :max_concurrency, System.schedulers_online()),
       ordered: Keyword.get(options, :ordered, true)

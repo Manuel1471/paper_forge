@@ -1,0 +1,588 @@
+{
+  "version": "1",
+  "metadata": {
+    "title": "Math y Scientific · Revisión visual"
+  },
+  "page_templates": {
+    "paper": {
+      "size": [
+        420,
+        595
+      ],
+      "margins": 36,
+      "header": "PAPERFORGE / MATH + SCIENTIFIC",
+      "footer": "MUESTRA TIPOGRÁFICA / {page} de {total}"
+    }
+  },
+  "layout_options": {
+    "template": "paper"
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "text": "Matemáticas con proporción",
+      "options": {
+        "size": 19,
+        "color": "#183B45",
+        "space_after": 8
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Una escala de 11 puntos, trazos finos y un eje común. Las fórmulas acompañan la lectura sin dominar la página.",
+      "options": {
+        "size": 10,
+        "line_height": 15,
+        "color": "#557177",
+        "space_after": 22
+      }
+    },
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {
+            "symbol": "r"
+          },
+          {
+            "symbol": "="
+          },
+          {
+            "fraction": {
+              "numerator": {
+                "row": [
+                  {
+                    "symbol": "a"
+                  },
+                  {
+                    "symbol": "+"
+                  },
+                  {
+                    "symbol": "b"
+                  }
+                ]
+              },
+              "denominator": {
+                "symbol": "n"
+              }
+            }
+          }
+        ]
+      },
+      "options": {
+        "title": "01 / Fracciones y alineación",
+        "align": "center",
+        "space_after": 18
+      }
+    },
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {
+            "subscript": {
+              "base": {
+                "symbol": "x"
+              },
+              "value": {
+                "symbol": "i"
+              }
+            }
+          },
+          {
+            "symbol": "="
+          },
+          {
+            "superscript": {
+              "base": {
+                "symbol": "a"
+              },
+              "value": {
+                "symbol": "2"
+              }
+            }
+          },
+          {
+            "symbol": "+"
+          },
+          {
+            "superscript": {
+              "base": {
+                "symbol": "b"
+              },
+              "value": {
+                "symbol": "2"
+              }
+            }
+          }
+        ]
+      },
+      "options": {
+        "title": "02 / Índices y potencias",
+        "align": "center",
+        "space_after": 18
+      }
+    },
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {
+            "symbol": "d"
+          },
+          {
+            "symbol": "="
+          },
+          {
+            "root": {
+              "row": [
+                {
+                  "superscript": {
+                    "base": {
+                      "symbol": "a"
+                    },
+                    "value": {
+                      "symbol": "2"
+                    }
+                  }
+                },
+                {
+                  "symbol": "+"
+                },
+                {
+                  "superscript": {
+                    "base": {
+                      "symbol": "b"
+                    },
+                    "value": {
+                      "symbol": "2"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "options": {
+        "title": "03 / Raíces",
+        "align": "center",
+        "space_after": 18
+      }
+    },
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {
+            "integral": {
+              "lower": {
+                "symbol": "0"
+              },
+              "upper": {
+                "symbol": "1"
+              },
+              "body": {
+                "superscript": {
+                  "base": {
+                    "symbol": "x"
+                  },
+                  "value": {
+                    "symbol": "2"
+                  }
+                }
+              },
+              "variable": "x"
+            }
+          },
+          {
+            "symbol": "="
+          },
+          {
+            "fraction": {
+              "numerator": {
+                "symbol": "1"
+              },
+              "denominator": {
+                "symbol": "3"
+              }
+            }
+          }
+        ]
+      },
+      "options": {
+        "title": "04 / Integrales",
+        "align": "center",
+        "space_after": 18
+      }
+    },
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {
+            "symbol": "A"
+          },
+          {
+            "symbol": "="
+          },
+          {
+            "matrix": [
+              [
+                {
+                  "fraction": {
+                    "numerator": {
+                      "symbol": "1"
+                    },
+                    "denominator": {
+                      "symbol": "2"
+                    }
+                  }
+                },
+                {
+                  "symbol": "0"
+                },
+                {
+                  "symbol": "1"
+                }
+              ],
+              [
+                {
+                  "symbol": "0"
+                },
+                {
+                  "symbol": "1"
+                },
+                {
+                  "symbol": "2"
+                }
+              ],
+              [
+                {
+                  "symbol": "1"
+                },
+                {
+                  "symbol": "2"
+                },
+                {
+                  "symbol": "3"
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "options": {
+        "title": "05 / Matrices con alturas mixtas",
+        "align": "center",
+        "space_after": 18
+      }
+    },
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {
+            "symbol": "q"
+          },
+          {
+            "symbol": "="
+          },
+          {
+            "fraction": {
+              "numerator": {
+                "root": {
+                  "row": [
+                    {
+                      "symbol": "a"
+                    },
+                    {
+                      "symbol": "+"
+                    },
+                    {
+                      "symbol": "b"
+                    }
+                  ]
+                }
+              },
+              "denominator": {
+                "row": [
+                  {
+                    "symbol": "1"
+                  },
+                  {
+                    "symbol": "+"
+                  },
+                  {
+                    "fraction": {
+                      "numerator": {
+                        "symbol": "c"
+                      },
+                      "denominator": {
+                        "symbol": "d"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "options": {
+        "title": "06 / Expresiones anidadas",
+        "align": "center",
+        "space_after": 18
+      }
+    },
+    {
+      "type": "page_break"
+    },
+    {
+      "type": "heading",
+      "text": "La escala queda a tu elección",
+      "options": {
+        "size": 19,
+        "color": "#183B45",
+        "space_after": 10
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "El mismo conjunto a 9, 11 y 14 puntos. Ahora también escalan los márgenes internos, los corchetes, el radical y los trazos.",
+      "options": {
+        "size": 10,
+        "line_height": 15,
+        "space_after": 24
+      }
+    },
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {
+            "symbol": "f"
+          },
+          {
+            "symbol": "="
+          },
+          {
+            "fraction": {
+              "numerator": {
+                "root": {
+                  "row": [
+                    {
+                      "superscript": {
+                        "base": {
+                          "symbol": "x"
+                        },
+                        "value": {
+                          "symbol": "2"
+                        }
+                      }
+                    },
+                    {
+                      "symbol": "+"
+                    },
+                    {
+                      "symbol": "1"
+                    }
+                  ]
+                }
+              },
+              "denominator": {
+                "row": [
+                  {
+                    "symbol": "1"
+                  },
+                  {
+                    "symbol": "+"
+                  },
+                  {
+                    "subscript": {
+                      "base": {
+                        "symbol": "a"
+                      },
+                      "value": {
+                        "symbol": "i"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "options": {
+        "title": "Compacta / notas técnicas",
+        "size": 9,
+        "align": "center",
+        "space_after": 28
+      }
+    },
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {
+            "symbol": "f"
+          },
+          {
+            "symbol": "="
+          },
+          {
+            "fraction": {
+              "numerator": {
+                "root": {
+                  "row": [
+                    {
+                      "superscript": {
+                        "base": {
+                          "symbol": "x"
+                        },
+                        "value": {
+                          "symbol": "2"
+                        }
+                      }
+                    },
+                    {
+                      "symbol": "+"
+                    },
+                    {
+                      "symbol": "1"
+                    }
+                  ]
+                }
+              },
+              "denominator": {
+                "row": [
+                  {
+                    "symbol": "1"
+                  },
+                  {
+                    "symbol": "+"
+                  },
+                  {
+                    "subscript": {
+                      "base": {
+                        "symbol": "a"
+                      },
+                      "value": {
+                        "symbol": "i"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "options": {
+        "title": "Lectura / escala predeterminada",
+        "size": 11,
+        "align": "center",
+        "space_after": 28
+      }
+    },
+    {
+      "type": "equation",
+      "ast": {
+        "row": [
+          {
+            "symbol": "f"
+          },
+          {
+            "symbol": "="
+          },
+          {
+            "fraction": {
+              "numerator": {
+                "root": {
+                  "row": [
+                    {
+                      "superscript": {
+                        "base": {
+                          "symbol": "x"
+                        },
+                        "value": {
+                          "symbol": "2"
+                        }
+                      }
+                    },
+                    {
+                      "symbol": "+"
+                    },
+                    {
+                      "symbol": "1"
+                    }
+                  ]
+                }
+              },
+              "denominator": {
+                "row": [
+                  {
+                    "symbol": "1"
+                  },
+                  {
+                    "symbol": "+"
+                  },
+                  {
+                    "subscript": {
+                      "base": {
+                        "symbol": "a"
+                      },
+                      "value": {
+                        "symbol": "i"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "options": {
+        "title": "Destacada / uso puntual",
+        "size": 14,
+        "align": "center",
+        "space_after": 28
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Los títulos y las referencias tienen su propia jerarquía. Puedes ajustar size, align, space_after y heading_options desde este archivo .paperforge.",
+      "options": {
+        "size": 10,
+        "line_height": 15,
+        "color": "#557177",
+        "space_after": 20
+      }
+    },
+    {
+      "type": "equation_reference",
+      "number": 4,
+      "options": {
+        "text": "Ver la integral en la página {page}",
+        "size": 9,
+        "color": "#087F83"
+      }
+    },
+    {
+      "type": "bibliography",
+      "entries": [
+        {
+          "author": "Equipo de documentación",
+          "title": "Ejemplos de composición matemática",
+          "year": 2026
+        }
+      ],
+      "options": {
+        "title": "Referencia demostrativa",
+        "size": 9
+      }
+    }
+  ]
+}

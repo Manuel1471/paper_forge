@@ -21,9 +21,12 @@ defmodule PaperForge.Declarative do
   alias PaperForge.Declarative.Validator
   alias PaperForge.DesignSystem
   alias PaperForge.Flow
+  alias PaperForge.Fonts.Builtin
   alias PaperForge.Import
+  alias PaperForge.Layout.Block
   alias PaperForge.Math
 
+  @builtin_fonts Map.new(Builtin.keys(), fn key -> {Atom.to_string(key), key} end)
   @max_depth 64
   @default_limits %{
     max_blocks: 10_000,
@@ -32,7 +35,8 @@ defmodule PaperForge.Declarative do
     max_data_bytes: 10_000_000
   }
   @option_keys ~w(
-    align background_color borders caption cell_height color colors column_gap column_widths
+    icon icon_size icon_gap columns shape offset_x offset_y underline strikethrough caption_size caption_color
+    quiet_zone align background_color borders caption cell_height color colors column_gap column_widths
     compress count default_font destination even_footer even_header extends fill_color fit
     focal_point font footer gap header header_color
     header_fill_color height hyphenate id keep_together level line_height link marker
@@ -43,12 +47,17 @@ defmodule PaperForge.Declarative do
     last_header text author subject name filename data points reply_to reply_type
     default_appearance border_color line_width chart_type show_values show_legend
     point_radius inner_radius grid_color label_color chart_padding
-    weight
+    show_axes show_grid tick_count y_min y_max label_size value_size title_size subtitle
+    value_decimals value_prefix value_suffix page_options levels level_styles bookmark single_line_entries leader
+    cell_align cell_valign body_fill_color weight heading_options subtitle_size title_gap legend_size legend_gap legend_marker_size radial_size
+    separator_height separator_length separator_width separator_color show_separator
+    font_size text_color text_align border_width border_radius check_color check_width
   )a
   @enum_values ~w(
     left center right justify top middle bottom contain cover fill ordered unordered
     keep split error clip ellipsis continue portrait landscape all none a3 a4 a5 letter legal
-    bar line area scatter pie donut regular bold
+    rectangle circle ellipse polygon italic oblique
+    bar line area scatter pie donut regular bold content l m q h
   )a
   @declarative_font_slots for index <- 1..64,
                               do: String.to_atom("paperforge_declarative_font_#{index}")
@@ -139,6 +148,7 @@ defmodule PaperForge.Declarative do
            limits: limits(options),
            blocks: 0,
            equation_count: 0,
+           equation_destinations: %{},
            component_stack: [],
            font_keys: font_keys
          },
@@ -167,7 +177,7 @@ defmodule PaperForge.Declarative do
          fonts: compile_fonts(definition, options, font_keys),
          font_fallbacks:
            compile_font_fallbacks(Map.get(definition, "font_fallbacks", %{}), font_keys),
-         styles: compile_named_options(system.styles, system.tokens, variables),
+         styles: compile_styles(system, variables, font_keys),
          page_templates:
            compile_named_options(
              Map.get(definition, "page_templates", %{}),
@@ -175,12 +185,21 @@ defmodule PaperForge.Declarative do
              variables
            ),
          metadata: interpolate(Map.get(definition, "metadata", %{}), variables),
-         forms: compile_forms(interpolate(Map.get(definition, "forms", []), variables)),
+         forms:
+           compile_forms(
+             interpolate(Map.get(definition, "forms", []), variables),
+             font_keys,
+             system,
+             variables
+           ),
          security: compile_security(interpolate(Map.get(definition, "security", %{}), variables)),
          signature:
            compile_signature(interpolate(Map.get(definition, "signature", %{}), variables)),
          protection:
-           compile_protection(interpolate(Map.get(definition, "protection", %{}), variables)),
+           compile_protection(
+             interpolate(Map.get(definition, "protection", %{}), variables),
+             system.tokens
+           ),
          compliance:
            compile_compliance(interpolate(Map.get(definition, "compliance", %{}), variables))
        }}
@@ -427,7 +446,7 @@ defmodule PaperForge.Declarative do
     inline = DesignSystem.new(Map.get(template, "design_system", %{}))
     system = DesignSystem.merge(external, inline)
 
-    case DesignSystem.resolve(system, Map.get(template, "theme", Keyword.get(options, :theme))) do
+    case DesignSystem.resolve(system, Keyword.get(options, :theme, Map.get(template, "theme"))) do
       {:ok, resolved} ->
         {:ok, resolved}
 
@@ -538,6 +557,80 @@ defmodule PaperForge.Declarative do
     end
   end
 
+  defp compile_node(flow, %{"type" => "grid", "blocks" => _} = node, context, state, depth),
+    do: compile_node(flow, Map.put(node, "type", "block_grid"), context, state, depth)
+
+  defp compile_node(flow, %{"type" => type} = node, context, state, depth)
+       when type in [
+              "container",
+              "row",
+              "column",
+              "block_grid",
+              "overlay",
+              "shape",
+              "icon",
+              "badge",
+              "button",
+              "framed_image"
+            ] do
+    kinds = %{
+      "container" => :box,
+      "row" => :row,
+      "column" => :column,
+      "block_grid" => :block_grid,
+      "overlay" => :overlay,
+      "shape" => :shape,
+      "icon" => :icon,
+      "badge" => :badge,
+      "button" => :button,
+      "framed_image" => :framed_image
+    }
+
+    options =
+      options_to_keyword(
+        interpolate(Map.get(node, "options", %{}), context),
+        state.design.tokens,
+        state.font_keys
+      )
+
+    content = interpolate(Map.get(node, "content", Map.get(node, "text", "")), context)
+
+    with {:ok, child_flow, next_state} <-
+           compile_blocks(Map.get(node, "blocks", []), context, state, depth + 1) do
+      {children, options} =
+        visual_content(type, content, Enum.reverse(child_flow.blocks), options, state)
+
+      block = visual_block(kinds[type], children, options)
+      {:ok, %{flow | blocks: [block | flow.blocks]}, next_state}
+    end
+  rescue
+    exception -> {:error, error(:invalid_block, "$.blocks", Exception.message(exception), node)}
+  end
+
+  defp compile_node(flow, %{"type" => type} = node, context, state, depth)
+       when type in ["group", "section"] do
+    options =
+      options_to_keyword(
+        interpolate(Map.get(node, "options", %{}), context),
+        state.design.tokens,
+        state.font_keys
+      )
+
+    with {:ok, children, next_state} <-
+           compile_blocks(Map.get(node, "blocks", []), context, state, depth + 1) do
+      block =
+        Block.new(
+          if(type == "group", do: :container, else: :section),
+          Map.get(node, "name"),
+          Keyword.put(options, :children, Enum.reverse(children.blocks))
+        )
+
+      {:ok, %{flow | blocks: [block | flow.blocks]}, next_state}
+    end
+  rescue
+    exception -> {:error, error(:invalid_block, "$.blocks", Exception.message(exception), node)}
+  end
+
   defp compile_node(flow, %{"type" => type} = node, context, state, _depth) do
     content = interpolate(Map.get(node, "content", Map.get(node, "text")), context)
 
@@ -547,6 +640,26 @@ defmodule PaperForge.Declarative do
         state.design.tokens,
         state.font_keys
       )
+
+    options =
+      if type in ["math", "equation", "bibliography"] do
+        case Keyword.get(options, :style) do
+          nil ->
+            options
+
+          name ->
+            Keyword.merge(
+              options_to_keyword(
+                interpolate(named_style!(state.design, name), context),
+                state.design.tokens,
+                state.font_keys
+              ),
+              options
+            )
+        end
+      else
+        options
+      end
 
     case apply_block(flow, type, content, node, context, options, state) do
       {:ok, next_flow} -> {:ok, next_flow, state}
@@ -566,6 +679,69 @@ defmodule PaperForge.Declarative do
          "block must define type, component, slot, if, or for",
          node
        )}
+
+  defp visual_content(type, content, children, options, _state)
+       when type in ["badge", "button"] do
+    if children != [],
+      do: raise(ArgumentError, "badge/button take text; use a container for mixed content")
+
+    if type == "button" and not is_binary(options[:link]),
+      do: raise(ArgumentError, "button requires a link")
+
+    text_options = [space_after: 0, align: Keyword.get(options, :text_align, :center)]
+    {[Block.new(:paragraph, to_text(content), text_options)], options}
+  end
+
+  defp visual_content(type, _content, children, _options, _state)
+       when type in ["icon", "shape", "framed_image"] and children != [],
+       do: raise(ArgumentError, "this visual block does not accept children")
+
+  defp visual_content("icon", content, [], options, _state),
+    do: {[], Keyword.put(options, :source, to_text(content))}
+
+  defp visual_content("framed_image", content, [], options, state) do
+    case Registry.resolve_resource(state.registry, to_text(content)) do
+      {:ok, source} -> {[], Keyword.put(options, :source, source)}
+      {:error, reason} -> raise ArgumentError, "image resource is not allowed: #{inspect(reason)}"
+    end
+  end
+
+  defp visual_content(_type, _content, children, options, _state), do: {children, options}
+
+  defp visual_block(:framed_image, children, options) do
+    frame =
+      Block.new(
+        :visual,
+        :framed_image,
+        Keyword.put(Keyword.delete(options, :caption), :children, children)
+      )
+
+    case Keyword.get(options, :caption) do
+      nil ->
+        frame
+
+      caption ->
+        frame = %{frame | options: Keyword.put(frame.options, :space_after, 0)}
+
+        text =
+          Block.new(:paragraph, to_text(caption),
+            size: Keyword.get(options, :caption_size, 9),
+            color: Keyword.get(options, :caption_color, Color.gray(0.4)),
+            align: :center,
+            space_after: 0
+          )
+
+        outer =
+          Keyword.take(options, [:width, :align, :space_after, :offset_x, :offset_y])
+          |> Keyword.put(:gap, 6)
+          |> Keyword.put(:children, [frame, text])
+
+        Block.new(:visual, :column, outer)
+    end
+  end
+
+  defp visual_block(kind, children, options),
+    do: Block.new(:visual, kind, Keyword.put(options, :children, children))
 
   defp compile_loop(values, flow, state, node, context, binding, depth) do
     Enum.reduce_while(values, {:ok, flow, state}, fn value, {:ok, current, current_state} ->
@@ -783,8 +959,10 @@ defmodule PaperForge.Declarative do
   defp apply_block(flow, "paragraph", content, _node, _context, options, _state),
     do: {:ok, Flow.paragraph(flow, to_text(content), options)}
 
-  defp apply_block(flow, "rich_text", content, _node, _context, options, _state),
-    do: {:ok, Flow.rich_text(flow, rich_runs(content), options)}
+  defp apply_block(flow, "rich_text", content, _node, _context, options, state),
+    do:
+      {:ok,
+       Flow.rich_text(flow, rich_runs(content, state.design.tokens, state.font_keys), options)}
 
   defp apply_block(flow, "image", content, _node, _context, options, state) do
     case Registry.resolve_resource(state.registry, to_text(content)) do
@@ -825,22 +1003,37 @@ defmodule PaperForge.Declarative do
 
     flow =
       flow
-      |> Flow.heading(title,
-        level: Keyword.get(options, :level, 4),
-        destination: destination,
-        bookmark: false
+      |> Flow.heading(
+        title,
+        Keyword.merge(
+          [level: Keyword.get(options, :level, 4), size: 9.5, weight: :regular, space_after: 6],
+          Keyword.get(options, :heading_options, [])
+        )
+        |> Keyword.put(:destination, destination)
+        |> Keyword.put(:bookmark, false)
       )
-      |> Flow.math(ast, options)
+      |> Flow.math(ast, Keyword.delete(options, :destination))
 
-    {:ok, flow, %{state | equation_count: number}}
+    {:ok, flow,
+     %{
+       state
+       | equation_count: number,
+         equation_destinations: Map.put(state.equation_destinations, number, destination)
+     }}
   end
 
-  defp apply_block(flow, "equation_reference", content, node, _context, options, _state) do
+  defp apply_block(flow, "equation_reference", content, node, _context, options, state) do
     number = Map.get(node, "number", content)
 
     if is_integer(number) and number > 0 do
       text = Keyword.get(options, :text, "Equation #{number}, page {page}")
-      {:ok, Flow.reference(flow, "equation-#{number}", Keyword.put(options, :text, text))}
+
+      {:ok,
+       Flow.reference(
+         flow,
+         Map.get(state.equation_destinations, number, "equation-#{number}"),
+         Keyword.put(options, :text, text)
+       )}
     else
       {:error,
        error(
@@ -870,7 +1063,15 @@ defmodule PaperForge.Declarative do
     entries = interpolate(Map.get(node, "entries", content || []), context)
     title = Keyword.get(options, :title, "References")
 
-    flow = Flow.heading(flow, title, level: Keyword.get(options, :level, 2))
+    flow =
+      Flow.heading(
+        flow,
+        title,
+        Keyword.merge(
+          [level: Keyword.get(options, :level, 2), size: 12, space_after: 8],
+          Keyword.get(options, :heading_options, [])
+        )
+      )
 
     flow =
       entries
@@ -1030,14 +1231,57 @@ defmodule PaperForge.Declarative do
     end
   end
 
-  defp compile_forms(forms) when is_list(forms), do: Enum.map(forms, &compile_form/1)
+  defp compile_forms(forms, font_keys, system, context) when is_list(forms) do
+    Enum.map(forms, fn form ->
+      style = if form["style"], do: named_style!(system, form["style"]), else: %{}
+      form = style |> interpolate(context) |> Map.merge(form) |> resolve_tokens(system.tokens)
 
-  defp compile_form(%{"type" => "radio", "name" => name, "choices" => choices} = form) do
+      compile_form(form_geometry!(form), font_keys)
+    end)
+  end
+
+  defp form_geometry!(%{"type" => "radio"} = form), do: form
+  defp form_geometry!(%{"rect" => _} = form), do: form
+
+  defp form_geometry!(form) do
+    unless Enum.all?(~w(x y width height), &is_number(form[&1])) and form["width"] > 0 and
+             form["height"] > 0,
+           do:
+             raise(
+               ArgumentError,
+               "form geometry must resolve to numbers with positive width and height"
+             )
+
+    Map.put(form, "rect", [
+      form["x"],
+      form["y"],
+      form["x"] + form["width"],
+      form["y"] + form["height"]
+    ])
+  end
+
+  defp named_style!(system, name, seen \\ []) do
+    if name in seen or length(seen) > 32, do: raise(ArgumentError, "style inheritance cycle")
+
+    style =
+      Map.get(system.styles, to_string(name)) ||
+        raise(ArgumentError, "unknown style #{inspect(name)}")
+
+    case style["extends"] do
+      nil ->
+        style
+
+      parent ->
+        Map.merge(named_style!(system, parent, [name | seen]), Map.delete(style, "extends"))
+    end
+  end
+
+  defp compile_form(%{"type" => "radio", "name" => name, "choices" => choices} = form, font_keys) do
     %{
       type: :radio,
       name: name,
       value: form["value"],
-      options: compile_form_options(form),
+      options: compile_form_options(form, font_keys),
       choices:
         Enum.map(choices, fn choice ->
           [page: choice["page"], rect: choice["rect"], value: to_text(choice["value"])]
@@ -1045,18 +1289,32 @@ defmodule PaperForge.Declarative do
     }
   end
 
-  defp compile_form(%{"type" => type, "name" => name, "page" => page, "rect" => rect} = form) do
-    options = Keyword.put(compile_form_options(form), :rect, rect)
+  defp compile_form(
+         %{"type" => type, "name" => name, "page" => page, "rect" => rect} = form,
+         font_keys
+       ) do
+    options = Keyword.put(compile_form_options(form, font_keys), :rect, rect)
 
     %{type: form_type(type), name: name, page: page, options: options}
   end
 
-  defp compile_form_options(form) do
+  defp compile_form_options(form, font_keys) do
     [
       value: form["value"],
       origin: form_origin(form["origin"]),
       default: form["default"],
       tooltip: form["tooltip"],
+      font: if(form["font"], do: font_key(form["font"], font_keys)),
+      font_size: form["font_size"],
+      padding: form["padding"],
+      text_color: form["text_color"],
+      text_align:
+        case form["text_align"] do
+          "left" -> :left
+          "center" -> :center
+          "right" -> :right
+          _ -> nil
+        end,
       options: form["options"],
       calculation: compile_calculation(form["calculation"]),
       background_color: form["background_color"],
@@ -1141,7 +1399,7 @@ defmodule PaperForge.Declarative do
     end)
   end
 
-  defp options_to_keyword(options, tokens, font_keys \\ %{})
+  defp options_to_keyword(options, tokens, font_keys)
 
   defp options_to_keyword(options, tokens, font_keys) when is_map(options) do
     Enum.reduce(options, [], fn {key, value}, acc ->
@@ -1160,7 +1418,7 @@ defmodule PaperForge.Declarative do
   end
 
   defp option_value(value, key, _font_keys)
-       when key in [:style, :template, :extends] and is_binary(value),
+       when key in [:style, :template, :extends, :id, :destination] and is_binary(value),
        do: value
 
   defp option_value(value, key, font_keys)
@@ -1173,6 +1431,16 @@ defmodule PaperForge.Declarative do
 
   defp option_value([x, y], :focal_point, _font_keys) when is_number(x) and is_number(y),
     do: {x, y}
+
+  defp option_value(value, key, font_keys)
+       when key in [:page_options, :heading_options] and is_map(value),
+       do: options_to_keyword(value, %{}, font_keys)
+
+  defp option_value(value, :level_styles, font_keys) when is_map(value) do
+    Map.new(value, fn {level, style} ->
+      {String.to_integer(level), options_to_keyword(style, %{}, font_keys)}
+    end)
+  end
 
   defp option_value(value, :margins, _font_keys) when is_map(value) do
     allowed = %{"top" => :top, "right" => :right, "bottom" => :bottom, "left" => :left}
@@ -1207,19 +1475,40 @@ defmodule PaperForge.Declarative do
     Color.rgb255(String.to_integer(r, 16), String.to_integer(g, 16), String.to_integer(b, 16))
   end
 
-  defp resolve_tokens("$" <> path, tokens), do: lookup(tokens, path)
+  defp resolve_tokens(value, tokens), do: resolve_tokens(value, tokens, MapSet.new())
 
-  defp resolve_tokens(value, tokens) when is_list(value),
-    do: Enum.map(value, &resolve_tokens(&1, tokens))
+  defp resolve_tokens("$" <> path, tokens, seen) do
+    cond do
+      MapSet.member?(seen, path) ->
+        raise ArgumentError, "token cycle at $#{path}"
 
-  defp resolve_tokens(value, tokens) when is_map(value),
-    do: Map.new(value, fn {key, item} -> {key, resolve_tokens(item, tokens)} end)
+      MapSet.size(seen) >= 32 ->
+        raise ArgumentError, "maximum token reference depth exceeded"
 
-  defp resolve_tokens(value, _tokens), do: value
+      true ->
+        case lookup(tokens, path) do
+          nil -> raise ArgumentError, "unknown design token $#{path}"
+          value -> resolve_tokens(value, tokens, MapSet.put(seen, path))
+        end
+    end
+  end
 
-  defp compile_named_options(definitions, tokens, context) do
+  defp resolve_tokens(value, tokens, seen) when is_list(value),
+    do: Enum.map(value, &resolve_tokens(&1, tokens, seen))
+
+  defp resolve_tokens(value, tokens, seen) when is_map(value),
+    do: Map.new(value, fn {key, item} -> {key, resolve_tokens(item, tokens, seen)} end)
+
+  defp resolve_tokens(value, _tokens, _seen), do: value
+
+  defp compile_styles(system, context, font_keys) do
+    styles = Map.new(system.styles, fn {name, _} -> {name, named_style!(system, name)} end)
+    compile_named_options(styles, system.tokens, context, font_keys)
+  end
+
+  defp compile_named_options(definitions, tokens, context, font_keys \\ %{}) do
     Map.new(definitions, fn {name, options} ->
-      {declarative_identifier(name), options_to_keyword(interpolate(options, context), tokens)}
+      {to_string(name), options_to_keyword(interpolate(options, context), tokens, font_keys)}
     end)
   end
 
@@ -1241,7 +1530,9 @@ defmodule PaperForge.Declarative do
   defp font_key(name, _font_keys) when is_atom(name), do: name
 
   defp font_key(name, font_keys) when is_binary(name) do
-    Map.get(font_keys, name) || existing_atom(name) ||
+    Map.get(font_keys, name) ||
+      Map.get(@builtin_fonts, name) ||
+      existing_atom(name) ||
       raise(ArgumentError, "unknown declarative font #{inspect(name)}")
   end
 
@@ -1252,11 +1543,6 @@ defmodule PaperForge.Declarative do
   rescue
     ArgumentError -> nil
   end
-
-  defp declarative_identifier(value) when is_atom(value), do: value
-
-  defp declarative_identifier(value) when is_binary(value),
-    do: existing_atom(value) || value
 
   defp register_styles(document, styles),
     do:
@@ -1328,7 +1614,7 @@ defmodule PaperForge.Declarative do
   defp signature_algorithm(value),
     do: raise(ArgumentError, "unsupported signature.algorithm value: #{inspect(value)}")
 
-  defp compile_protection(options) when is_map(options) do
+  defp compile_protection(options, tokens) when is_map(options) do
     allowed = ~w(identifier modified_at watermark policy)
     ensure_known_keys!(options, allowed, "protection")
 
@@ -1341,10 +1627,21 @@ defmodule PaperForge.Declarative do
           text
 
         map when is_map(map) ->
-          ensure_known_keys!(map, ~w(text opacity size color angle), "protection.watermark")
+          ensure_known_keys!(
+            map,
+            ~w(text opacity size color angle margin fit offset_x offset_y),
+            "protection.watermark"
+          )
 
           map
-          |> keyword_map(~w(text opacity size color angle), "protection.watermark")
+          |> Map.new(fn
+            {"text", text} -> {"text", text}
+            {key, value} -> {key, resolve_tokens(value, tokens)}
+          end)
+          |> keyword_map(
+            ~w(text opacity size color angle margin fit offset_x offset_y),
+            "protection.watermark"
+          )
           |> Enum.map(fn
             {:color, "#" <> _ = color} -> {:color, parse_color_tuple(color)}
             pair -> pair
@@ -1377,7 +1674,7 @@ defmodule PaperForge.Declarative do
     |> maybe_put(:policy, policy, policy != [])
   end
 
-  defp compile_protection(_), do: raise(ArgumentError, "protection must be an object")
+  defp compile_protection(_, _tokens), do: raise(ArgumentError, "protection must be an object")
 
   defp compile_compliance(options) when is_map(options) do
     allowed = ~w(profiles language title icc_profile output_condition)
@@ -1479,10 +1776,10 @@ defmodule PaperForge.Declarative do
   defp parse_color_tuple(value),
     do: raise(ArgumentError, "watermark color must be #RRGGBB, got: #{inspect(value)}")
 
-  defp rich_runs(runs) when is_list(runs) do
+  defp rich_runs(runs, tokens, font_keys) when is_list(runs) do
     Enum.map(runs, fn
       %{"text" => text, "options" => options} ->
-        {to_text(text), options_to_keyword(options, %{})}
+        {to_text(text), inline_options(options, tokens, font_keys)}
 
       %{"text" => text} ->
         to_text(text)
@@ -1492,7 +1789,19 @@ defmodule PaperForge.Declarative do
     end)
   end
 
-  defp rich_runs(value), do: [to_text(value)]
+  defp rich_runs(value, _tokens, _font_keys), do: [to_text(value)]
+
+  defp inline_options(options, tokens, font_keys) do
+    options_to_keyword(options, tokens, font_keys)
+    |> Keyword.update(:style, :regular, fn
+      "italic" -> :italic
+      "oblique" -> :oblique
+      "regular" -> :regular
+      "normal" -> :normal
+      value when value in [:italic, :oblique, :regular, :normal] -> value
+      value -> raise ArgumentError, "unknown inline style #{inspect(value)}"
+    end)
+  end
 
   defp chart_series(series) when is_list(series) do
     Enum.map(series, fn

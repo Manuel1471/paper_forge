@@ -9,12 +9,13 @@ defmodule PaperForge.Validation do
   alias PaperForge.Document
   alias PaperForge.Fonts.Builtin
   alias PaperForge.Object
+  alias PaperForge.PDF.Graph
   alias PaperForge.Reference
   alias PaperForge.Stream
   alias PaperForge.ValidationError
   alias PaperForge.ValidationResult
 
-  @supported_versions MapSet.new(["1.4", "1.5", "1.6", "1.7"])
+  @supported_versions MapSet.new(["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "2.0"])
 
   @type issue :: %{
           required(:code) => atom(),
@@ -69,10 +70,12 @@ defmodule PaperForge.Validation do
 
   defp validate_required_reference(issues, document, field) do
     case Map.get(document, field) do
-      %Reference{object_id: id} ->
-        if Map.has_key?(document.objects, id),
-          do: issues,
-          else: [%{code: :missing_required_object, reference: id} | issues]
+      %Reference{object_id: id, generation: generation} ->
+        case document.objects[id] do
+          nil -> [%{code: :missing_required_object, reference: id} | issues]
+          %Object{generation: ^generation} -> issues
+          _ -> [%{code: :generation_mismatch, reference: id, expected: generation} | issues]
+        end
 
       value ->
         [%{code: :invalid_required_reference, actual: value} | issues]
@@ -104,27 +107,43 @@ defmodule PaperForge.Validation do
     end)
   end
 
-  defp validate_reference(reference, issues, object_id, objects) do
-    if Map.has_key?(objects, reference) do
-      issues
-    else
-      [%{code: :dangling_reference, object_id: object_id, reference: reference} | issues]
+  defp validate_reference(
+         %Reference{object_id: id, generation: generation},
+         issues,
+         object_id,
+         objects
+       ) do
+    case objects[id] do
+      %Object{generation: ^generation} ->
+        issues
+
+      nil ->
+        [%{code: :dangling_reference, object_id: object_id, reference: id} | issues]
+
+      _ ->
+        [
+          %{code: :generation_mismatch, object_id: object_id, reference: id, expected: generation}
+          | issues
+        ]
     end
   end
 
+  defp validate_page_tree(issues, %{pages_reference: nil}),
+    do: [%{code: :invalid_page_tree} | issues]
+
   defp validate_page_tree(issues, document) do
-    case Map.get(document.objects, document.pages_reference.object_id) do
-      %Object{value: %{"Type" => {:name, "Pages"}, "Kids" => kids, "Count" => count}}
-      when is_list(kids) and is_integer(count) ->
-        if count == length(kids),
+    case Graph.pages(document) do
+      {:ok, pages} ->
+        root = document.objects[document.pages_reference.object_id].value
+
+        if root["Count"] == length(pages),
           do: issues,
-          else: [%{code: :page_count_mismatch, expected: length(kids), actual: count} | issues]
+          else: [
+            %{code: :page_count_mismatch, expected: length(pages), actual: root["Count"]} | issues
+          ]
 
-      %Object{} ->
-        [%{code: :invalid_page_tree} | issues]
-
-      _ ->
-        issues
+      {:error, reason} ->
+        [%{code: :invalid_page_tree, actual: reason} | issues]
     end
   end
 
@@ -175,7 +194,7 @@ defmodule PaperForge.Validation do
   defp code_id(:empty_document), do: "PF1201"
   defp code_id(:unknown_default_font), do: "PF3102"
 
-  defp references(%Reference{object_id: id}), do: [id]
+  defp references(%Reference{} = reference), do: [reference]
   defp references(%Stream{dictionary: dictionary}), do: references(dictionary)
   defp references(%_struct{} = struct), do: struct |> Map.from_struct() |> references()
 

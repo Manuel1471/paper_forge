@@ -22,21 +22,28 @@ defmodule PaperForge.Layout.Block do
   @spec new(atom(), term(), keyword()) :: t()
   def new(type, content, options \\ []) do
     %__MODULE__{
-      id: Keyword.get(options, :id, stable_id(type, content, options)),
+      id:
+        case Keyword.fetch(options, :id) do
+          {:ok, id} -> id
+          :error -> stable_id(type, content, options)
+        end,
       type: type,
       content: content,
-      options: Keyword.delete(options, :id),
+      options: Keyword.drop(options, [:id, :children]),
       children: Keyword.get(options, :children, [])
     }
   end
 
   defp stable_id(type, content, options) do
-    data =
-      :erlang.term_to_binary({
-        type,
-        content,
-        Keyword.drop(options, [:children])
-      })
+    base = {type, content, Keyword.drop(options, [:children])}
+
+    identity =
+      case Keyword.get(options, :children, []) do
+        [] -> base
+        children -> {base, Enum.map(children, & &1.id)}
+      end
+
+    data = :erlang.term_to_binary(identity)
 
     hash =
       :crypto.hash(:sha256, data)

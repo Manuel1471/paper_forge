@@ -243,7 +243,7 @@ defmodule PaperForge.DeclarativeProductionTest do
              "Main chapter"
            ]
 
-    assert compiled.styles[:body][:size] == 9
+    assert compiled.styles["body"][:size] == 9
 
     outside = Path.join(root, "outside.paperforge")
     File.write!(outside, Jason.encode!(%{version: "1", imports: ["../secret.paperforge"]}))

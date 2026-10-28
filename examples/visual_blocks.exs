@@ -1,0 +1,8 @@
+root = Path.expand("..", __DIR__)
+{:ok, source} = PaperForge.Declarative.load(Path.join(__DIR__, "visual_blocks.paperforge"))
+registry = PaperForge.Declarative.Registry.new(resource_root: root, allowed_schemes: [])
+{:ok, document, report} = PaperForge.Declarative.render(source, %{}, registry: registry)
+path = Path.join(root, "output/pdf/visual-blocks.pdf")
+File.mkdir_p!(Path.dirname(path))
+PaperForge.write!(document, path)
+IO.puts("#{report.pages} pages: #{path}")

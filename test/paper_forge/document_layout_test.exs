@@ -140,6 +140,26 @@ defmodule PaperForge.DocumentLayoutTest do
     assert annotation["Dest"] == "intro"
   end
 
+  @tag :tmp_dir
+  test "outline titles use Unicode PDF strings and survive write/read", %{tmp_dir: dir} do
+    titles = ["Una red más confiable", "Información y Metodología", "Niñez — México (€)", "東京 🚚"]
+
+    document =
+      Enum.reduce(titles, PaperForge.new(), fn title, doc ->
+        PaperForge.add_page(doc, &Page.bookmark(&1, title, y: 720))
+      end)
+
+    for %{value: %{"Title" => encoded, "Dest" => _}} <- Map.values(document.objects) do
+      assert {:hex_string, <<254, 255, _::binary>>} = encoded
+    end
+
+    assert Enum.map(PaperForge.outlines(document), & &1.title) == titles
+    path = Path.join(dir, "unicode-bookmarks.pdf")
+    PaperForge.write!(document, path)
+    reopened = PaperForge.open!(path)
+    assert Enum.map(PaperForge.outlines(reopened), & &1.title) == titles
+  end
+
   test "table expands into drawable operations" do
     content =
       Page.new(origin: :top_left)
@@ -218,7 +238,7 @@ defmodule PaperForge.DocumentLayoutTest do
 
     assert content =~ "(1.) Tj"
     assert content =~ "(Alpha) Tj"
-    assert content =~ "(•) Tj"
+    assert content =~ <<"(", 149, ") Tj">>
   end
 
   test "add_flow creates automatic page breaks" do

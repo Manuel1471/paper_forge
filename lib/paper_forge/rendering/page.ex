@@ -168,6 +168,16 @@ defmodule PaperForge.Page do
     add_operation(page, {:circle, options})
   end
 
+  @doc "Adds a vector QR code. Options include size, x, y, color, background_color, level and quiet_zone."
+  def qr_code(%__MODULE__{} = page, data, options \\ []) do
+    PaperForge.QRCode.draw(page, data, options)
+  end
+
+  @doc "Clips drawing operations in the callback to a vector path in page coordinates."
+  def clip(%__MODULE__{} = page, segments, fun) when is_list(segments) and is_function(fun, 1) do
+    page |> add_operation({:clip_start, segments}) |> fun.() |> add_operation(:clip_end)
+  end
+
   @doc "Adds a vector path made of move, line, cubic curve, and close segments."
   @spec path(t(), [PaperForge.Graphics.Path.segment()], keyword()) :: t()
   def path(%__MODULE__{} = page, segments, options \\ [])
@@ -903,7 +913,7 @@ defmodule PaperForge.Page do
       "Type" => {:name, "Annot"},
       "Subtype" => {:name, "Text"},
       "Rect" => [x, y, x + width, y + height],
-      "Contents" => contents,
+      "Contents" => PaperForge.StringEncoding.auto(contents),
       "Name" => {:name, Atom.to_string(Keyword.get(options, :icon, :Comment))},
       "Open" => Keyword.get(options, :open, false)
     }
@@ -917,7 +927,7 @@ defmodule PaperForge.Page do
       "Subtype" => {:name, "Highlight"},
       "Rect" => [x, y, x + width, y + height],
       "QuadPoints" => [x, y + height, x + width, y + height, x, y, x + width, y],
-      "Contents" => contents,
+      "Contents" => PaperForge.StringEncoding.auto(contents),
       "C" => Keyword.get(options, :color, [1, 0.92, 0.23])
     }
   end
@@ -930,7 +940,13 @@ defmodule PaperForge.Page do
       Stream.new(data,
         dictionary: %{
           "Type" => {:name, "EmbeddedFile"},
-          "Subtype" => Keyword.get(options, :mime, "application/octet-stream")
+          "Subtype" =>
+            {:name,
+             Keyword.get(
+               options,
+               :mime_type,
+               Keyword.get(options, :mime, "application/octet-stream")
+             )}
         },
         filters: [:flate]
       )
@@ -939,10 +955,10 @@ defmodule PaperForge.Page do
 
     file_spec = %{
       "Type" => {:name, "Filespec"},
-      "F" => filename,
-      "UF" => filename,
-      "Desc" => Keyword.get(options, :description, filename),
-      "EF" => %{"F" => stream_reference}
+      "F" => PaperForge.StringEncoding.auto(filename),
+      "UF" => PaperForge.StringEncoding.utf16be_hex(filename),
+      "Desc" => PaperForge.StringEncoding.auto(Keyword.get(options, :description, filename)),
+      "EF" => %{"F" => stream_reference, "UF" => stream_reference}
     }
 
     {document, file_reference} = Document.add_object(document, file_spec)
@@ -966,7 +982,7 @@ defmodule PaperForge.Page do
       "Type" => {:name, "Annot"},
       "Subtype" => {:name, annotation_subtype(type)},
       "Rect" => [x, y, x + width, y + height],
-      "Contents" => Keyword.get(options, :contents, ""),
+      "Contents" => PaperForge.StringEncoding.auto(Keyword.get(options, :contents, "")),
       "C" => Keyword.get(options, :color, [0.95, 0.45, 0.2]),
       "F" => Keyword.get(options, :flags, 4)
     }
@@ -1034,6 +1050,10 @@ defmodule PaperForge.Page do
   end
 
   defp maybe_annotation_value(dictionary, _key, nil), do: dictionary
+
+  defp maybe_annotation_value(dictionary, key, value) when key in ["T", "Subj"],
+    do: Map.put(dictionary, key, PaperForge.StringEncoding.auto(value))
+
   defp maybe_annotation_value(dictionary, key, value), do: Map.put(dictionary, key, value)
 
   defp annotation_box(page, options) do

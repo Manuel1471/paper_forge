@@ -9,10 +9,26 @@ defmodule PaperForge.AcroForm do
 
   Field appearances can be adapted to the surrounding design with
   `:background_color`, `:border_color`, `:border_width`, and `:border_radius`.
+  Text fields also accept `:font`, `:font_size`, `:text_color`, `:text_align`,
+  and `:padding`. Generated single-line appearances shrink text to fit the
+  available width; the canonical field value is never truncated.
   Checkboxes additionally accept `:check_color` and `:check_width`.
+  Radio groups use circular controls with a centered selection mark.
   """
 
-  alias PaperForge.{Document, Reference, Stream}
+  alias PaperForge.{
+    Document,
+    FontRegistry,
+    Page,
+    PageCompiler,
+    PageResources,
+    Reference,
+    Stream,
+    StringEncoding,
+    TextMetrics
+  }
+
+  alias PaperForge.PDF.{Graph, Inspection}
 
   @field_types [:text, :checkbox, :button, :list, :combo, :signature]
 
@@ -32,15 +48,16 @@ defmodule PaperForge.AcroForm do
         "Type" => {:name, "Annot"},
         "Subtype" => {:name, "Widget"},
         "FT" => {:name, field_type(type)},
-        "T" => name,
+        "T" => StringEncoding.auto(name),
         "Rect" => rect,
         "P" => page_reference,
         "F" => Keyword.get(options, :annotation_flags, 4),
         "Ff" => field_flags(type, options),
+        "Q" => text_quadding(type, options),
         "DA" => Keyword.get(options, :default_appearance, "/Helv 10 Tf 0 g")
       }
       |> put_value(type, value)
-      |> maybe_put("DV", Keyword.get(options, :default))
+      |> put_default(type, Keyword.get(options, :default))
       |> maybe_put("TU", Keyword.get(options, :tooltip))
       |> maybe_put("Opt", choice_options(type, options))
       |> maybe_put("AP", appearance)
@@ -48,7 +65,14 @@ defmodule PaperForge.AcroForm do
 
     {document, field_reference} = Document.add_object(document, field)
 
+    document = %{
+      document
+      | form_appearance_options:
+          Map.put(document.form_appearance_options, field_reference.object_id, options)
+    }
+
     document
+    |> configure_field_font(field_reference, appearance, options)
     |> append_page_annotation(page_reference, field_reference)
     |> append_form_field(field_reference)
   end
@@ -80,7 +104,14 @@ defmodule PaperForge.AcroForm do
           )
 
         export = choice |> Keyword.fetch!(:value) |> to_string()
-        {current, appearance} = checkbox_appearance(current, rect, export, appearance_options)
+
+        {current, appearance} =
+          checkbox_appearance(
+            current,
+            rect,
+            export,
+            Keyword.put(appearance_options, :radio, true)
+          )
 
         widget = %{
           "Type" => {:name, "Annot"},
@@ -99,7 +130,7 @@ defmodule PaperForge.AcroForm do
     parent =
       %{
         "FT" => {:name, "Btn"},
-        "T" => name,
+        "T" => StringEncoding.auto(name),
         "Ff" => 32_768,
         "Kids" => widget_references,
         "V" => {:name, selected || "Off"}
@@ -124,7 +155,7 @@ defmodule PaperForge.AcroForm do
     |> Enum.reduce(%{}, fn {_reference, field}, data ->
       case field["T"] do
         nil -> data
-        name -> Map.put(data, name, export_value(field["V"]))
+        name -> Map.put(data, StringEncoding.decode(name), export_value(field["V"]))
       end
     end)
   end
@@ -132,10 +163,11 @@ defmodule PaperForge.AcroForm do
   @doc "Imports values into existing fields and refreshes their basic appearance state."
   @spec import_data(Document.t(), map() | keyword()) :: Document.t()
   def import_data(%Document{} = document, values) when is_map(values) or is_list(values) do
+    ensure_supported!(document)
     values = values |> Map.new() |> Map.new(fn {key, value} -> {to_string(key), value} end)
 
     Enum.reduce(fields(document), document, fn {reference, field}, current ->
-      case Map.fetch(values, field["T"]) do
+      case Map.fetch(values, if(field["T"], do: StringEncoding.decode(field["T"]))) do
         {:ok, value} ->
           current
           |> Document.update_object(reference, fn existing ->
@@ -144,6 +176,7 @@ defmodule PaperForge.AcroForm do
             |> maybe_update_state(value)
           end)
           |> update_radio_widgets(field, value)
+          |> refresh_appearance(reference, field, value)
 
         :error ->
           current
@@ -154,43 +187,113 @@ defmodule PaperForge.AcroForm do
   @doc "Flattens field values into page content and removes the interactive form."
   @spec flatten(Document.t(), keyword()) :: Document.t()
   def flatten(%Document{} = document, options \\ []) do
-    field_refs =
-      MapSet.new(Enum.map(fields(document), fn {reference, _} -> reference.object_id end))
+    ensure_supported!(document)
 
-    {_form_reference, form} = acro_form(document)
-    font_reference = get_in(form, ["DR", "Font", "Helv"])
+    if is_nil(acro_form(document)) do
+      document
+    else
+      flattened = flatten_pages(document, Map.new(fields(document)), options)
+      Document.update_object(flattened, flattened.root_reference, &Map.delete(&1, "AcroForm"))
+    end
+  end
 
-    document =
-      Enum.reduce(flattenable_fields(document), document, fn {_reference, field}, current ->
-        case {field["P"], field["Rect"], export_value(field["V"])} do
-          {%Reference{} = page_reference, [x1, y1, x2, y2], value} when not is_nil(value) ->
-            content = flattened_content(field, value, x1, y1, x2 - x1, y2 - y1, options)
+  defp flatten_pages(document, fields, _options) do
+    Enum.reduce(Graph.pages!(document), document, fn page, current ->
+      annotations = Graph.resolve!(current, page.dictionary["Annots"]) || []
+      {widgets, other} = Enum.split_with(annotations, &Map.has_key?(fields, &1))
+      flatten_page(current, page, widgets, other, fields)
+    end)
+  end
 
-            {current, stream_reference} =
-              Document.add_object(current, Stream.new(content, filters: [:flate]))
+  defp flatten_page(document, _page, [], _other, _fields), do: document
 
-            Document.update_object(current, page_reference, fn page ->
-              page
-              |> Map.update("Contents", stream_reference, &append_content(&1, stream_reference))
-              |> Map.update("Resources", %{"Font" => %{"Helv" => font_reference}}, fn resources ->
-                Map.update(
-                  resources,
-                  "Font",
-                  %{"Helv" => font_reference},
-                  &Map.put(&1, "Helv", font_reference)
-                )
-              end)
-              |> Map.update("Annots", [], fn annotations ->
-                Enum.reject(annotations, &MapSet.member?(field_refs, &1.object_id))
-              end)
-            end)
+  defp flatten_page(document, page, widgets, other, fields) do
+    resources = Graph.resolve!(document, page.dictionary["Resources"]) || %{}
+    xobjects = Graph.resolve!(document, resources["XObject"]) || %{}
 
-          _ ->
-            current
+    {xobjects, commands} =
+      Enum.reduce(widgets, {xobjects, []}, fn ref, {objects, commands} ->
+        field = Map.fetch!(fields, ref)
+
+        case normal_appearance(document, field) do
+          nil ->
+            ensure_empty_field!(field)
+
+            {objects, commands}
+
+          appearance ->
+            name = unused_name(objects, "PFForm#{ref.object_id}")
+            command = appearance_placement(document, appearance, field["Rect"], name)
+            {Map.put(objects, name, appearance), [command | commands]}
         end
       end)
 
-    Document.update_object(document, document.root_reference, &Map.delete(&1, "AcroForm"))
+    {document, before_ref} = Document.add_object(document, Stream.new("q\n"))
+
+    {document, after_ref} =
+      Document.add_object(document, Stream.new(["Q\n", Enum.reverse(commands)]))
+
+    contents = Graph.resolve!(document, page.dictionary["Contents"])
+    # Keep references to streams; only resolve an indirect array of streams.
+    original = if is_list(contents), do: contents, else: List.wrap(page.dictionary["Contents"])
+
+    Document.update_object(document, page.reference, fn dictionary ->
+      dictionary
+      |> Map.put("Contents", [before_ref | original] ++ [after_ref])
+      |> Map.put("Resources", Map.put(resources, "XObject", xobjects))
+      |> Map.put("Annots", other)
+    end)
+  end
+
+  defp ensure_empty_field!(field) do
+    if field["V"] not in [nil, "", {:name, "Off"}],
+      do: raise(ArgumentError, "cannot flatten a field without its appearance")
+  end
+
+  defp normal_appearance(document, field) do
+    appearance = Graph.resolve!(document, field["AP"]) || %{}
+
+    case appearance["N"] do
+      %Reference{} = ref ->
+        ref
+
+      states when is_map(states) ->
+        state = field["AS"] || field["V"] || {:name, "Off"}
+
+        case state do
+          {:name, name} -> states[name]
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp unused_name(objects, name) do
+    if Map.has_key?(objects, name), do: unused_name(objects, name <> "_"), else: name
+  end
+
+  defp appearance_placement(document, reference, [x1, y1, x2, y2], name) do
+    %Stream{dictionary: dictionary} = Graph.resolve!(document, reference)
+    [bx1, by1, bx2, by2] = dictionary["BBox"]
+    [a, b, c, d, e, f] = Map.get(dictionary, "Matrix", [1, 0, 0, 1, 0, 0])
+    corners = for x <- [bx1, bx2], y <- [by1, by2], do: {a * x + c * y + e, b * x + d * y + f}
+    {xs, ys} = Enum.unzip(corners)
+    width = Enum.max(xs) - Enum.min(xs)
+    height = Enum.max(ys) - Enum.min(ys)
+    if width <= 0 or height <= 0, do: raise(ArgumentError, "invalid form appearance bounds")
+    sx = (x2 - x1) / width
+    sy = (y2 - y1) / height
+    matrix = [sx, 0, 0, sy, x1 - sx * Enum.min(xs), y1 - sy * Enum.min(ys)]
+
+    [
+      "q ",
+      Enum.map_intersperse(matrix, " ", &PaperForge.Serializer.encode/1),
+      " cm /",
+      name,
+      " Do Q\n"
+    ]
   end
 
   @doc "Returns true when the document catalog contains an XFA entry."
@@ -208,7 +311,21 @@ defmodule PaperForge.AcroForm do
     do: if(xfa?(document), do: {:error, :xfa_not_supported}, else: :ok)
 
   defp ensure_form(document) do
+    ensure_supported!(document)
+
     case acro_form(document) do
+      {nil, form} ->
+        {document, reference} = Document.add_object(document, form)
+
+        document =
+          Document.update_object(
+            document,
+            document.root_reference,
+            &Map.put(&1, "AcroForm", reference)
+          )
+
+        ensure_form(document)
+
       {%Reference{} = form_reference, form} ->
         case get_in(form, ["DR", "Font", "Helv"]) do
           %Reference{} = font_reference -> {document, font_reference}
@@ -219,7 +336,8 @@ defmodule PaperForge.AcroForm do
         font = %{
           "Type" => {:name, "Font"},
           "Subtype" => {:name, "Type1"},
-          "BaseFont" => {:name, "Helvetica"}
+          "BaseFont" => {:name, "Helvetica"},
+          "Encoding" => {:name, "WinAnsiEncoding"}
         }
 
         {document, font_reference} = Document.add_object(document, font)
@@ -249,7 +367,8 @@ defmodule PaperForge.AcroForm do
     font = %{
       "Type" => {:name, "Font"},
       "Subtype" => {:name, "Type1"},
-      "BaseFont" => {:name, "Helvetica"}
+      "BaseFont" => {:name, "Helvetica"},
+      "Encoding" => {:name, "WinAnsiEncoding"}
     }
 
     {document, font_reference} = Document.add_object(document, font)
@@ -266,34 +385,39 @@ defmodule PaperForge.AcroForm do
     catalog = document.objects[document.root_reference.object_id].value
 
     case catalog["AcroForm"] do
-      %Reference{} = reference -> {reference, document.objects[reference.object_id].value}
+      %Reference{} = reference -> {reference, Graph.resolve!(document, reference)}
+      form when is_map(form) -> {nil, form}
       _ -> nil
     end
   end
 
   defp fields(document) do
-    case acro_form(document) do
-      {_reference, %{"Fields" => references}} ->
-        Enum.flat_map(references, fn reference -> collect_field(document, reference) end)
+    for field <- Inspection.forms(document) do
+      dictionary =
+        if field.dictionary["T"],
+          do: Map.put(field.dictionary, "T", StringEncoding.auto(field.name)),
+          else: field.dictionary
 
-      _ ->
-        []
+      {field.reference, dictionary}
     end
   end
 
-  defp collect_field(document, %Reference{} = reference) do
-    field = document.objects[reference.object_id].value
-    [{reference, field} | Enum.flat_map(Map.get(field, "Kids", []), &collect_field(document, &1))]
+  defp ensure_supported!(document) do
+    if xfa?(document), do: raise(ArgumentError, "XFA forms are not supported")
   end
 
   defp ensure_unique_name!(document, name) do
-    if Enum.any?(fields(document), fn {_reference, field} -> field["T"] == name end),
-      do: raise(ArgumentError, "AcroForm field already exists: #{name}")
+    if Enum.any?(fields(document), fn {_reference, field} ->
+         field["T"] && StringEncoding.decode(field["T"]) == name
+       end),
+       do: raise(ArgumentError, "AcroForm field already exists: #{name}")
   end
 
   defp page_reference!(document, index) do
-    pages = document.objects[document.pages_reference.object_id].value["Kids"]
-    Enum.at(pages, index - 1) || raise ArgumentError, "page index #{index} does not exist"
+    case Enum.at(Graph.pages!(document), index - 1) do
+      nil -> raise ArgumentError, "page index #{index} does not exist"
+      page -> page.reference
+    end
   end
 
   defp append_form_field(document, field_reference) do
@@ -315,18 +439,65 @@ defmodule PaperForge.AcroForm do
   defp appearance(document, :checkbox, rect, value, options, _font),
     do: checkbox_appearance(document, rect, value in [true, "Yes", :Yes], options)
 
-  defp appearance(document, _type, [x1, y1, x2, y2], value, options, font_reference) do
+  defp appearance(document, type, [x1, y1, x2, y2], value, options, _font_reference) do
     width = x2 - x1
     height = y2 - y1
-    text = if(is_nil(value), do: "", else: to_string(value))
+    text = appearance_text(type, value, options)
     background = color_components(Keyword.get(options, :background_color, "1 1 1"))
     border = color_components(Keyword.get(options, :border_color, "0.25 0.3 0.4"))
     border_width = non_negative_option!(options, :border_width, 1)
     radius = radius_option!(options, width, height)
-    shape = appearance_shape(width, height, radius)
+    shape = inset_shape(width, height, radius, border_width)
+    paint = if border_width > 0, do: "B", else: "f"
+
+    font = Keyword.get(options, :font, :helvetica)
+
+    metrics_font =
+      case FontRegistry.fetch(document.font_registry, font) do
+        {:ok, instance} -> instance
+        :error -> font
+      end
+
+    padding = non_negative_option!(options, :padding, 6)
+    requested_size = positive_option!(options, :font_size, 10)
+    available = max(width - 2 * padding, 0.1)
+    measured = TextMetrics.width(text, font: metrics_font, size: requested_size)
+
+    size =
+      min(
+        requested_size,
+        min(max(height - 4, 0.1), requested_size * available / max(measured, 0.1))
+      )
+
+    alignment = Keyword.get(options, :text_align, if(type == :button, do: :center, else: :left))
+
+    unless alignment in [:left, :center, :right],
+      do: raise(ArgumentError, "invalid form text_align")
+
+    text_color = color_components(Keyword.get(options, :text_color, "0 0 0"))
+
+    [red, green, blue] =
+      text_color
+      |> String.split()
+      |> Enum.map(&String.to_float(if String.contains?(&1, "."), do: &1, else: &1 <> ".0"))
+
+    page =
+      Page.new(size: {width, height})
+      |> Page.text(text,
+        x: padding,
+        y: (height - size) / 2 + size * 0.2,
+        width: available,
+        align: alignment,
+        size: size,
+        font: font,
+        color: PaperForge.Color.rgb(red, green, blue)
+      )
+
+    {document, text_content, resources} = PageCompiler.compile(page, document)
 
     content =
-      "q #{background} rg #{border} RG #{border_width} w #{shape} B BT /Helv 10 Tf 6 #{max(height / 2 - 4, 2)} Td (#{escape(text)}) Tj ET Q"
+      "q 0 0 #{width} #{height} re W n #{background} rg #{border} RG #{border_width} w #{shape} #{paint} #{text_color} rg " <>
+        text_content <> " Q"
 
     stream =
       Stream.new(content,
@@ -334,7 +505,7 @@ defmodule PaperForge.AcroForm do
           "Type" => {:name, "XObject"},
           "Subtype" => {:name, "Form"},
           "BBox" => [0, 0, width, height],
-          "Resources" => %{"Font" => %{"Helv" => font_reference}}
+          "Resources" => PageResources.to_dictionary(resources)
         },
         filters: [:flate]
       )
@@ -342,6 +513,65 @@ defmodule PaperForge.AcroForm do
     {document, reference} = Document.add_object(document, stream)
     {document, %{"N" => reference}}
   end
+
+  defp configure_field_font(document, reference, %{"N" => %Reference{} = appearance}, options) do
+    if Keyword.has_key?(options, :default_appearance) do
+      document
+    else
+      %Stream{dictionary: dictionary} = Graph.resolve!(document, appearance)
+
+      case (dictionary["Resources"]["Font"] || %{}) |> Map.values() do
+        [font | _] ->
+          name = "PFField#{reference.object_id}"
+          {form_ref, _} = acro_form(document)
+
+          document
+          |> put_form_font(form_ref, name, font)
+          |> Document.update_object(
+            reference,
+            &Map.put(
+              &1,
+              "DA",
+              "/#{name} #{Keyword.get(options, :font_size, 10)} Tf #{color_components(Keyword.get(options, :text_color, "0 0 0"))} rg"
+            )
+          )
+
+        [] ->
+          document
+      end
+    end
+  end
+
+  defp configure_field_font(document, _reference, _appearance, _options), do: document
+
+  defp put_form_font(document, form_ref, name, font) do
+    Document.update_object(document, form_ref, fn form ->
+      update_in(form, ["DR", "Font"], &Map.put(&1 || %{}, name, font))
+    end)
+  end
+
+  defp text_quadding(type, options) do
+    case Keyword.get(options, :text_align, if(type == :button, do: :center, else: :left)) do
+      :left -> 0
+      :center -> 1
+      :right -> 2
+      _ -> raise ArgumentError, "invalid form text_align"
+    end
+  end
+
+  defp appearance_text(_type, nil, _options), do: ""
+
+  defp appearance_text(type, values, options) when is_list(values),
+    do: Enum.map_join(values, ", ", &appearance_text(type, &1, options))
+
+  defp appearance_text(type, value, options) when type in [:list, :combo] do
+    Enum.find_value(Keyword.get(options, :options, []), to_string(value), fn
+      [export, label] when export == value -> to_string(label)
+      _ -> nil
+    end)
+  end
+
+  defp appearance_text(_type, value, _options), do: to_string(value)
 
   defp checkbox_appearance(document, rect, checked?, options)
        when is_boolean(checked?),
@@ -356,10 +586,27 @@ defmodule PaperForge.AcroForm do
     border_width = non_negative_option!(options, :border_width, 1)
     check_width = non_negative_option!(options, :check_width, 1.4)
     radius = radius_option!(options, width, height)
-    shape = appearance_shape(width, height, radius)
+    paint = if border_width > 0, do: "B", else: "f"
+    radio? = Keyword.get(options, :radio, false)
+    side = min(width, height)
+
+    shape =
+      if radio?,
+        do: circle_shape(width / 2, height / 2, max((side - border_width) / 2, 0)),
+        else: inset_shape(width, height, radius, border_width)
+
+    mark =
+      if radio? do
+        "#{check} rg #{circle_shape(width / 2, height / 2, side * 0.23)} f"
+      else
+        left = (width - side) / 2
+        bottom = (height - side) / 2
+
+        "#{check} RG #{check_width} w 1 J 1 j #{left + side * 0.23} #{bottom + side * 0.51} m #{left + side * 0.43} #{bottom + side * 0.31} l #{left + side * 0.77} #{bottom + side * 0.71} l S"
+      end
 
     off =
-      Stream.new("q #{background} rg #{border} RG #{border_width} w #{shape} B Q",
+      Stream.new("q #{background} rg #{border} RG #{border_width} w #{shape} #{paint} Q",
         dictionary: %{
           "Type" => {:name, "XObject"},
           "Subtype" => {:name, "Form"},
@@ -369,7 +616,7 @@ defmodule PaperForge.AcroForm do
 
     yes =
       Stream.new(
-        "q #{background} rg #{border} RG #{border_width} w #{shape} B #{check} RG #{check_width} w 2 #{height / 2} m #{width / 2} 2 l #{width - 2} #{height - 2} l S Q",
+        "q #{background} rg #{border} RG #{border_width} w #{shape} #{paint} #{mark} Q",
         dictionary: %{
           "Type" => {:name, "XObject"},
           "Subtype" => {:name, "Form"},
@@ -382,7 +629,7 @@ defmodule PaperForge.AcroForm do
     {document, %{"N" => %{"Off" => off_reference, export_value => yes_reference}}}
   end
 
-  defp put_value(field, _type, nil), do: field
+  defp put_value(field, _type, nil), do: Map.delete(field, "V")
 
   defp put_value(field, :checkbox, value),
     do:
@@ -392,7 +639,40 @@ defmodule PaperForge.AcroForm do
 
   defp put_value(field, :radio, value), do: Map.put(field, "V", {:name, to_string(value)})
 
+  defp put_value(field, type, value) when type in [:text, :list, :combo, :button],
+    do: Map.put(field, "V", encode_value(value))
+
   defp put_value(field, _type, value), do: Map.put(field, "V", value)
+
+  defp put_default(field, _type, nil), do: field
+  defp put_default(field, type, value), do: Map.put(field, "DV", put_value(%{}, type, value)["V"])
+  defp encode_value(values) when is_list(values), do: Enum.map(values, &encode_value/1)
+  defp encode_value(value), do: StringEncoding.auto(to_string(value))
+
+  defp refresh_appearance(document, reference, field, value) do
+    type = field_kind(field)
+
+    if type in [:text, :list, :button] and is_list(field["Rect"]) do
+      {_ref, form} = acro_form(document)
+      options = Map.get(document.form_appearance_options, reference.object_id, [])
+
+      {document, appearance} =
+        appearance(
+          document,
+          type,
+          field["Rect"],
+          value,
+          options,
+          get_in(form, ["DR", "Font", "Helv"])
+        )
+
+      document
+      |> Document.update_object(reference, &Map.put(&1, "AP", appearance))
+      |> configure_field_font(reference, appearance, options)
+    else
+      document
+    end
+  end
 
   defp maybe_update_state(field, value) do
     if field_kind(field) == :checkbox,
@@ -431,6 +711,31 @@ defmodule PaperForge.AcroForm do
         "form appearance color must be a PDF RGB string, hex color, or Color, got: #{inspect(value)}"
       )
 
+  defp positive_option!(options, key, default) do
+    value = non_negative_option!(options, key, default)
+    if value > 0, do: value, else: raise(ArgumentError, "#{key} must be positive")
+  end
+
+  defp inset_shape(width, height, radius, stroke) do
+    inset = min(stroke / 2, min(width, height) / 2)
+    inner_width = max(width - 2 * inset, 0)
+    inner_height = max(height - 2 * inset, 0)
+    radius = min(radius, min(inner_width, inner_height) / 2)
+
+    "1 0 0 1 #{inset} #{inset} cm " <>
+      appearance_shape(inner_width, inner_height, radius) <>
+      " 1 0 0 1 #{-inset} #{-inset} cm"
+  end
+
+  defp circle_shape(x, y, radius) do
+    control = radius * 0.552_284_75
+
+    "#{x + radius} #{y} m #{x + radius} #{y + control} #{x + control} #{y + radius} #{x} #{y + radius} c " <>
+      "#{x - control} #{y + radius} #{x - radius} #{y + control} #{x - radius} #{y} c " <>
+      "#{x - radius} #{y - control} #{x - control} #{y - radius} #{x} #{y - radius} c " <>
+      "#{x + control} #{y - radius} #{x + radius} #{y - control} #{x + radius} #{y} c h"
+  end
+
   defp appearance_shape(width, height, radius) when radius <= 0,
     do: "0 0 #{width} #{height} re"
 
@@ -444,12 +749,16 @@ defmodule PaperForge.AcroForm do
   end
 
   defp field_kind(%{"FT" => {:name, "Btn"}, "Ff" => flags})
-       when is_integer(flags) and flags < 32_768, do: :checkbox
+       when is_integer(flags) and Bitwise.band(flags, 65_536) != 0, do: :button
+
+  defp field_kind(%{"FT" => {:name, "Btn"}, "Ff" => flags})
+       when is_integer(flags) and Bitwise.band(flags, 32_768) == 0, do: :checkbox
 
   defp field_kind(%{"FT" => {:name, "Btn"}, "Ff" => flags})
        when is_integer(flags) and Bitwise.band(flags, 32_768) != 0,
        do: :radio
 
+  defp field_kind(%{"FT" => {:name, "Sig"}}), do: :signature
   defp field_kind(%{"FT" => {:name, "Tx"}}), do: :text
   defp field_kind(%{"FT" => {:name, "Ch"}}), do: :list
   defp field_kind(_), do: :text
@@ -464,20 +773,20 @@ defmodule PaperForge.AcroForm do
   defp field_flags(_type, options), do: Keyword.get(options, :flags, 0)
 
   defp choice_options(type, options) when type in [:list, :combo],
-    do: Keyword.get(options, :options, [])
+    do: Enum.map(Keyword.get(options, :options, []), &encode_value/1)
 
   defp choice_options(_type, _options), do: nil
 
   defp calculation_action(nil), do: nil
 
   defp calculation_action({:sum, fields}),
-    do: javascript_action("AFSimple_Calculate(\"SUM\", #{inspect(fields)});")
+    do: javascript_action("AFSimple_Calculate(\"SUM\", #{Jason.encode!(fields)});")
 
   defp calculation_action({:product, fields}),
-    do: javascript_action("AFSimple_Calculate(\"PRD\", #{inspect(fields)});")
+    do: javascript_action("AFSimple_Calculate(\"PRD\", #{Jason.encode!(fields)});")
 
   defp calculation_action({:average, fields}),
-    do: javascript_action("AFSimple_Calculate(\"AVG\", #{inspect(fields)});")
+    do: javascript_action("AFSimple_Calculate(\"AVG\", #{Jason.encode!(fields)});")
 
   defp calculation_action(other),
     do: raise(ArgumentError, "unsupported AcroForm calculation: #{inspect(other)}")
@@ -520,28 +829,13 @@ defmodule PaperForge.AcroForm do
     do: raise(ArgumentError, "page MediaBox is invalid or missing: #{inspect(object)}")
 
   defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, "TU", value), do: Map.put(map, "TU", StringEncoding.auto(value))
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
   defp export_value({:name, value}), do: value
+  defp export_value(value) when is_binary(value), do: StringEncoding.decode(value)
+  defp export_value({:hex_string, _} = value), do: StringEncoding.decode(value)
+  defp export_value(value) when is_list(value), do: Enum.map(value, &export_value/1)
   defp export_value(value), do: value
-  defp append_content(contents, reference) when is_list(contents), do: contents ++ [reference]
-  defp append_content(contents, reference), do: [contents, reference]
-
-  defp flattened_content(field, value, x, y, width, height, options) do
-    size = Keyword.get(options, :size, 10)
-
-    if field_kind(field) in [:checkbox, :radio] and value != "Off" do
-      "q 0 0 0 RG #{x + 2} #{y + height / 2} m #{x + width / 2} #{y + 2} l #{x + width - 2} #{y + height - 2} l S Q"
-    else
-      "BT /Helv #{size} Tf #{x + 3} #{y + max(height / 2 - size / 3, 2)} Td (#{escape(to_string(value))}) Tj ET"
-    end
-  end
-
-  defp escape(value),
-    do:
-      value
-      |> String.replace("\\", "\\\\")
-      |> String.replace("(", "\\(")
-      |> String.replace(")", "\\)")
 
   defp update_radio_widgets(document, %{"Kids" => kids}, value) when is_list(kids) do
     selected = to_string(value)
@@ -556,27 +850,4 @@ defmodule PaperForge.AcroForm do
   end
 
   defp update_radio_widgets(document, _field, _value), do: document
-
-  defp flattenable_fields(document) do
-    case acro_form(document) do
-      {_reference, %{"Fields" => references}} ->
-        Enum.flat_map(references, &flatten_field(document, &1, %{}))
-
-      _ ->
-        []
-    end
-  end
-
-  defp flatten_field(document, %Reference{} = reference, inherited) do
-    field = document.objects[reference.object_id].value
-    effective = Map.merge(inherited, field)
-
-    inherited =
-      effective
-      |> Map.take(["FT", "Ff", "T", "V", "DV"])
-      |> Map.delete("Kids")
-
-    children = Enum.flat_map(Map.get(field, "Kids", []), &flatten_field(document, &1, inherited))
-    [{reference, effective} | children]
-  end
 end

@@ -166,3 +166,26 @@ Attach production metrics to the events exposed by
 `Concurrent.run/3` emits `[:paperforge, :batch, :complete]`. A lazily consumed
 `Concurrent.stream/4` emits per-attempt job events but intentionally does not
 claim completion when a consumer stops early.
+
+## Worker memory tuning
+
+`Concurrent.run/3`, `stream/4` and `start_job/4` accept
+`worker_heap_size: positive_integer`, expressed in BEAM **words**, not bytes.
+The default is 233, retaining a conservative initial heap. The VM may round
+the requested size up. This is an initial allocation, not a memory limit.
+
+A larger heap such as 16_384 can reduce collection overhead for many small PDFs,
+but can increase peak memory per worker. Measure your own templates and payloads;
+QR, image and long-report workloads have different allocation patterns.
+Existing time, memory and reductions budgets still apply.
+
+Reuse an application-owned Task.Supervisor with `Concurrent.stream/4` for a
+long-running service. Consume results as they arrive, using `ordered: false`
+when input order is unnecessary, instead of collecting every PDF in a list.
+Bound concurrency to your CPU and memory budget. Persist/upload each PDF and
+release its binary promptly. Avoid keeping rendered PDFs in an unbounded cache.
+
+The reproducible local tuning experiment is
+`benchmarks/concurrent_tuning.exs`; its raw measurements and interpretation are
+in `benchmarks/results/concurrent-tuning/`. Those short in-memory measurements
+exclude storage, network, HTTP and queue overhead and are not a SaaS capacity claim.
