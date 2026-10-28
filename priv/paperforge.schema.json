@@ -199,10 +199,14 @@
               "required": ["text"],
               "properties": {
                 "text": {"type": "string", "minLength": 1},
-                "opacity": {"type": "number", "minimum": 0, "maximum": 1},
-                "size": {"type": "number", "exclusiveMinimum": 0},
-                "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
-                "angle": {"type": "number"}
+                "opacity": {"anyOf":[{"type":"number","minimum":0,"maximum":1},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "size": {"anyOf":[{"type":"number","exclusiveMinimum":0},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "color": {"anyOf":[{"type":"string","pattern":"^#[0-9A-Fa-f]{6}$"},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "angle": {"anyOf":[{"type":"number"},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "margin": {"anyOf":[{"type":"number","minimum":0},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "fit": {"anyOf":[{"type":"boolean"},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "offset_x": {"anyOf":[{"type":"number"},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]},
+                "offset_y": {"anyOf":[{"type":"number"},{"type":"string","pattern":"^\\$[A-Za-z_][A-Za-z0-9_.-]*$"}]}
               }
             }
           ]

@@ -32,7 +32,7 @@ defmodule PaperForge.Declarative.Validator do
                       ~w(algorithm reason location contact_info timestamp tsa_url visible multiple)
                     )
   @protection_fields MapSet.new(~w(identifier modified_at watermark policy))
-  @watermark_fields MapSet.new(~w(text opacity size color angle))
+  @watermark_fields MapSet.new(~w(text opacity size color angle margin fit offset_x offset_y))
   @policy_fields MapSet.new(
                    ~w(allowed_uri_schemes allowed_hosts allow_attachments max_attachments max_attachment_bytes allowed_attachment_mimes)
                  )

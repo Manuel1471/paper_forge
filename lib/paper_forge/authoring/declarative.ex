@@ -192,7 +192,10 @@ defmodule PaperForge.Declarative do
          signature:
            compile_signature(interpolate(Map.get(definition, "signature", %{}), variables)),
          protection:
-           compile_protection(interpolate(Map.get(definition, "protection", %{}), variables)),
+           compile_protection(
+             interpolate(Map.get(definition, "protection", %{}), variables),
+             system.tokens
+           ),
          compliance:
            compile_compliance(interpolate(Map.get(definition, "compliance", %{}), variables))
        }}
@@ -439,7 +442,7 @@ defmodule PaperForge.Declarative do
     inline = DesignSystem.new(Map.get(template, "design_system", %{}))
     system = DesignSystem.merge(external, inline)
 
-    case DesignSystem.resolve(system, Map.get(template, "theme", Keyword.get(options, :theme))) do
+    case DesignSystem.resolve(system, Keyword.get(options, :theme, Map.get(template, "theme"))) do
       {:ok, resolved} ->
         {:ok, resolved}
 
@@ -1353,15 +1356,31 @@ defmodule PaperForge.Declarative do
     Color.rgb255(String.to_integer(r, 16), String.to_integer(g, 16), String.to_integer(b, 16))
   end
 
-  defp resolve_tokens("$" <> path, tokens), do: lookup(tokens, path)
+  defp resolve_tokens(value, tokens), do: resolve_tokens(value, tokens, MapSet.new())
 
-  defp resolve_tokens(value, tokens) when is_list(value),
-    do: Enum.map(value, &resolve_tokens(&1, tokens))
+  defp resolve_tokens("$" <> path, tokens, seen) do
+    cond do
+      MapSet.member?(seen, path) ->
+        raise ArgumentError, "token cycle at $#{path}"
 
-  defp resolve_tokens(value, tokens) when is_map(value),
-    do: Map.new(value, fn {key, item} -> {key, resolve_tokens(item, tokens)} end)
+      MapSet.size(seen) >= 32 ->
+        raise ArgumentError, "maximum token reference depth exceeded"
 
-  defp resolve_tokens(value, _tokens), do: value
+      true ->
+        case lookup(tokens, path) do
+          nil -> raise ArgumentError, "unknown design token $#{path}"
+          value -> resolve_tokens(value, tokens, MapSet.put(seen, path))
+        end
+    end
+  end
+
+  defp resolve_tokens(value, tokens, seen) when is_list(value),
+    do: Enum.map(value, &resolve_tokens(&1, tokens, seen))
+
+  defp resolve_tokens(value, tokens, seen) when is_map(value),
+    do: Map.new(value, fn {key, item} -> {key, resolve_tokens(item, tokens, seen)} end)
+
+  defp resolve_tokens(value, _tokens, _seen), do: value
 
   defp compile_styles(system, context, font_keys) do
     styles = Map.new(system.styles, fn {name, _} -> {name, named_style!(system, name)} end)
@@ -1474,7 +1493,7 @@ defmodule PaperForge.Declarative do
   defp signature_algorithm(value),
     do: raise(ArgumentError, "unsupported signature.algorithm value: #{inspect(value)}")
 
-  defp compile_protection(options) when is_map(options) do
+  defp compile_protection(options, tokens) when is_map(options) do
     allowed = ~w(identifier modified_at watermark policy)
     ensure_known_keys!(options, allowed, "protection")
 
@@ -1487,10 +1506,21 @@ defmodule PaperForge.Declarative do
           text
 
         map when is_map(map) ->
-          ensure_known_keys!(map, ~w(text opacity size color angle), "protection.watermark")
+          ensure_known_keys!(
+            map,
+            ~w(text opacity size color angle margin fit offset_x offset_y),
+            "protection.watermark"
+          )
 
           map
-          |> keyword_map(~w(text opacity size color angle), "protection.watermark")
+          |> Map.new(fn
+            {"text", text} -> {"text", text}
+            {key, value} -> {key, resolve_tokens(value, tokens)}
+          end)
+          |> keyword_map(
+            ~w(text opacity size color angle margin fit offset_x offset_y),
+            "protection.watermark"
+          )
           |> Enum.map(fn
             {:color, "#" <> _ = color} -> {:color, parse_color_tuple(color)}
             pair -> pair
@@ -1523,7 +1553,7 @@ defmodule PaperForge.Declarative do
     |> maybe_put(:policy, policy, policy != [])
   end
 
-  defp compile_protection(_), do: raise(ArgumentError, "protection must be an object")
+  defp compile_protection(_, _tokens), do: raise(ArgumentError, "protection must be an object")
 
   defp compile_compliance(options) when is_map(options) do
     allowed = ~w(profiles language title icc_profile output_condition)
