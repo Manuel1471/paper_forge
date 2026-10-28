@@ -3,6 +3,7 @@ defmodule PaperForge.ProtectionTest do
 
   alias PaperForge.Document
   alias PaperForge.Page
+  alias PaperForge.PDF.Graph
   alias PaperForge.Protection
 
   test "adds a watermark stream and resources to every page" do
@@ -79,6 +80,64 @@ defmodule PaperForge.ProtectionTest do
       |> PaperForge.attach("private.txt", "secret")
       |> PaperForge.protect(policy: [allow_attachments: false])
     end
+  end
+
+  test "centers using actual font metrics and retains distinct watermark resources" do
+    text = "WWW iii"
+    width = PaperForge.TextMetrics.width(text, font: :helvetica_bold, size: 20)
+    doc = Protection.watermark(document(), text: text, angle: 0, size: 20)
+    [page] = Graph.pages!(doc)
+    stream = Document.fetch_object!(doc, List.last(page.dictionary["Contents"])).value
+    [_, x, y] = Regex.run(~r/1 0 -?0 1 ([\d.]+) ([\d.]+) Tm/, stream.data)
+    [x0, y0, x1, y1] = page.dictionary["MediaBox"]
+    assert_in_delta String.to_float(x) + width / 2, (x0 + x1) / 2, 0.001
+    assert_in_delta String.to_float(y) + 20 * 0.718 / 2, (y0 + y1) / 2, 0.001
+
+    twice = Protection.watermark(doc, text: "SECOND", opacity: 0.5)
+    [page] = Graph.pages!(twice)
+    assert map_size(page.dictionary["Resources"]["ExtGState"]) == 2
+
+    assert page.dictionary["Resources"]["Font"]["PFWatermark"] !=
+             page.dictionary["Resources"]["Font"]["PFWatermark_"]
+  end
+
+  test "fits long watermarks and rejects unusable dimensions" do
+    doc = Protection.watermark(document(), text: String.duplicate("W", 100), size: 54)
+    [page] = Graph.pages!(doc)
+    stream = Document.fetch_object!(doc, List.last(page.dictionary["Contents"])).value
+    [_, size] = Regex.run(~r/PFWatermark ([\d.]+) Tf/, stream.data)
+    assert String.to_float(size) < 10
+
+    for options <- [[size: 0], [margin: -1], [opacity: "bad"], [fit: :yes], [margin: 1000]] do
+      assert_raise ArgumentError, fn ->
+        Protection.watermark(document(), [text: "DRAFT"] ++ options)
+      end
+    end
+  end
+
+  test "accepts inherited indirect resources and offset page boxes" do
+    doc = document()
+    [page] = Graph.pages!(doc)
+    {doc, resources} = Document.add_object(doc, page.dictionary["Resources"])
+
+    doc =
+      Document.update_object(doc, doc.pages_reference, fn tree ->
+        Map.put(tree, "Resources", resources)
+      end)
+
+    doc =
+      Document.update_object(doc, page.reference, fn value ->
+        value |> Map.delete("Resources") |> Map.put("MediaBox", [100, 200, 500, 800])
+      end)
+
+    doc = Protection.watermark(doc, text: "TEST", angle: 0, size: 20)
+    [result] = Graph.pages!(doc)
+    assert result.dictionary["Resources"]["Font"]["PFWatermark"]
+    stream = Document.fetch_object!(doc, List.last(result.dictionary["Contents"])).value
+    [_, x, y] = Regex.run(~r/1 0 -?0 1 ([\d.]+) ([\d.]+) Tm/, stream.data)
+    width = PaperForge.TextMetrics.width("TEST", font: :helvetica_bold, size: 20)
+    assert_in_delta String.to_float(x) + width / 2, 300, 0.001
+    assert_in_delta String.to_float(y) + 7.18, 500, 0.001
   end
 
   defp document do
