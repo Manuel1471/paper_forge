@@ -21,10 +21,12 @@ defmodule PaperForge.Declarative do
   alias PaperForge.Declarative.Validator
   alias PaperForge.DesignSystem
   alias PaperForge.Flow
+  alias PaperForge.Fonts.Builtin
   alias PaperForge.Import
   alias PaperForge.Layout.Block
   alias PaperForge.Math
 
+  @builtin_fonts Map.new(Builtin.keys(), fn key -> {Atom.to_string(key), key} end)
   @max_depth 64
   @default_limits %{
     max_blocks: 10_000,
@@ -1411,7 +1413,9 @@ defmodule PaperForge.Declarative do
   defp font_key(name, _font_keys) when is_atom(name), do: name
 
   defp font_key(name, font_keys) when is_binary(name) do
-    Map.get(font_keys, name) || existing_atom(name) ||
+    Map.get(font_keys, name) ||
+      Map.get(@builtin_fonts, name) ||
+      existing_atom(name) ||
       raise(ArgumentError, "unknown declarative font #{inspect(name)}")
   end
 
