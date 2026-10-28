@@ -711,7 +711,11 @@ defmodule PaperForge.Layout.Engine do
   defp place_block(%Block{type: type} = block, state)
        when type in [:image, :svg, :chart, :qr_code, :barcode] do
     state = maybe_page_break_before(block, state)
-    image_height = Keyword.get(block.options, :height, if(type == :chart, do: 180, else: 120))
+
+    image_height =
+      if type == :qr_code,
+        do: PaperForge.QRCode.size!(block.options),
+        else: Keyword.get(block.options, :height, if(type == :chart, do: 180, else: 120))
 
     caption_height =
       if Keyword.has_key?(block.options, :caption),
@@ -1953,39 +1957,25 @@ defmodule PaperForge.Layout.Engine do
          _context,
          _document
        ) do
-    matrix =
-      Qiroex.to_matrix!(block.content,
-        level: Keyword.get(block.options, :level, :m),
-        quiet_zone: 4
-      )
+    size = height
+    available = Page.content_width(page)
+    if size > available, do: raise(ArgumentError, "QR size exceeds the available page width")
 
-    count = length(matrix)
-    size = min(Keyword.get(block.options, :width, height), height)
-    module_size = size / count
-    x = Keyword.get(block.options, :x, Page.content_left(page))
-    color = Keyword.get(block.options, :color, PaperForge.Color.black())
+    offset =
+      case Keyword.get(block.options, :align, :left) do
+        :left -> 0
+        :center -> (available - size) / 2
+        :right -> available - size
+        other -> raise ArgumentError, "invalid QR alignment: #{inspect(other)}"
+      end
 
-    matrix
-    |> Enum.with_index()
-    |> Enum.reduce(page, fn {row, row_index}, current ->
-      row
-      |> Enum.with_index()
-      |> Enum.reduce(current, fn
-        {1, column_index}, qr_page ->
-          Page.rectangle(qr_page,
-            x: x + column_index * module_size,
-            y: y + row_index * module_size,
-            width: module_size + 0.01,
-            height: module_size + 0.01,
-            fill: true,
-            fill_color: color,
-            stroke: false
-          )
+    options =
+      block.options
+      |> Keyword.put(:size, size)
+      |> Keyword.put_new(:x, Page.content_left(page) + offset)
+      |> Keyword.put(:y, y)
 
-        {_light, _column_index}, qr_page ->
-          qr_page
-      end)
-    end)
+    Page.qr_code(page, block.content, options)
   end
 
   defp render_special_placement(

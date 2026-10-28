@@ -475,6 +475,9 @@ defmodule PaperForge.PageCompiler do
          Coordinates.point_y(page.height, y2, origin), x3,
          Coordinates.point_y(page.height, y3, origin)}
 
+      {:rectangle, x, y, width, height} ->
+        {:rectangle, x, Coordinates.box_y(page.height, y, height, origin), width, height}
+
       :close ->
         :close
     end

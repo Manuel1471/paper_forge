@@ -35,7 +35,7 @@ defmodule PaperForge.Declarative do
     max_data_bytes: 10_000_000
   }
   @option_keys ~w(
-    align background_color borders caption cell_height color colors column_gap column_widths
+    quiet_zone align background_color borders caption cell_height color colors column_gap column_widths
     compress count default_font destination even_footer even_header extends fill_color fit
     focal_point font footer gap header header_color
     header_fill_color height hyphenate id keep_together level line_height link marker
@@ -55,7 +55,7 @@ defmodule PaperForge.Declarative do
   @enum_values ~w(
     left center right justify top middle bottom contain cover fill ordered unordered
     keep split error clip ellipsis continue portrait landscape all none a3 a4 a5 letter legal
-    bar line area scatter pie donut regular bold content
+    bar line area scatter pie donut regular bold content l m q h
   )a
   @declarative_font_slots for index <- 1..64,
                               do: String.to_atom("paperforge_declarative_font_#{index}")

@@ -168,6 +168,11 @@ defmodule PaperForge.Page do
     add_operation(page, {:circle, options})
   end
 
+  @doc "Adds a vector QR code. Options include size, x, y, color, background_color, level and quiet_zone."
+  def qr_code(%__MODULE__{} = page, data, options \\ []) do
+    PaperForge.QRCode.draw(page, data, options)
+  end
+
   @doc "Adds a vector path made of move, line, cubic curve, and close segments."
   @spec path(t(), [PaperForge.Graphics.Path.segment()], keyword()) :: t()
   def path(%__MODULE__{} = page, segments, options \\ [])
