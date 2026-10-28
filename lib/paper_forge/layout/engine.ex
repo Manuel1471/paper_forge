@@ -1409,7 +1409,7 @@ defmodule PaperForge.Layout.Engine do
     width = max(resolved_block_width(block, state.page) - padding * 2, 1)
 
     if block.type == :rich_text do
-      rich_text_lines(block.content, block, width)
+      rich_text_lines(block.content, block, width, state.document)
     else
       TextWrapper.wrap(
         block_text(block),
@@ -1421,34 +1421,34 @@ defmodule PaperForge.Layout.Engine do
     end
   end
 
-  defp rich_text_lines(runs, block, width) do
+  defp rich_text_lines(runs, block, width, document) do
     runs
     |> Enum.flat_map(fn %{text: text, options: options} ->
       ~r/\n|[^\S\n]+|[^\s]+/u
       |> Regex.scan(text)
       |> Enum.map(fn [token] -> %{text: token, options: options} end)
     end)
-    |> Enum.reduce([[]], &append_rich_token(&2, &1, block, width))
+    |> Enum.reduce([[]], &append_rich_token(&2, &1, block, width, document))
     |> Enum.reverse()
     |> Enum.map(&Enum.reverse/1)
   end
 
-  defp append_rich_token(lines, %{text: "\n"}, _block, _width), do: [[] | lines]
+  defp append_rich_token(lines, %{text: "\n"}, _block, _width, _document), do: [[] | lines]
 
-  defp append_rich_token([[] | _rest] = lines, %{text: text}, _block, _width)
+  defp append_rich_token([[] | _rest] = lines, %{text: text}, _block, _width, _document)
        when text in [" ", "\t"],
        do: lines
 
-  defp append_rich_token([line | rest] = lines, fragment, block, width) do
+  defp append_rich_token([line | rest] = lines, fragment, block, width, document) do
     cond do
-      rich_line_width(Enum.reverse([fragment | line]), block) <= width ->
+      rich_line_width(Enum.reverse([fragment | line]), block, document) <= width ->
         [append_rich_fragment(line, fragment) | rest]
 
       fragment.text =~ ~r/^\s+$/u ->
         [[] | lines]
 
       line != [] ->
-        append_rich_token([[] | lines], fragment, block, width)
+        append_rich_token([[] | lines], fragment, block, width, document)
 
       String.length(fragment.text) == 1 ->
         [append_rich_fragment(line, fragment) | rest]
@@ -1457,7 +1457,7 @@ defmodule PaperForge.Layout.Engine do
         fragment.text
         |> String.graphemes()
         |> Enum.reduce(lines, fn grapheme, current ->
-          append_rich_token(current, %{fragment | text: grapheme}, block, width)
+          append_rich_token(current, %{fragment | text: grapheme}, block, width, document)
         end)
     end
   end
@@ -1470,19 +1470,25 @@ defmodule PaperForge.Layout.Engine do
 
   defp append_rich_fragment(line, fragment), do: [fragment | line]
 
-  defp rich_line_width(line, block) do
+  defp rich_line_width(line, block, document) do
     Enum.reduce(line, 0, fn %{text: text, options: options}, total ->
       size = Keyword.get(options, :size, Keyword.get(block.options, :size, default_size(block)))
-      font = Keyword.get(options, :font, Keyword.get(block.options, :font, :helvetica))
-      weight = Keyword.get(options, :weight, Keyword.get(block.options, :weight, :regular))
-      style = Keyword.get(options, :style, Keyword.get(block.options, :style, :normal))
 
       total +
-        PaperForge.TextMetrics.line_width(text,
-          font: builtin_metric_font(font, weight, style),
+        TextMetrics.line_width(text,
+          font: metric_font_for_run(text, options, block, document),
           size: size
         )
     end)
+  end
+
+  defp metric_font_for_run(text, options, block, document) do
+    key = Document.resolve_text_font_key(document, Keyword.merge(block.options, options), text)
+
+    case FontRegistry.fetch(document.font_registry, key) do
+      {:ok, font} -> font
+      :error -> key
+    end
   end
 
   defp resolved_block_width(block, page) do
@@ -1729,7 +1735,7 @@ defmodule PaperForge.Layout.Engine do
          page,
          %{type: :rich_text, block: block, y: y} = placement,
          _context,
-         _document
+         document
        ) do
     padding = Keyword.get(block.options, :padding, 0)
     decorated_height = length(placement.lines) * line_height(block) + padding * 2
@@ -1741,7 +1747,8 @@ defmodule PaperForge.Layout.Engine do
       placement.x + padding,
       y + padding,
       max(placement.width - padding * 2, 1),
-      block
+      block,
+      document
     )
     |> maybe_render_block_link(block, placement, y)
   end
@@ -2206,16 +2213,24 @@ defmodule PaperForge.Layout.Engine do
     end
   end
 
-  defp render_rich_text_lines(page, lines, x, y, width, block) do
+  defp render_rich_text_lines(page, lines, x, y, width, block, document) do
     lines
     |> Enum.with_index()
     |> Enum.reduce(page, fn {runs, line_index}, current ->
-      render_rich_text_line(current, runs, x, y + line_index * line_height(block), width, block)
+      render_rich_text_line(
+        current,
+        runs,
+        x,
+        y + line_index * line_height(block),
+        width,
+        block,
+        document
+      )
     end)
   end
 
-  defp render_rich_text_line(page, runs, x, y, width, block) do
-    line_width = rich_line_width(runs, block)
+  defp render_rich_text_line(page, runs, x, y, width, block, document) do
+    line_width = rich_line_width(runs, block, document)
 
     x =
       case Keyword.get(block.options, :align, :left) do
@@ -2226,10 +2241,10 @@ defmodule PaperForge.Layout.Engine do
 
     Enum.reduce(runs, {page, x}, fn %{text: text, options: options}, {current, cursor} ->
       size = Keyword.get(options, :size, Keyword.get(block.options, :size, default_size(block)))
-      font = Keyword.get(options, :font, Keyword.get(block.options, :font, :helvetica))
+      font = Keyword.get(options, :font, Keyword.get(block.options, :font, document.default_font))
       weight = Keyword.get(options, :weight, Keyword.get(block.options, :weight, :regular))
       style = Keyword.get(options, :style, Keyword.get(block.options, :style, :regular))
-      metric_font = builtin_metric_font(font, weight, style)
+      metric_font = metric_font_for_run(text, options, block, document)
       next = cursor + PaperForge.TextMetrics.line_width(text, font: metric_font, size: size)
 
       current =
@@ -2262,9 +2277,44 @@ defmodule PaperForge.Layout.Engine do
             )
         end
 
+      current =
+        decorate_run(
+          current,
+          options,
+          cursor,
+          next,
+          y + text_size(block),
+          size,
+          Keyword.get(
+            options,
+            :color,
+            Keyword.get(block.options, :color, PaperForge.Color.black())
+          )
+        )
+
       {current, next}
     end)
     |> elem(0)
+  end
+
+  defp decorate_run(page, options, left, right, baseline, size, color) do
+    Enum.reduce(
+      [{:underline, baseline + size * 0.12}, {:strikethrough, baseline - size * 0.3}],
+      page,
+      fn {key, y}, current ->
+        if Keyword.get(options, key, false),
+          do:
+            Page.line(current,
+              x1: left,
+              x2: right,
+              y1: y,
+              y2: y,
+              width: max(size / 16, 0.5),
+              color: color
+            ),
+          else: current
+      end
+    )
   end
 
   defp builtin_metric_font(:helvetica, :bold, style) when style in [:italic, :oblique],

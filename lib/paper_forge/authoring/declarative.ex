@@ -35,7 +35,7 @@ defmodule PaperForge.Declarative do
     max_data_bytes: 10_000_000
   }
   @option_keys ~w(
-    quiet_zone align background_color borders caption cell_height color colors column_gap column_widths
+    underline strikethrough quiet_zone align background_color borders caption cell_height color colors column_gap column_widths
     compress count default_font destination even_footer even_header extends fill_color fit
     focal_point font footer gap header header_color
     header_fill_color height hyphenate id keep_together level line_height link marker
@@ -844,8 +844,10 @@ defmodule PaperForge.Declarative do
   defp apply_block(flow, "paragraph", content, _node, _context, options, _state),
     do: {:ok, Flow.paragraph(flow, to_text(content), options)}
 
-  defp apply_block(flow, "rich_text", content, _node, _context, options, _state),
-    do: {:ok, Flow.rich_text(flow, rich_runs(content), options)}
+  defp apply_block(flow, "rich_text", content, _node, _context, options, state),
+    do:
+      {:ok,
+       Flow.rich_text(flow, rich_runs(content, state.design.tokens, state.font_keys), options)}
 
   defp apply_block(flow, "image", content, _node, _context, options, state) do
     case Registry.resolve_resource(state.registry, to_text(content)) do
@@ -1282,7 +1284,7 @@ defmodule PaperForge.Declarative do
     end)
   end
 
-  defp options_to_keyword(options, tokens, font_keys \\ %{})
+  defp options_to_keyword(options, tokens, font_keys)
 
   defp options_to_keyword(options, tokens, font_keys) when is_map(options) do
     Enum.reduce(options, [], fn {key, value}, acc ->
@@ -1659,10 +1661,10 @@ defmodule PaperForge.Declarative do
   defp parse_color_tuple(value),
     do: raise(ArgumentError, "watermark color must be #RRGGBB, got: #{inspect(value)}")
 
-  defp rich_runs(runs) when is_list(runs) do
+  defp rich_runs(runs, tokens, font_keys) when is_list(runs) do
     Enum.map(runs, fn
       %{"text" => text, "options" => options} ->
-        {to_text(text), options_to_keyword(options, %{})}
+        {to_text(text), inline_options(options, tokens, font_keys)}
 
       %{"text" => text} ->
         to_text(text)
@@ -1672,7 +1674,19 @@ defmodule PaperForge.Declarative do
     end)
   end
 
-  defp rich_runs(value), do: [to_text(value)]
+  defp rich_runs(value, _tokens, _font_keys), do: [to_text(value)]
+
+  defp inline_options(options, tokens, font_keys) do
+    options_to_keyword(options, tokens, font_keys)
+    |> Keyword.update(:style, :regular, fn
+      "italic" -> :italic
+      "oblique" -> :oblique
+      "regular" -> :regular
+      "normal" -> :normal
+      value when value in [:italic, :oblique, :regular, :normal] -> value
+      value -> raise ArgumentError, "unknown inline style #{inspect(value)}"
+    end)
+  end
 
   defp chart_series(series) when is_list(series) do
     Enum.map(series, fn
