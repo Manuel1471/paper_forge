@@ -5,7 +5,7 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0] - 2026-10-22
+## [1.5.0] - 2026-10-28
 
 ### Configurable primitives and concurrent rendering
 
@@ -20,6 +20,16 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Consolidate worker telemetry sampling and batch aggregation; expose optional
   initial worker heap sizing while retaining the conservative default.
 - Add a four-page declarative visual gallery and regression/benchmark coverage.
+
+### QR invitation rendering follow-up
+
+- Added native `Page.qr_code/3` and configurable square size, alignment, quiet
+  zone, correction level and colors for flow and `.paperforge` QR blocks.
+- Batch QR dark runs into a single vector path with rectangle subpaths, avoiding
+  hundreds of separate graphics-state operations. Added a white background by
+  default to preserve the quiet zone on colored pages.
+- Added a data-driven invitation example, module-equivalence regressions and an
+  independent macOS Vision scan fixture for UUIDs, URLs and Unicode text.
 
 ### 1.0 / 1.1 layout and runtime review
 
@@ -1457,6 +1467,7 @@ establishes the public API and Semantic Versioning contract for 1.x.
 - Uses native PDF coordinates with the origin at the bottom-left corner
 - Isolates graphic operations using the PDF `q` and `Q` operators
 
+[1.5.0]: https://github.com/Manuel1471/paper_forge/compare/v1.4.5...v1.5.0
 [1.4.0]: https://github.com/Manuel1471/paper_forge/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/Manuel1471/paper_forge/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Manuel1471/paper_forge/compare/v1.1.0...v1.2.0
@@ -1468,13 +1479,3 @@ establishes the public API and Semantic Versioning contract for 1.x.
 [0.3.0]: https://github.com/Manuel1471/paper_forge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.1.0
-
-### QR invitation rendering follow-up
-
-- Added native `Page.qr_code/3` and configurable square size, alignment, quiet
-  zone, correction level and colors for flow and `.paperforge` QR blocks.
-- Batch QR dark runs into a single vector path with rectangle subpaths, avoiding
-  hundreds of separate graphics-state operations. Added a white background by
-  default to preserve the quiet zone on colored pages.
-- Added a data-driven invitation example, module-equivalence regressions and an
-  independent macOS Vision scan fixture for UUIDs, URLs and Unicode text.

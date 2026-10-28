@@ -23,7 +23,7 @@ Los contenedores reciben hijos en `blocks` y configuración en `options`.
 | `icon` | Icono vectorial SVG | `content`, `size`, `color` |
 | `badge` | Etiqueta compacta | `text`, `size`, `padding`, `icon` |
 | `button` | Enlace con aspecto de botón | `text`, `link`, `icon`, `icon_size`, `icon_gap` |
-| `framed_image` | Imagen recortada con marco | `source`, `width`, `height`, `fit`, `focal_point`, `caption` |
+| `framed_image` | Imagen recortada con marco | `content`, `width`, `height`, `fit`, `focal_point`, `caption` |
 
 `grid` con `blocks` es un alias de `block_grid`. El grid anterior con `cells`
 mantiene su comportamiento. Para los nuevos grids, usa `options.columns`.
@@ -58,7 +58,7 @@ Se admiten tokens del sistema de diseño y fuentes registradas.
 
 ## Imágenes, figuras y capas
 
-`framed_image.source` se resuelve con la política de recursos del registro.
+`framed_image.content` se resuelve con la política de recursos del registro.
 `fit` admite el ajuste del motor de imágenes (por defecto `cover`);
 `focal_point: [0.5, 0.5]` centra el recorte.
 `shape: "circle"` requiere ancho y alto iguales.

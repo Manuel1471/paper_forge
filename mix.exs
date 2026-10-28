@@ -57,13 +57,16 @@ defmodule PaperForge.MixProject do
       licenses: ["MIT"],
       links: %{
         "GitHub" => "https://github.com/Manuel1471/paper_forge",
-        "Changelog" => "https://github.com/Manuel1471/paper_forge/blob/main/CHANGELOG.md"
+        "Changelog" => "#{@source_url}/blob/v#{@version}/CHANGELOG.md"
       },
       files: [
         "lib",
         "priv",
         "docs",
         "examples",
+        "assets/sample_converted.jpg",
+        ".formatter.exs",
+        "RELEASE_1.5.0.md",
         "mix.exs",
         "README.md",
         "CHANGELOG.md",
@@ -90,6 +93,7 @@ defmodule PaperForge.MixProject do
       assets: %{"docs" => "docs"},
       extras: [
         "README.md",
+        "RELEASE_1.5.0.md",
         "examples/ATLAS_REPORT.md",
         "CHANGELOG.md",
         "CONTRIBUTING.md",
