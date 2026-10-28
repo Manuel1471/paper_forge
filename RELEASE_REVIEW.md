@@ -125,3 +125,97 @@ visually checked. Independent pypdf readback confirms two pages, Times Roman
 resources and the page-one equation reference. The legacy Elixir 1.4 showcase
 still generates. Full validation: **410 tests/properties plus 2 fuzz cases**,
 differential Credo with no new issues, and documentation compiled without warnings.
+
+## 1.2 / 1.3 follow-up — 2026-10-26
+
+Reviewed the release inventories against the existing declarative, security,
+signature, protection and compliance regression suites. Retained these tests:
+imports, limits, typed variables, themes/components, credentials, AES opening
+with Poppler, signature provider contracts and structural conformance checks
+cover distinct behavior and should not be deleted as redundant.
+
+Fixed two concrete areas:
+
+- Compiled cache hashing previously canonicalized maps into lists, creating
+  identical hashes for empty maps/lists and maps/lists of pairs. Deterministic
+  Erlang encoding now preserves term types and avoids an extra recursive copy.
+- Protection watermarks now use measured text width and rotated positioning,
+  shrink to the available crop box, support margins and offsets, preserve
+  inherited/indirect resources, use unique resource names on repeated calls,
+  and isolate the existing page graphics state. Added numeric validation.
+
+The one-page native declarative example was rendered with Poppler and visually
+inspected. This is targeted coverage, not a claim of exhaustive cryptographic
+review or external PDF/A / PDF/UA certification. No new signature algorithm,
+provider, network timestamp service or archival certification was introduced.
+The performance benefit of removing cache normalization is not quantified.
+
+### Completed configuration and integrity follow-up
+
+- Explicit runtime themes now override the source default. Token aliases resolve
+  recursively with missing-reference, cycle and depth errors. Watermark visual
+  options consume the same theme tokens; literal watermark text is preserved.
+- Protection no longer discards third-party PieceInfo. Its checksum excludes only
+  its own stored checksum, includes object generations/document references, and
+  hashes canonical PDF objects incrementally. Regression fixtures reproduce the
+  former false `modified` result after writing/reopening a compressed document,
+  including Unicode hex-string metadata, and verify the correction.
+- `design_protection_review.paperforge` and its runner produce two one-page PDFs,
+  compact and comfortable. Both were rendered through Poppler, visually inspected,
+  reopened and verified for page count and fingerprint. The schema accepts the
+  visual token references and validates the example.
+- Validation: 419 normal tests/properties and 2 fuzz tests pass. Existing AES,
+  signing/provider, declarative imports/components and structural compliance tests
+  remain in the suite; no redundant tests were removed without evidence.
+- This follow-up changes Core after the frozen benchmark. The historical campaign
+  is preserved unchanged and does not measure these later modifications. No new
+  throughput claim is made. Removing cache normalization avoids an intermediate
+  recursive copy; fingerprint hashing avoids materializing the whole object graph
+  as one Erlang binary. End-to-end performance effects are not quantified here.
+
+## 1.0 / 1.1 follow-up
+
+Reviewed the release inventory covering baseline layout/navigation/notes and
+production concurrency/cache features. Existing table, image, font, writer,
+telemetry, concurrency, timeout/cancellation and determinism coverage was retained.
+This is targeted regression work, not a claim that all historical features are
+bug-free or an independent conformance/security certification.
+
+Concrete corrections:
+
+- Fast concurrent jobs now report final memory and have completed reductions and
+  memory budgets checked; formerly jobs finishing before the poll bypassed those
+  budgets and often reported zero memory. Minor-GC deltas cannot become negative
+  after a counter reset (they still are not cumulative VM totals).
+- Cache producers that invoke another cache lookup no longer overwrite newly
+  populated namespaces. Nested same-key inserts do not duplicate FIFO queue entries
+  or allow stale eviction slots to violate the configured entry bound. Cached work
+  is retained instead of recomputed; no throughput improvement is claimed.
+- Explicit endnotes are no longer silently dropped. Entry styles and independent
+  heading options are honored, with compact proportional defaults.
+- TOC leaders use glyph metrics at placement time and honor real content width,
+  indentation and entry spacing; title styling is independently configurable.
+
+Evidence: 424 normal tests/properties pass; fuzz suite passes separately. Added
+regressions cover fast-job limits, cache reentrancy/eviction, explicit endnotes and
+measured TOC alignment. The three-page `editorial_1_0_1_1.paperforge` sample was
+rendered through Poppler and visually checked, including its corrected first-page
+alignment. The frozen historical benchmark was not edited or rerun for this work.
+
+## Visual primitives and concurrent tuning (2026-10-28)
+
+- Removed the six experimental business compositions; replaced them with
+  reusable declarative visual primitives documented in VISUAL_BLOCKS.md.
+- Final verification: 442 regular tests passed (including 3 properties);
+  2 separately selected fuzz checks passed. Documentation builds with
+  warnings-as-errors. Gallery validates against the JSON Schema.
+- Inspected all four rasterized gallery pages. Independent pypdf checks
+  confirm four pages, two in-bounds links, six clipping operations, balanced
+  graphics state and accented text. macOS Vision decodes the gallery QR.
+- Existing Credo refactoring findings remain; strict Credo is not globally clean.
+- Concurrent measurements and memory tradeoffs are retained in
+  benchmarks/results/concurrent-tuning/comparison.md. The default is conservative;
+  increased initial heaps are opt-in. Small-PDF throughput improved, but
+  default QR throughput at four workers regressed in this short experiment.
+  These measurements do not establish production service capacity.
+- Atomic visual compositions intentionally do not split across pages.

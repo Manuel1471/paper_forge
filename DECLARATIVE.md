@@ -712,3 +712,99 @@ The corresponding `examples/math_scientific_visual.paperforge` contains fraction
 powers, roots, integrals, mixed-height matrices and nested expressions, followed
 by a direct 9/11/14-point comparison. This remains a native measured Math AST;
 it does not implement full TeX typesetting or arbitrary mathematical font shaping.
+
+### Watermark fitting and placement (1.5)
+
+`protection.watermark` accepts `margin` (36 points by default), `fit` (true),
+`offset_x` and `offset_y` (zero). `size` is the maximum font size when fitting
+is enabled. Fitting uses the rotated text bounds inside the page crop box;
+positive offsets move right/up in PDF coordinates. Set `fit: false` for an
+intentional oversized watermark. Existing `angle`, `color` and `opacity`
+controls remain available. Text uses Helvetica Bold with WinAnsi coverage.
+
+See `examples/design_protection_review.paperforge` for a complete compact
+example using named styles, tokens, table rules and a restrained watermark.
+
+### Runtime themes and token aliases
+
+The template's `theme` is a default. An explicit application choice takes
+precedence, without editing or duplicating the source:
+
+```elixir
+PaperForge.Declarative.render(template, data, theme: "comfortable")
+PaperForge.Declarative.render(template, data, theme: nil) # base design system
+```
+
+Tokens can refer to other tokens, including nested paths (`"$type.body"`).
+Missing references, cycles and chains exceeding 32 references fail compilation.
+Watermark presentation properties also accept token references; watermark text
+remains literal/interpolated text, so a label such as `$100` is not a token.
+
+Run `mix run examples/design_protection_review.exs` to generate compact and
+comfortable PDFs from one template. The runner reopens both files and verifies
+their page count and protection fingerprint.
+
+### Navigation and endnote presentation (1.0 / 1.1 review)
+
+`table_of_contents` accepts `heading_options` for its title independently of
+entry `size`, `color`, `line_height`, `space_after` and `level_styles`.
+Leader counts now use real font metrics and the available page/column width;
+`indent` works without supplying an absolute `x`. Custom entry formatters keep
+full control of their text.
+
+`endnotes` retains explicitly supplied `content` entries (`number` / `text`).
+With no entries, it collects preceding footnotes as before. Entry options now
+preserve font, size, color, width, line height and spacing. `heading_options`
+controls the heading independently. Defaults are a 12-point heading and
+9-point entries, with proportional line height.
+
+Generate the complete native example with:
+
+```sh
+mix run examples/editorial_1_0_1_1.exs
+```
+
+Its three pages cover the linked index, a footnote and explicit endnotes.
+
+### QR invitations supplied as data
+
+A client only supplies `qr_code` (a UUID, URL or text); presentation remains in
+`.paperforge`. See `examples/qr_invitation.paperforge` and its data-only runner.
+
+```json
+{"type":"qr_code","content":"{{qr_code}}","options":{
+  "size":108,"align":"center","level":"h","quiet_zone":4,
+  "color":"#183B45","background_color":"#FFFFFF","space_after":12
+}}
+```
+
+Declare `qr_code` as a required string variable. `size` is the entire square in
+PDF points (72 points = 1 inch), including the quiet zone. It can also be a typed
+variable (`"{{qr_size}}"`) or design token. Alignment is `left`, `center`, or
+`right`; explicit `x` overrides alignment. Flow chooses `y` and reserves the
+square's height; use `Page.qr_code/3` for explicit x/y coordinates. The native API
+supports both page origins. A size larger than the flow's available width fails
+rather than overlapping the margin.
+
+`level` accepts `l`, `m` (default), `q`, `h`. `quiet_zone` accepts 4–32 modules.
+The default background is white; native `background_color: nil` is transparent.
+Legacy `width`/`height` remain supported: their minimum is the square size,
+with 120-point defaults. Explicit `size` takes precedence. Colors, payload length
+and physical printed size affect scan reliability; keep strong contrast and
+verify your final print size. Empty payloads are rejected. The QR contains the
+supplied value verbatim; issuance, redemption and duplicate-use checks belong to
+the application.
+
+For repeated rendering, load the template once outside the request loop and
+supply new data to `PaperForge.Declarative.render/3`. Use bounded concurrency
+(`PaperForge.Concurrent.run/3`) rather than launching an unbounded task per PDF.
+Local QR throughput measurements and their limitations are recorded in
+`benchmarks/results/qr-optimization/comparison.md`.
+
+## Configurable visual primitives
+
+See [Visual blocks](VISUAL_BLOCKS.md) for containers, rows, columns, block grids,
+overlays, vector shapes and icons, badges, linked buttons and clipped images.
+The four-page example lives in `examples/visual_blocks.paperforge`.
+Compositions are measured once and paginate atomically; oversized compositions
+return an error. Existing flow blocks remain suitable for multipage content.

@@ -7,6 +7,43 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [1.5.0] - 2026-10-22
 
+### Configurable primitives and concurrent rendering
+
+- Replace experimental business-specific compositions with reusable visual blocks:
+  containers, rows, columns, block grids, overlays, shapes, SVG icons, badges,
+  linked buttons and clipped/captioned images.
+- Measure nested layouts once, align unequal cells, preserve nested navigation,
+  and reject overflowing atomic compositions.
+- Resolve rich-text styles, design tokens and embedded-font metrics consistently;
+  support underline and strikethrough.
+- Store block children once and hash child identities to avoid repeated tree copies.
+- Consolidate worker telemetry sampling and batch aggregation; expose optional
+  initial worker heap sizing while retaining the conservative default.
+- Add a four-page declarative visual gallery and regression/benchmark coverage.
+
+### 1.0 / 1.1 layout and runtime review
+
+- Check resource budgets when fast concurrent jobs finish and retain their final
+  memory sample; prevent negative minor-GC deltas after counter resets.
+- Preserve reentrant cache writes and avoid duplicate FIFO eviction entries.
+- Render explicit endnotes, preserve their typography/spacing, and configure
+  endnote and table-of-contents headings independently.
+- Fit TOC leaders using actual glyph widths and honor indentation and entry gaps.
+- Add a three-page native declarative editorial example and regression coverage.
+
+### 1.2 / 1.3 compatibility and presentation review
+
+- Preserve term types in compiled-template cache keys; avoid recursive map-to-list copies.
+- Let explicit runtime themes override the template default, including `theme: nil`.
+- Resolve chained design tokens with cycle, missing-reference and depth checks.
+- Add theme-driven watermark size, color, opacity, angle, margins and offsets,
+  rotation-aware centering, automatic fitting and isolated page resources.
+- Preserve third-party PieceInfo during protection and include it in fingerprints.
+- Make fingerprints stable across writing/reopening compressed PDFs and Unicode
+  strings, with incremental hashing of canonical PDF objects.
+- Add compact and comfortable variants of a native `.paperforge` example and
+  regression coverage for configuration, placement and integrity checks.
+
 ### Added
 
 - Shared form styles, inherited declarative styles and token-based x/y/width/height
@@ -1431,3 +1468,13 @@ establishes the public API and Semantic Versioning contract for 1.x.
 [0.3.0]: https://github.com/Manuel1471/paper_forge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Manuel1471/paper_forge/releases/tag/v0.1.0
+
+### QR invitation rendering follow-up
+
+- Added native `Page.qr_code/3` and configurable square size, alignment, quiet
+  zone, correction level and colors for flow and `.paperforge` QR blocks.
+- Batch QR dark runs into a single vector path with rectangle subpaths, avoiding
+  hundreds of separate graphics-state operations. Added a white background by
+  default to preserve the quiet zone on colored pages.
+- Added a data-driven invitation example, module-equivalence regressions and an
+  independent macOS Vision scan fixture for UUIDs, URLs and Unicode text.
