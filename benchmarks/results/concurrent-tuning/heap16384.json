@@ -1,0 +1,280 @@
+{
+  "runtime": {
+    "otp": "29",
+    "schedulers": 10,
+    "elixir": "1.20.2"
+  },
+  "results": [
+    {
+      "reductions": 4175151,
+      "repeat": 1,
+      "scenario": "small",
+      "concurrency": 1,
+      "pdf_per_second": 13738.779996336325,
+      "failures": 0,
+      "max_job_memory": 162158,
+      "minor_gcs": 0
+    },
+    {
+      "reductions": 4175151,
+      "repeat": 2,
+      "scenario": "small",
+      "concurrency": 1,
+      "pdf_per_second": 13800.082800496803,
+      "failures": 0,
+      "max_job_memory": 162158,
+      "minor_gcs": 0
+    },
+    {
+      "reductions": 4175151,
+      "repeat": 3,
+      "scenario": "small",
+      "concurrency": 1,
+      "pdf_per_second": 13871.549452073798,
+      "failures": 0,
+      "max_job_memory": 162158,
+      "minor_gcs": 0
+    },
+    {
+      "reductions": 4175151,
+      "repeat": 1,
+      "scenario": "small",
+      "concurrency": 4,
+      "pdf_per_second": 33967.391304347824,
+      "failures": 0,
+      "max_job_memory": 162158,
+      "minor_gcs": 0
+    },
+    {
+      "reductions": 4175151,
+      "repeat": 2,
+      "scenario": "small",
+      "concurrency": 4,
+      "pdf_per_second": 35676.061362825545,
+      "failures": 0,
+      "max_job_memory": 162158,
+      "minor_gcs": 0
+    },
+    {
+      "reductions": 4175151,
+      "repeat": 3,
+      "scenario": "small",
+      "concurrency": 4,
+      "pdf_per_second": 36895.83077112286,
+      "failures": 0,
+      "max_job_memory": 162158,
+      "minor_gcs": 0
+    },
+    {
+      "reductions": 4175151,
+      "repeat": 1,
+      "scenario": "small",
+      "concurrency": 10,
+      "pdf_per_second": 42301.184433164126,
+      "failures": 0,
+      "max_job_memory": 162158,
+      "minor_gcs": 0
+    },
+    {
+      "reductions": 4175151,
+      "repeat": 2,
+      "scenario": "small",
+      "concurrency": 10,
+      "pdf_per_second": 44829.64734010759,
+      "failures": 0,
+      "max_job_memory": 162158,
+      "minor_gcs": 0
+    },
+    {
+      "reductions": 4175151,
+      "repeat": 3,
+      "scenario": "small",
+      "concurrency": 10,
+      "pdf_per_second": 42820.43962318013,
+      "failures": 0,
+      "max_job_memory": 162158,
+      "minor_gcs": 0
+    },
+    {
+      "reductions": 353954475,
+      "repeat": 1,
+      "scenario": "qr",
+      "concurrency": 1,
+      "pdf_per_second": 248.79170163572252,
+      "failures": 0,
+      "max_job_memory": 772370,
+      "minor_gcs": 2102
+    },
+    {
+      "reductions": 353954474,
+      "repeat": 2,
+      "scenario": "qr",
+      "concurrency": 1,
+      "pdf_per_second": 253.03643724696357,
+      "failures": 0,
+      "max_job_memory": 772370,
+      "minor_gcs": 2102
+    },
+    {
+      "reductions": 353954474,
+      "repeat": 3,
+      "scenario": "qr",
+      "concurrency": 1,
+      "pdf_per_second": 251.3796553417339,
+      "failures": 0,
+      "max_job_memory": 772370,
+      "minor_gcs": 2102
+    },
+    {
+      "reductions": 353954477,
+      "repeat": 1,
+      "scenario": "qr",
+      "concurrency": 4,
+      "pdf_per_second": 806.7617390556047,
+      "failures": 0,
+      "max_job_memory": 772370,
+      "minor_gcs": 2102
+    },
+    {
+      "reductions": 353954479,
+      "repeat": 2,
+      "scenario": "qr",
+      "concurrency": 4,
+      "pdf_per_second": 800.7943880329286,
+      "failures": 0,
+      "max_job_memory": 772370,
+      "minor_gcs": 2102
+    },
+    {
+      "reductions": 353954474,
+      "repeat": 3,
+      "scenario": "qr",
+      "concurrency": 4,
+      "pdf_per_second": 954.0255106421546,
+      "failures": 0,
+      "max_job_memory": 772370,
+      "minor_gcs": 2102
+    },
+    {
+      "reductions": 353954594,
+      "repeat": 1,
+      "scenario": "qr",
+      "concurrency": 10,
+      "pdf_per_second": 1426.7166968655033,
+      "failures": 0,
+      "max_job_memory": 772370,
+      "minor_gcs": 2102
+    },
+    {
+      "reductions": 353954587,
+      "repeat": 2,
+      "scenario": "qr",
+      "concurrency": 10,
+      "pdf_per_second": 1353.7722864762661,
+      "failures": 0,
+      "max_job_memory": 772370,
+      "minor_gcs": 2102
+    },
+    {
+      "reductions": 353954587,
+      "repeat": 3,
+      "scenario": "qr",
+      "concurrency": 10,
+      "pdf_per_second": 1345.1105232479936,
+      "failures": 0,
+      "max_job_memory": 772370,
+      "minor_gcs": 2102
+    },
+    {
+      "reductions": 246409524,
+      "repeat": 1,
+      "scenario": "visual",
+      "concurrency": 1,
+      "pdf_per_second": 373.9011978548042,
+      "failures": 0,
+      "max_job_memory": 390610,
+      "minor_gcs": 10500
+    },
+    {
+      "reductions": 246409524,
+      "repeat": 2,
+      "scenario": "visual",
+      "concurrency": 1,
+      "pdf_per_second": 378.21387238055377,
+      "failures": 0,
+      "max_job_memory": 390610,
+      "minor_gcs": 10500
+    },
+    {
+      "reductions": 246409524,
+      "repeat": 3,
+      "scenario": "visual",
+      "concurrency": 1,
+      "pdf_per_second": 378.11996233925174,
+      "failures": 0,
+      "max_job_memory": 390610,
+      "minor_gcs": 10500
+    },
+    {
+      "reductions": 246409524,
+      "repeat": 1,
+      "scenario": "visual",
+      "concurrency": 4,
+      "pdf_per_second": 1219.0860105816666,
+      "failures": 0,
+      "max_job_memory": 390610,
+      "minor_gcs": 10500
+    },
+    {
+      "reductions": 246409526,
+      "repeat": 2,
+      "scenario": "visual",
+      "concurrency": 4,
+      "pdf_per_second": 1295.2920451797866,
+      "failures": 0,
+      "max_job_memory": 390610,
+      "minor_gcs": 10500
+    },
+    {
+      "reductions": 246409524,
+      "repeat": 3,
+      "scenario": "visual",
+      "concurrency": 4,
+      "pdf_per_second": 1448.7644453888242,
+      "failures": 0,
+      "max_job_memory": 390610,
+      "minor_gcs": 10500
+    },
+    {
+      "reductions": 246409579,
+      "repeat": 1,
+      "scenario": "visual",
+      "concurrency": 10,
+      "pdf_per_second": 2117.029384367855,
+      "failures": 0,
+      "max_job_memory": 390610,
+      "minor_gcs": 10500
+    },
+    {
+      "reductions": 246409572,
+      "repeat": 2,
+      "scenario": "visual",
+      "concurrency": 10,
+      "pdf_per_second": 2029.6326364927947,
+      "failures": 0,
+      "max_job_memory": 390610,
+      "minor_gcs": 10500
+    },
+    {
+      "reductions": 246409577,
+      "repeat": 3,
+      "scenario": "visual",
+      "concurrency": 10,
+      "pdf_per_second": 2043.5132079070338,
+      "failures": 0,
+      "max_job_memory": 390610,
+      "minor_gcs": 10500
+    }
+  ],
+  "worker_heap": "16384"
+}
