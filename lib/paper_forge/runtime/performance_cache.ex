@@ -20,8 +20,11 @@ defmodule PaperForge.PerformanceCache do
         value = producer.()
         update_stats(namespace, :misses)
 
-        updated_cache = put_entry(cache, key, value, limit)
-        Process.put(@cache_key, Map.put(caches, namespace, updated_cache))
+        # A producer may itself populate this or another cache namespace.
+        current_caches = Process.get(@cache_key, %{})
+        current_cache = Map.get(current_caches, namespace, new_cache())
+        updated_cache = put_entry(current_cache, key, value, limit)
+        Process.put(@cache_key, Map.put(current_caches, namespace, updated_cache))
         value
     end
   end
@@ -51,6 +54,10 @@ defmodule PaperForge.PerformanceCache do
   defp new_cache do
     %{entries: %{}, order: :queue.new()}
   end
+
+  defp put_entry(%{entries: entries} = cache, key, value, _limit)
+       when is_map_key(entries, key),
+       do: %{cache | entries: Map.put(entries, key, value)}
 
   defp put_entry(cache, key, value, limit) do
     if map_size(cache.entries) >= limit do
