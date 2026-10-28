@@ -6,6 +6,7 @@ defmodule PaperForge.Layout.Engine do
   alias PaperForge.FontRegistry
   alias PaperForge.Layout.Block
   alias PaperForge.Layout.Geometry
+  alias PaperForge.Layout.Visual
   alias PaperForge.LayoutError
   alias PaperForge.NavigationError
   alias PaperForge.Page
@@ -88,6 +89,72 @@ defmodule PaperForge.Layout.Engine do
       }
 
     {document, report}
+  end
+
+  @doc false
+  def measure_fragment(blocks, width, document) do
+    blocks = Enum.map(blocks, &local_block!(&1, width))
+    pages = paginate(blocks, [size: {width, 1_000_000}, margins: 0], document, [])
+
+    placements =
+      case pages do
+        [] -> []
+        [page] -> page.placements
+        _ -> raise ArgumentError, "visual children cannot contain page breaks"
+      end
+
+    height = placements |> Enum.map(&(&1.y + &1.height)) |> Enum.max(fn -> 0 end)
+    {placements, height}
+  end
+
+  defp local_block!(block, width) do
+    forbidden = [
+      :page_break,
+      :section,
+      :footnote,
+      :endnotes,
+      :table_of_contents,
+      :reference,
+      :custom
+    ]
+
+    opts = block.options
+
+    absolute? = Enum.any?([:x, :y], &Keyword.has_key?(opts, &1))
+
+    page_break? =
+      Enum.any?([:page_break_before, :page_break_after], &Keyword.get(opts, &1, false))
+
+    if block.type in forbidden or absolute? or page_break? do
+      raise ArgumentError,
+            "visual children use local flow coordinates; page navigation and absolute x/y are unsupported"
+    end
+
+    case Keyword.get(opts, :width, width) do
+      :content -> :ok
+      value when is_number(value) and value > 0 and value <= width -> :ok
+      _ -> raise ArgumentError, "child width exceeds its visual cell"
+    end
+
+    %{
+      block
+      | options: Keyword.drop(opts, [:layout_options, :section]),
+        children: Enum.map(block.children, &local_block!(&1, width))
+    }
+  end
+
+  @doc false
+  def render_fragment(page, placements, x, y, width, document) do
+    margins = page.margins
+    local = %{page | margins: %{margins | left: x, right: page.width - x - width}}
+
+    shifted =
+      Enum.map(placements, fn placement ->
+        %{placement | x: placement.x + x, y: placement.y + y}
+      end)
+
+    rendered = render_placements(local, shifted, %PageContext{}, document)
+    %{rendered | margins: margins}
   end
 
   defp materialize_notes(blocks) do
@@ -254,6 +321,14 @@ defmodule PaperForge.Layout.Engine do
 
         heading ++ expanded_children ++ page_break
 
+      %Block{type: :visual, children: children} = block ->
+        [
+          %{
+            apply_style(block, document)
+            | children: expand_blocks(children, section, options, document)
+          }
+        ]
+
       %Block{type: :container, children: children} = block ->
         [
           %{
@@ -269,11 +344,13 @@ defmodule PaperForge.Layout.Engine do
         ]
 
       %Block{} = block ->
+        styled = apply_style(block, document)
+
         [
           %{
-            apply_style(block, document)
+            styled
             | options:
-                apply_style(block, document).options
+                styled.options
                 |> Keyword.put_new(:section, section)
                 |> Keyword.put_new(:layout_options, options)
           }
@@ -341,7 +418,7 @@ defmodule PaperForge.Layout.Engine do
 
   defp destination_page_map(pages) do
     pages
-    |> Enum.flat_map(& &1.placements)
+    |> Enum.flat_map(&navigation_placements(&1.placements))
     |> Enum.reduce(%{}, fn
       %{type: :heading, block: block, page_number: page_number}, acc ->
         case Keyword.get(block.options, :destination, true) do
@@ -361,9 +438,29 @@ defmodule PaperForge.Layout.Engine do
     end)
   end
 
+  defp navigation_blocks(%Block{type: type, children: children})
+       when type in [:visual, :container],
+       do: Enum.flat_map(children, &navigation_blocks/1)
+
+  defp navigation_blocks(block), do: [block]
+
+  defp navigation_placements(placements) do
+    Enum.flat_map(placements, fn
+      %{type: :visual, plan: plan, page_number: number} ->
+        plan.items
+        |> Enum.flat_map(&Map.get(&1, :placements, []))
+        |> Enum.map(&Map.put(&1, :page_number, number))
+        |> navigation_placements()
+
+      placement ->
+        [placement]
+    end)
+  end
+
   defp materialize_navigation(blocks, page_map) do
     entries =
       blocks
+      |> Enum.flat_map(&navigation_blocks/1)
       |> Enum.filter(&(&1.type == :heading))
       |> Enum.reject(&(Keyword.get(&1.options, :destination, true) == false))
       |> Enum.map(fn heading ->
@@ -550,6 +647,52 @@ defmodule PaperForge.Layout.Engine do
     block
     |> apply_block_layout_options(state)
     |> next_page()
+  end
+
+  defp place_block(%Block{type: :visual} = block, state) do
+    state = maybe_page_break_before(block, state)
+    plan = Visual.measure(block, Page.content_width(state.page), state.document)
+    before = Keyword.get(block.options, :space_before, 0)
+    height = before + plan.height + Keyword.get(block.options, :space_after, 12)
+    ensure_fits_empty_page!(block, height, state)
+    state = fit_on_page(block, height, state)
+
+    offset =
+      case Keyword.get(block.options, :align, :left) do
+        :left -> 0
+        :center -> (Page.content_width(state.page) - plan.width) / 2
+        :right -> Page.content_width(state.page) - plan.width
+      end
+
+    if Keyword.has_key?(block.options, :y),
+      do: raise(ArgumentError, "use overlay offsets instead of absolute visual y")
+
+    left = Keyword.get(block.options, :x, Page.content_left(state.page) + offset)
+
+    if left < Page.content_left(state.page) or
+         left + plan.width >
+           Page.content_left(state.page) + Page.content_width(state.page) + 0.001,
+       do: raise(ArgumentError, "visual x exceeds page bounds")
+
+    block = %{
+      block
+      | options:
+          block.options
+          |> Keyword.put(:width, plan.width)
+          |> Keyword.put_new(:x, Page.content_left(state.page) + offset)
+    }
+
+    state =
+      add_fragment(%{state | cursor_y: state.cursor_y + before}, %{
+        id: block.id,
+        type: :visual,
+        block: block,
+        y: state.cursor_y + before,
+        height: height - before,
+        plan: plan
+      })
+
+    maybe_page_break_after(block, state)
   end
 
   defp place_block(%Block{type: :container, children: children, options: options} = block, state) do
@@ -1659,7 +1802,8 @@ defmodule PaperForge.Layout.Engine do
     end
   end
 
-  defp destination_names(%Block{type: :container, children: children}) do
+  defp destination_names(%Block{type: type, children: children})
+       when type in [:container, :visual] do
     Enum.flat_map(children, &destination_names/1)
   end
 
@@ -1680,7 +1824,7 @@ defmodule PaperForge.Layout.Engine do
     end
   end
 
-  defp link_targets(%Block{type: :container, children: children}) do
+  defp link_targets(%Block{type: type, children: children}) when type in [:container, :visual] do
     Enum.flat_map(children, &link_targets/1)
   end
 
@@ -1730,6 +1874,9 @@ defmodule PaperForge.Layout.Engine do
       render_placement(current_page, placement, context, document)
     end)
   end
+
+  defp render_placement(page, %{type: :visual, plan: plan, x: x, y: y}, _context, document),
+    do: Visual.render(page, plan, x, y, document)
 
   defp render_placement(
          page,

@@ -571,7 +571,21 @@ defmodule PaperForge.Declarative.Validator do
         Map.has_key?(node, "slot") ->
           []
 
-        node["type"] in ["group", "section"] ->
+        node["type"] in [
+          "group",
+          "section",
+          "container",
+          "row",
+          "column",
+          "block_grid",
+          "grid",
+          "overlay",
+          "shape",
+          "icon",
+          "badge",
+          "button",
+          "framed_image"
+        ] ->
           block_errors(Map.get(node, "blocks", []), "#{path}.blocks")
 
         Map.has_key?(node, "type") ->

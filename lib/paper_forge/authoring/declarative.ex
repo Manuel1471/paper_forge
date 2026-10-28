@@ -35,7 +35,8 @@ defmodule PaperForge.Declarative do
     max_data_bytes: 10_000_000
   }
   @option_keys ~w(
-    underline strikethrough quiet_zone align background_color borders caption cell_height color colors column_gap column_widths
+    icon icon_size icon_gap columns shape offset_x offset_y underline strikethrough caption_size caption_color
+    quiet_zone align background_color borders caption cell_height color colors column_gap column_widths
     compress count default_font destination even_footer even_header extends fill_color fit
     focal_point font footer gap header header_color
     header_fill_color height hyphenate id keep_together level line_height link marker
@@ -55,6 +56,7 @@ defmodule PaperForge.Declarative do
   @enum_values ~w(
     left center right justify top middle bottom contain cover fill ordered unordered
     keep split error clip ellipsis continue portrait landscape all none a3 a4 a5 letter legal
+    rectangle circle ellipse polygon italic oblique
     bar line area scatter pie donut regular bold content l m q h
   )a
   @declarative_font_slots for index <- 1..64,
@@ -555,6 +557,56 @@ defmodule PaperForge.Declarative do
     end
   end
 
+  defp compile_node(flow, %{"type" => "grid", "blocks" => _} = node, context, state, depth),
+    do: compile_node(flow, Map.put(node, "type", "block_grid"), context, state, depth)
+
+  defp compile_node(flow, %{"type" => type} = node, context, state, depth)
+       when type in [
+              "container",
+              "row",
+              "column",
+              "block_grid",
+              "overlay",
+              "shape",
+              "icon",
+              "badge",
+              "button",
+              "framed_image"
+            ] do
+    kinds = %{
+      "container" => :box,
+      "row" => :row,
+      "column" => :column,
+      "block_grid" => :block_grid,
+      "overlay" => :overlay,
+      "shape" => :shape,
+      "icon" => :icon,
+      "badge" => :badge,
+      "button" => :button,
+      "framed_image" => :framed_image
+    }
+
+    options =
+      options_to_keyword(
+        interpolate(Map.get(node, "options", %{}), context),
+        state.design.tokens,
+        state.font_keys
+      )
+
+    content = interpolate(Map.get(node, "content", Map.get(node, "text", "")), context)
+
+    with {:ok, child_flow, next_state} <-
+           compile_blocks(Map.get(node, "blocks", []), context, state, depth + 1) do
+      {children, options} =
+        visual_content(type, content, Enum.reverse(child_flow.blocks), options, state)
+
+      block = visual_block(kinds[type], children, options)
+      {:ok, %{flow | blocks: [block | flow.blocks]}, next_state}
+    end
+  rescue
+    exception -> {:error, error(:invalid_block, "$.blocks", Exception.message(exception), node)}
+  end
+
   defp compile_node(flow, %{"type" => type} = node, context, state, depth)
        when type in ["group", "section"] do
     options =
@@ -627,6 +679,69 @@ defmodule PaperForge.Declarative do
          "block must define type, component, slot, if, or for",
          node
        )}
+
+  defp visual_content(type, content, children, options, _state)
+       when type in ["badge", "button"] do
+    if children != [],
+      do: raise(ArgumentError, "badge/button take text; use a container for mixed content")
+
+    if type == "button" and not is_binary(options[:link]),
+      do: raise(ArgumentError, "button requires a link")
+
+    text_options = [space_after: 0, align: Keyword.get(options, :text_align, :center)]
+    {[Block.new(:paragraph, to_text(content), text_options)], options}
+  end
+
+  defp visual_content(type, _content, children, _options, _state)
+       when type in ["icon", "shape", "framed_image"] and children != [],
+       do: raise(ArgumentError, "this visual block does not accept children")
+
+  defp visual_content("icon", content, [], options, _state),
+    do: {[], Keyword.put(options, :source, to_text(content))}
+
+  defp visual_content("framed_image", content, [], options, state) do
+    case Registry.resolve_resource(state.registry, to_text(content)) do
+      {:ok, source} -> {[], Keyword.put(options, :source, source)}
+      {:error, reason} -> raise ArgumentError, "image resource is not allowed: #{inspect(reason)}"
+    end
+  end
+
+  defp visual_content(_type, _content, children, options, _state), do: {children, options}
+
+  defp visual_block(:framed_image, children, options) do
+    frame =
+      Block.new(
+        :visual,
+        :framed_image,
+        Keyword.put(Keyword.delete(options, :caption), :children, children)
+      )
+
+    case Keyword.get(options, :caption) do
+      nil ->
+        frame
+
+      caption ->
+        frame = %{frame | options: Keyword.put(frame.options, :space_after, 0)}
+
+        text =
+          Block.new(:paragraph, to_text(caption),
+            size: Keyword.get(options, :caption_size, 9),
+            color: Keyword.get(options, :caption_color, Color.gray(0.4)),
+            align: :center,
+            space_after: 0
+          )
+
+        outer =
+          Keyword.take(options, [:width, :align, :space_after, :offset_x, :offset_y])
+          |> Keyword.put(:gap, 6)
+          |> Keyword.put(:children, [frame, text])
+
+        Block.new(:visual, :column, outer)
+    end
+  end
+
+  defp visual_block(kind, children, options),
+    do: Block.new(:visual, kind, Keyword.put(options, :children, children))
 
   defp compile_loop(values, flow, state, node, context, binding, depth) do
     Enum.reduce_while(values, {:ok, flow, state}, fn value, {:ok, current, current_state} ->

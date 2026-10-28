@@ -4,6 +4,7 @@ defmodule PaperForge.Flow do
   """
 
   alias PaperForge.Layout.Block
+  alias PaperForge.Layout.Visual
 
   defstruct blocks: []
 
@@ -143,6 +144,17 @@ defmodule PaperForge.Flow do
   def reference(%__MODULE__{} = flow, destination, options \\ [])
       when is_binary(destination) or is_atom(destination) do
     put_block(flow, Block.new(:reference, destination, options))
+  end
+
+  @doc "Adds a measured visual composition. Children are supplied as a Flow; see VISUAL_BLOCKS.md."
+  def visual(%__MODULE__{} = flow, kind, %__MODULE__{} = children, options \\ []) do
+    unless kind in Visual.kinds(),
+      do: raise(ArgumentError, "unknown visual kind")
+
+    put_block(
+      flow,
+      Block.new(:visual, kind, Keyword.put(options, :children, Enum.reverse(children.blocks)))
+    )
   end
 
   @doc "Adds a reusable document component registered with `PaperForge.component/3`."
