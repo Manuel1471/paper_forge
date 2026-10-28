@@ -1,0 +1,138 @@
+{
+  "version": "1",
+  "metadata": {
+    "title": "Cuaderno editorial / PaperForge"
+  },
+  "page_templates": {
+    "paper": {
+      "size": [
+        420,
+        595
+      ],
+      "margins": 40,
+      "header": "PAPERFORGE / CUADERNO EDITORIAL",
+      "footer": "REVISIÓN 1.0 + 1.1 / {page} de {total}"
+    }
+  },
+  "layout_options": {
+    "template": "paper"
+  },
+  "blocks": [
+    {
+      "type": "heading",
+      "text": "Una lectura más clara",
+      "options": {
+        "size": 23,
+        "color": "#183B45",
+        "destination": false,
+        "space_after": 14
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Un ejemplo de navegación, referencias y notas editables desde la plantilla.",
+      "options": {
+        "size": 11,
+        "line_height": 16,
+        "color": "#557177",
+        "space_after": 24
+      }
+    },
+    {
+      "type": "table_of_contents",
+      "options": {
+        "title": "En este cuaderno",
+        "size": 10,
+        "space_after": 10,
+        "heading_options": {
+          "size": 13,
+          "color": "#247E83",
+          "space_after": 14
+        }
+      }
+    },
+    {
+      "type": "page_break"
+    },
+    {
+      "type": "heading",
+      "text": "01 / Criterios de edición",
+      "options": {
+        "size": 20,
+        "color": "#183B45"
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "El espacio en blanco ayuda a leer. La jerarquía del título, el interlineado y la separación entre entradas deben poder ajustarse sin cambiar el contenido.",
+      "options": {
+        "size": 11,
+        "line_height": 17,
+        "space_after": 16
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Las notas al pie acompañan al texto principal y conservan una escala discreta.",
+      "options": {
+        "size": 11,
+        "line_height": 17
+      }
+    },
+    {
+      "type": "footnote",
+      "text": "Nota de edición: muestra de contenido, no una fuente externa.",
+      "options": {
+        "size": 8,
+        "line_height": 11,
+        "color": "#557177",
+        "separator_width": 0.35
+      }
+    },
+    {
+      "type": "separator",
+      "options": {
+        "space_before": 18,
+        "space_after": 18
+      }
+    },
+    {
+      "type": "paragraph",
+      "text": "Las notas finales de la página siguiente tienen contenido explícito, una numeración propia y estilos independientes para el título y las entradas.",
+      "options": {
+        "size": 11,
+        "line_height": 17,
+        "color": "#557177"
+      }
+    },
+    {
+      "type": "page_break"
+    },
+    {
+      "type": "endnotes",
+      "content": [
+        {
+          "number": 7,
+          "text": "Referencia editorial A. El tamaño, color y espacio de cada entrada se heredan de las opciones de notas finales."
+        },
+        {
+          "number": 8,
+          "text": "Referencia editorial B. Esta entrada debe aparecer aunque no exista una nota al pie con el mismo número."
+        }
+      ],
+      "options": {
+        "title": "02 / Notas de edición",
+        "size": 10,
+        "line_height": 15,
+        "space_after": 12,
+        "color": "#557177",
+        "heading_options": {
+          "size": 20,
+          "color": "#183B45",
+          "space_after": 18,
+          "level": 1
+        }
+      }
+    }
+  ]
+}

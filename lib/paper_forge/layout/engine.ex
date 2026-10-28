@@ -13,6 +13,7 @@ defmodule PaperForge.Layout.Engine do
   alias PaperForge.PageTemplateError
   alias PaperForge.PerformanceCache
   alias PaperForge.TableError
+  alias PaperForge.TextMetrics
   alias PaperForge.TextWrapper
 
   @default_page_options [size: :a4, origin: :top_left, margins: 72]
@@ -101,17 +102,29 @@ defmodule PaperForge.Layout.Engine do
 
         %Block{type: :endnotes} = block, {next, notes, acc} ->
           title =
-            Block.new(:heading, Keyword.get(block.options, :title, "Endnotes"),
-              level: Keyword.get(block.options, :level, 2)
+            Block.new(
+              :heading,
+              Keyword.get(block.options, :title, "Endnotes"),
+              Keyword.merge(
+                [level: 2, size: 12, space_after: 8],
+                Keyword.get(block.options, :heading_options, [])
+              )
             )
 
+          selected_notes = endnote_entries(block.content, notes)
+
           entries =
-            notes
-            |> Enum.reverse()
+            selected_notes
             |> Enum.map(fn note ->
-              Block.new(:paragraph, "#{note.number}. #{note.text}",
-                size: Keyword.get(block.options, :size, 8),
-                line_height: Keyword.get(block.options, :line_height, 10)
+              Block.new(
+                :paragraph,
+                "#{note.number}. #{note.text}",
+                [
+                  size: 9,
+                  line_height: Keyword.get(block.options, :size, 9) * 1.35,
+                  space_after: 4
+                ]
+                |> Keyword.merge(Keyword.drop(block.options, [:title, :heading_options]))
               )
             end)
 
@@ -124,6 +137,11 @@ defmodule PaperForge.Layout.Engine do
 
     Enum.reverse(materialized)
   end
+
+  defp endnote_entries(value, notes) when value in [nil, []], do: Enum.reverse(notes)
+
+  defp endnote_entries(values, _notes),
+    do: Enum.map(values, fn {number, text} -> %{number: number, text: text} end)
 
   defp materialize_document_numbering(blocks) do
     {numbered, _counters} =
@@ -368,7 +386,9 @@ defmodule PaperForge.Layout.Engine do
           Block.new(
             :heading,
             title,
-            Keyword.merge(block.options, destination: false, bookmark: false, level: 2)
+            block.options
+            |> Keyword.merge(Keyword.get(block.options, :heading_options, []))
+            |> Keyword.merge(destination: false, bookmark: false, level: 2)
           )
 
         entry_blocks =
@@ -378,14 +398,13 @@ defmodule PaperForge.Layout.Engine do
             page = Map.get(page_map, normalize_destination(destination), "?")
             indent = max(level - 1, 0) * Keyword.get(block.options, :indent, 14)
             leader = Keyword.get(block.options, :leader, ".")
-            leader_count = max((58 - String.length(text) - indent) |> round(), 4)
 
             entry_options =
               Keyword.merge(block.options,
                 destination: false,
                 bookmark: false,
                 link_to: destination,
-                space_after: 2
+                space_after: Keyword.get(block.options, :space_after, 2)
               )
               |> Keyword.merge(
                 block.options
@@ -411,8 +430,11 @@ defmodule PaperForge.Layout.Engine do
                   })
 
                 _formatter ->
-                  "#{text} #{String.duplicate(leader, leader_count)} #{page}"
+                  "#{text} #{page}"
               end
+
+            entry_options =
+              toc_entry_options(entry_options, block.options, {text, page, leader, indent})
 
             Block.new(:paragraph, entry_text, entry_options)
           end)
@@ -441,6 +463,35 @@ defmodule PaperForge.Layout.Engine do
       block ->
         [block]
     end)
+  end
+
+  defp toc_entry_options(entry_options, options, entry) do
+    if is_function(Keyword.get(options, :entry_formatter), 1),
+      do: entry_options,
+      else: Keyword.put(entry_options, :toc_entry, entry)
+  end
+
+  defp prepare_toc_entry(block, state) do
+    case Keyword.get(block.options, :toc_entry) do
+      nil ->
+        block
+
+      {text, page, leader, indent} ->
+        width = fragment_width(%{block: block}, state.page) - indent
+        font = metric_font_for_block(block, state.document)
+        size = Keyword.get(block.options, :size, 12)
+        fixed = TextMetrics.width("#{text}  #{page}", font: font, size: size)
+        step = TextMetrics.width(leader, font: font, size: size)
+        count = if step > 0, do: max(0, floor((width - fixed) / step)), else: 0
+
+        options =
+          block.options
+          |> Keyword.put_new(:x, Page.content_left(state.page) + indent)
+          |> Keyword.put(:width, width)
+          |> Keyword.delete(:toc_entry)
+
+        %{block | content: "#{text} #{String.duplicate(leader, count)} #{page}", options: options}
+    end
   end
 
   defp navigation_entry_text(text, options) do
@@ -527,6 +578,7 @@ defmodule PaperForge.Layout.Engine do
 
   defp place_block(%Block{type: :paragraph} = block, state) do
     state = maybe_page_break_before(block, state)
+    block = prepare_toc_entry(block, state)
     lines = paragraph_lines(block, state)
     state = place_text_lines(block, lines, state)
     maybe_page_break_after(block, state)
