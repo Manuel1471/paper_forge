@@ -5,6 +5,14 @@ All notable changes to PaperForge will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Allow flow tables to set independent header font, size, and line height,
+  separate horizontal and vertical padding, and per-cell border colors while
+  retaining the existing defaults and native multipage row handling.
+
 ## [1.5.0] - 2026-10-22
 
 ### Configurable primitives and concurrent rendering

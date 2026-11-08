@@ -363,6 +363,8 @@ defmodule PaperForge.Page do
       row_heights: row_heights,
       column_widths: column_widths,
       padding: Keyword.get(options, :padding, 6),
+      padding_x: Keyword.get(options, :padding_x, Keyword.get(options, :padding, 6)),
+      padding_y: Keyword.get(options, :padding_y, Keyword.get(options, :padding, 6)),
       font: Keyword.get(options, :font),
       size: Keyword.get(options, :size, 10),
       header?: Keyword.get(options, :header, false),
@@ -395,7 +397,8 @@ defmodule PaperForge.Page do
     cell_width = layout.column_widths |> Enum.slice(column, colspan) |> Enum.sum()
     cell_height = layout.row_heights |> Enum.slice(layout.row_index, cell.rowspan) |> Enum.sum()
     cell_text = to_string(cell.content)
-    line_height = Keyword.get(layout.options, :line_height, layout.size * 1.3)
+    text_style = table_cell_text_style(layout)
+    line_height = text_style.line_height
     text_height = max(length(String.split(cell_text, "\n")), 1) * line_height
 
     text_y =
@@ -404,10 +407,15 @@ defmodule PaperForge.Page do
         layout.row_y,
         cell_height,
         text_height,
-        layout.padding,
-        layout.size,
+        layout.padding_y,
+        text_style.size,
         cell.valign || Keyword.get(layout.options, :cell_valign, :top)
       )
+
+    border_options =
+      if is_nil(cell.border_color),
+        do: layout.options,
+        else: Keyword.put(layout.options, :stroke_color, cell.border_color)
 
     page =
       page
@@ -418,7 +426,7 @@ defmodule PaperForge.Page do
         cell_width,
         cell_height,
         cell.borders,
-        layout.options
+        border_options
       )
       |> text_box(
         cell_text,
@@ -428,7 +436,7 @@ defmodule PaperForge.Page do
           cell_width,
           cell_height,
           text_y,
-          line_height,
+          text_style,
           layout
         )
       )
@@ -457,21 +465,42 @@ defmodule PaperForge.Page do
          cell_width,
          cell_height,
          text_y,
-         line_height,
+         text_style,
          layout
        ) do
     [
-      x: cell_x + layout.padding,
+      x: cell_x + layout.padding_x,
       y: text_y,
-      width: max(cell_width - layout.padding * 2, 1),
-      height: max(cell_height - layout.padding * 2, line_height),
-      font: layout.font,
-      size: layout.size,
-      line_height: line_height,
+      width: max(cell_width - layout.padding_x * 2, 1),
+      height: max(cell_height - layout.padding_y * 2, text_style.line_height),
+      font: text_style.font,
+      size: text_style.size,
+      line_height: text_style.line_height,
       color: table_cell_text_color(cell, layout),
       align: cell.align || Keyword.get(layout.options, :cell_align, :left)
     ]
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+  end
+
+  defp table_cell_text_style(%{fill?: true} = layout) do
+    %{
+      font: Keyword.get(layout.options, :header_font, layout.font),
+      size: Keyword.get(layout.options, :header_size, layout.size),
+      line_height:
+        Keyword.get(
+          layout.options,
+          :header_line_height,
+          Keyword.get(layout.options, :line_height, layout.size * 1.3)
+        )
+    }
+  end
+
+  defp table_cell_text_style(layout) do
+    %{
+      font: layout.font,
+      size: layout.size,
+      line_height: Keyword.get(layout.options, :line_height, layout.size * 1.3)
+    }
   end
 
   defp table_cell_text_color(%{color: color}, _layout) when not is_nil(color), do: color
@@ -535,6 +564,7 @@ defmodule PaperForge.Page do
       align: Map.get(cell, :align),
       valign: Map.get(cell, :valign, :top),
       borders: Map.get(cell, :borders, :all),
+      border_color: Map.get(cell, :border_color),
       fill_color: Map.get(cell, :fill_color),
       color: Map.get(cell, :color)
     }
@@ -549,6 +579,7 @@ defmodule PaperForge.Page do
       align: nil,
       valign: nil,
       borders: :all,
+      border_color: nil,
       fill_color: nil,
       color: nil
     }
