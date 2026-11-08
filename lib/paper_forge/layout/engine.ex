@@ -1094,7 +1094,7 @@ defmodule PaperForge.Layout.Engine do
 
       policy == :split ->
         line_height = table_line_height(block)
-        padding = Keyword.get(block.options, :padding, 6)
+        padding = table_padding_y(block)
 
         minimum_height = header_height + padding * 2 + line_height
 
@@ -1123,11 +1123,19 @@ defmodule PaperForge.Layout.Engine do
       end)
       |> Enum.unzip()
 
-    visible = %{row | cells: visible_cells, height: table_row_height(visible_cells, block)}
+    visible = %{
+      row
+      | cells: visible_cells,
+        height: table_row_height(visible_cells, block, row.header?)
+    }
 
     continuation =
       unless Enum.all?(remaining_cells, &(&1.lines == [])),
-        do: %{row | cells: remaining_cells, height: table_row_height(remaining_cells, block)}
+        do: %{
+          row
+          | cells: remaining_cells,
+            height: table_row_height(remaining_cells, block, row.header?)
+        }
 
     {visible, continuation}
   end
@@ -1139,7 +1147,9 @@ defmodule PaperForge.Layout.Engine do
 
   defp measure_table_row(cells, block, state, header?, active_spans) do
     widths = table_column_widths(block, state)
-    padding = Keyword.get(block.options, :padding, 6)
+    padding_x = table_padding_x(block)
+    font_key = table_font(block, header?, state.document.default_font)
+    size = table_size(block, header?)
 
     {wrapped, next_column, new_spans} =
       Enum.reduce(cells, {[], 0, %{}}, fn raw_cell, {measured, column, spans} ->
@@ -1147,12 +1157,11 @@ defmodule PaperForge.Layout.Engine do
         column = next_available_column(column, active_spans)
         colspan = min(cell.colspan, max(length(widths) - column, 1))
         width = widths |> Enum.slice(column, colspan) |> Enum.sum()
-        font_key = Keyword.get(block.options, :font, state.document.default_font)
 
         text_options = [
-          width: max(width - padding * 2, 1),
+          width: max(width - padding_x * 2, 1),
           font: font_key,
-          size: Keyword.get(block.options, :size, 9),
+          size: size,
           hyphenate: Keyword.get(block.options, :hyphenate, false)
         ]
 
@@ -1197,7 +1206,7 @@ defmodule PaperForge.Layout.Engine do
     {
       %{
         cells: wrapped,
-        height: table_row_height(wrapped, block),
+        height: table_row_height(wrapped, block, header?),
         span_rows: Enum.max(Enum.map(wrapped, & &1.rowspan), fn -> 1 end),
         header?: header?,
         index: if(header?, do: 0, else: :body)
@@ -1206,15 +1215,16 @@ defmodule PaperForge.Layout.Engine do
     }
   end
 
-  defp table_row_height(cells, block) do
-    padding = Keyword.get(block.options, :padding, 6)
+  defp table_row_height(cells, block, header?) do
+    padding_y = table_padding_y(block)
     minimum = Keyword.get(block.options, :row_height, 24)
 
     max(
       minimum,
       Enum.max(
         Enum.map(cells, fn cell ->
-          (length(cell.lines) * table_line_height(block) + padding * 2) / cell.rowspan
+          (length(cell.lines) * table_line_height(block, header?) + padding_y * 2) /
+            cell.rowspan
         end),
         fn -> 1 end
       )
@@ -1229,6 +1239,7 @@ defmodule PaperForge.Layout.Engine do
       align: Map.get(cell, :align),
       valign: Map.get(cell, :valign),
       borders: Map.get(cell, :borders),
+      border_color: Map.get(cell, :border_color),
       fill_color: Map.get(cell, :fill_color),
       color: Map.get(cell, :color)
     }
@@ -1242,6 +1253,7 @@ defmodule PaperForge.Layout.Engine do
       align: nil,
       valign: nil,
       borders: nil,
+      border_color: nil,
       fill_color: nil,
       color: nil
     }
@@ -1266,8 +1278,55 @@ defmodule PaperForge.Layout.Engine do
       else: column
   end
 
-  defp table_line_height(block),
-    do: Keyword.get(block.options, :cell_line_height, Keyword.get(block.options, :size, 9) * 1.3)
+  defp table_font(block, true, default),
+    do: Keyword.get(block.options, :header_font, Keyword.get(block.options, :font, default))
+
+  defp table_font(block, false, default), do: Keyword.get(block.options, :font, default)
+
+  defp table_size(block, true),
+    do: Keyword.get(block.options, :header_size, Keyword.get(block.options, :size, 9))
+
+  defp table_size(block, false), do: Keyword.get(block.options, :size, 9)
+
+  defp table_line_height(block, header? \\ false)
+
+  defp table_line_height(block, true) do
+    Keyword.get(
+      block.options,
+      :header_line_height,
+      Keyword.get(block.options, :cell_line_height, table_size(block, true) * 1.3)
+    )
+  end
+
+  defp table_line_height(block, false),
+    do: Keyword.get(block.options, :cell_line_height, table_size(block, false) * 1.3)
+
+  defp table_padding_x(block),
+    do: Keyword.get(block.options, :padding_x, Keyword.get(block.options, :padding, 6))
+
+  defp table_padding_y(block),
+    do: Keyword.get(block.options, :padding_y, Keyword.get(block.options, :padding, 6))
+
+  defp table_header_style?(block) do
+    Enum.any?(
+      [:header_font, :header_size, :header_line_height],
+      &Keyword.has_key?(block.options, &1)
+    )
+  end
+
+  # Header paint follows the row that is actually the header. Repeat is a
+  # separate choice: a later page that omitted the header must not restyle
+  # its first body row just because header typography was configured.
+  # Without those options, the legacy flag remains `repeat_header`.
+  defp table_fragment_header?(block, rows) do
+    repeat? = Keyword.get(block.options, :repeat_header, true)
+
+    if table_header_style?(block) do
+      match?([%{header?: true} | _], rows)
+    else
+      repeat?
+    end
+  end
 
   defp table_column_widths(block, state) do
     count = max(length(block.content.columns), 1)
@@ -2003,9 +2062,20 @@ defmodule PaperForge.Layout.Engine do
         row_heights: Enum.map(measured_rows, & &1.height),
         line_height: table_line_height(block),
         padding: Keyword.get(block.options, :padding, 6),
-        header: Keyword.get(block.options, :repeat_header, true),
+        padding_x: table_padding_x(block),
+        padding_y: table_padding_y(block),
+        header: table_fragment_header?(block, measured_rows),
         font: Keyword.get(block.options, :font, document.default_font),
         size: Keyword.get(block.options, :size, 9),
+        header_font:
+          Keyword.get(
+            block.options,
+            :header_font,
+            Keyword.get(block.options, :font, document.default_font)
+          ),
+        header_size:
+          Keyword.get(block.options, :header_size, Keyword.get(block.options, :size, 9)),
+        header_line_height: table_line_height(block, true),
         column_widths: Keyword.get(block.options, :column_widths),
         header_fill_color:
           Keyword.get(block.options, :header_fill_color, PaperForge.Color.gray(0.92)),
