@@ -1294,7 +1294,10 @@ defmodule PaperForge.Layout.Engine do
     Keyword.get(
       block.options,
       :header_line_height,
-      Keyword.get(block.options, :cell_line_height, table_size(block, true) * 1.3)
+      if(Keyword.has_key?(block.options, :header_size),
+        do: table_size(block, true) * 1.3,
+        else: Keyword.get(block.options, :cell_line_height, table_size(block, true) * 1.3)
+      )
     )
   end
 

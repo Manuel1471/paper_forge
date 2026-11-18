@@ -199,4 +199,75 @@ defmodule PaperForge.TableStyleTest do
       assert options[:line_height] == 14.1375
     end
   end
+
+  test "header line height follows header size for both direct and flow tables" do
+    page =
+      Page.new(origin: :top_left)
+      |> Page.table([["First\nSecond"], ["Body"]],
+        x: 20,
+        y: 20,
+        width: 180,
+        row_height: 90,
+        header: true,
+        size: 10,
+        header_size: 30
+      )
+
+    assert {:text_box, "First\nSecond", opts} =
+             Enum.find(page.operations, &match?({:text_box, "First\nSecond", _}, &1))
+
+    assert opts[:line_height] == 39.0
+
+    {_doc, report} =
+      PaperForge.new()
+      |> PaperForge.layout(fn f ->
+        Flow.table(f, ["First\nSecond"], [["Body"]], size: 10, header_size: 30, row_height: 0)
+      end)
+
+    assert {:text_box, _, opts} =
+             Enum.find(
+               hd(report.rendered_pages).operations,
+               &match?({:text_box, "First\nSecond", _}, &1)
+             )
+
+    assert opts[:line_height] == 39.0
+  end
+
+  test "declarative tables render with embedded header font and independent spacing" do
+    font = File.read!("test/fixtures/fonts/SFNSMono.ttf")
+
+    template = %{
+      "version" => "1",
+      "fonts" => %{"header" => %{"source" => "test:font", "subset" => true}},
+      "blocks" => [
+        %{
+          "type" => "table",
+          "columns" => ["Header"],
+          "rows" => [["Body"]],
+          "options" => %{
+            "header_font" => "header",
+            "header_size" => 18,
+            "header_line_height" => 23.4,
+            "padding_x" => 12,
+            "padding_y" => 8
+          }
+        }
+      ]
+    }
+
+    assert {:ok, doc, report} =
+             PaperForge.Declarative.render(template, %{}, font_sources: %{"test:font" => font})
+
+    assert {:text_box, "Header", opts} =
+             Enum.find(
+               hd(report.rendered_pages).operations,
+               &match?({:text_box, "Header", _}, &1)
+             )
+
+    assert opts[:size] == 18
+    assert opts[:line_height] == 23.4
+    assert opts[:font] != :helvetica
+    assert PaperForge.to_binary(doc) =~ "/FontFile2"
+    assert hd(report.placements).rows |> hd() |> Map.fetch!(:height) >= 39.4
+  end
 end

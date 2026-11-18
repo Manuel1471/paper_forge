@@ -35,6 +35,7 @@ defmodule PaperForge.Declarative do
     max_data_bytes: 10_000_000
   }
   @option_keys ~w(
+    header_font header_size header_line_height padding_x padding_y
     icon icon_size icon_gap columns shape offset_x offset_y underline strikethrough caption_size caption_color
     quiet_zone align background_color borders caption cell_height color colors column_gap column_widths
     compress count default_font destination even_footer even_header extends fill_color fit
@@ -1422,7 +1423,7 @@ defmodule PaperForge.Declarative do
        do: value
 
   defp option_value(value, key, font_keys)
-       when key in [:font, :default_font] and is_binary(value),
+       when key in [:font, :default_font, :header_font] and is_binary(value),
        do: font_key(value, font_keys)
 
   defp option_value([width, height], :size, _font_keys)

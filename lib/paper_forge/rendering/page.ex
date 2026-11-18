@@ -490,7 +490,10 @@ defmodule PaperForge.Page do
         Keyword.get(
           layout.options,
           :header_line_height,
-          Keyword.get(layout.options, :line_height, layout.size * 1.3)
+          if(Keyword.has_key?(layout.options, :header_size),
+            do: Keyword.get(layout.options, :header_size) * 1.3,
+            else: Keyword.get(layout.options, :line_height, layout.size * 1.3)
+          )
         )
     }
   end
