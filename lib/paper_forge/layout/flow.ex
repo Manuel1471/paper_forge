@@ -99,6 +99,15 @@ defmodule PaperForge.Flow do
     put_block(flow, Block.new(:barcode, data, options))
   end
 
+  @doc """
+  Adds a page-aware table.
+
+  In addition to the shared `:font`, `:size`, `:cell_line_height`, and
+  `:padding` options, callers can style the repeated header independently
+  with `:header_font`, `:header_size`, and `:header_line_height`. Use
+  `:padding_x` and `:padding_y` when the horizontal and vertical insets
+  differ; each falls back to `:padding`.
+  """
   @spec table(t(), [term()], [[term()]], keyword()) :: t()
   def table(%__MODULE__{} = flow, columns, rows, options \\ [])
       when is_list(columns) and is_list(rows) do
@@ -110,7 +119,7 @@ defmodule PaperForge.Flow do
 
   Content can be a scalar value, a layout block, or a list of layout blocks.
   Options include `:colspan`, `:rowspan`, `:align`, `:valign`, `:borders`,
-  `:fill_color`, and `:color`.
+  `:border_color`, `:fill_color`, and `:color`.
   """
   @spec cell(term(), keyword()) :: map()
   def cell(content, options \\ []) when is_list(options) do
@@ -128,6 +137,7 @@ defmodule PaperForge.Flow do
       align: Keyword.get(options, :align),
       valign: Keyword.get(options, :valign, :top),
       borders: Keyword.get(options, :borders, :all),
+      border_color: Keyword.get(options, :border_color),
       fill_color: Keyword.get(options, :fill_color),
       color: Keyword.get(options, :color)
     }
